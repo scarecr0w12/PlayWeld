@@ -4,7 +4,9 @@ Generated from permanent [work records](docs/changes/README.md). Run `npm run ch
 
 ## Unreleased
 
-No pending work records.
+### Maintenance
+
+- **Stage and launch the PlayWeld 0.5.0 Windows installer** (none): Stage the verified PlayWeld 0.5.0 installer with committed-source provenance and launch the interactive setup wizard at the user's request. This records post-commit handoff evidence without rewriting the committed release records. [Full details and validation](docs/changes/2026-10-03-installer-0.5.0-handoff.md).
 
 ## 0.5.0
 
