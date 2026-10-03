@@ -123,6 +123,7 @@ export class EngineWidget extends ControlRoomReactWidget {
             aria-label="Engine Project"
             value={this.selectedProjectId}
             onChange={(event) => {
+              this.markProjectSelection();
               this.selectedProjectId = event.currentTarget.value;
               this.selectedRun = undefined;
               void this.loadProject();
@@ -541,12 +542,8 @@ export class EngineWidget extends ControlRoomReactWidget {
         name: project.name,
         family: project.engine.family,
       }));
-      if (
-        !this.selectedProjectId ||
-        !this.projects.some((project) => project.projectId === this.selectedProjectId)
-      ) {
-        this.selectedProjectId = this.projects[0]?.projectId ?? '';
-      }
+      this.selectedProjectId =
+        (await this.resolveProjectSelection(projects, () => this.selectedProjectId)) || '';
       this.installations = installations;
       if (this.selectedProjectId) await this.loadProject(refreshReport);
     } catch (error) {

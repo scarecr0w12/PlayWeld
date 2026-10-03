@@ -134,6 +134,7 @@ export class DiscussionBoardWidget extends ControlRoomReactWidget {
               aria-label="Board Project"
               value={this.projectId ?? ''}
               onChange={(event) => {
+                this.markProjectSelection();
                 this.projectId = event.currentTarget.value || undefined;
                 this.threadDetail = undefined;
                 void this.refresh();
@@ -557,12 +558,8 @@ export class DiscussionBoardWidget extends ControlRoomReactWidget {
   private async refresh(): Promise<void> {
     await this.perform(async () => {
       this.projects = await this.service.listProjects();
-      if (
-        !this.projectId ||
-        !this.projects.some((project) => project.projectId === this.projectId)
-      ) {
-        this.projectId = this.projects[0]?.projectId;
-      }
+      this.projectId =
+        (await this.resolveProjectSelection(this.projects, () => this.projectId)) || undefined;
       if (!this.projectId) {
         this.threads = [];
         this.threadDetail = undefined;

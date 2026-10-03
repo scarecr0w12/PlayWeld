@@ -1,6 +1,6 @@
 # Model eligibility, routing and failure diagnosis guide
 
-**Release:** Unreleased
+**Release:** 0.5.0
 
 **Impact:** none
 

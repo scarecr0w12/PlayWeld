@@ -126,6 +126,7 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
               aria-label="Connections Project"
               value={this.selectedProjectId ?? ''}
               onChange={(event) => {
+                this.markProjectSelection();
                 this.selectedProjectId = event.currentTarget.value || undefined;
                 this.scope = this.selectedProjectId ? 'project' : 'platform';
                 void this.refresh();
@@ -611,12 +612,9 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
     this.errorMessage = undefined;
     try {
       this.projects = await this.service.listProjects();
-      if (
-        this.selectedProjectId &&
-        !this.projects.some((project) => project.projectId === this.selectedProjectId)
-      ) {
-        this.selectedProjectId = undefined;
-      }
+      this.selectedProjectId =
+        (await this.resolveProjectSelection(this.projects, () => this.selectedProjectId)) ||
+        undefined;
       this.connections = await this.service.listMcpConnections(this.selectedProjectId);
     } catch (error) {
       this.errorMessage = errorMessage(error);

@@ -4,11 +4,16 @@ Generated from permanent [work records](docs/changes/README.md). Run `npm run ch
 
 ## Unreleased
 
+No pending work records.
+
+## 0.5.0
+
 ### Fixed
 
 - **Stop incomplete IPC message diagnostics retaining closed connections** (patch): Repair service/client shutdown after an incomplete framed IPC message: the pinned JSON-RPC reader's recurring partial-message diagnostic timer could survive reader disposal and keep an otherwise cleaned-up process alive. [Full details and validation](docs/changes/2026-10-02-ipc-partial-message-shutdown.md).
 - **Normalize generated release-note trailing whitespace** (none): Generate release notes with one terminating newline so newly staged notes pass Git whitespace validation. [Full details and validation](docs/changes/2026-10-02-release-note-whitespace.md).
 - **Restore Sample Hello compatibility with the current platform** (patch): Repair the bundled sample plugin's manifest so the current 0.4.0 platform can inspect and install it. [Full details and validation](docs/changes/2026-10-02-sample-plugin-version-compatibility.md).
+- **Default Control Room project selectors to the restored IDE workspace** (patch): Control Room pages now select the registered Project matching the IDE workspace when opened or restored. They no longer silently default to the first registered Project, which could direct operations at another game. [Full details and validation](docs/changes/2026-10-03-workspace-project-selection.md).
 
 ### Documentation
 
@@ -22,6 +27,7 @@ Generated from permanent [work records](docs/changes/README.md). Run `npm run ch
 ### Maintenance
 
 - **Reproducible native, service and desktop documentation acceptance** (none): Add owned disposable runners for Godot gameplay, service extension/recovery examples, Electron smoke and fresh Unity/Unreal acceptance, repairing fixture prerequisites uncovered by native runs. [Full details and validation](docs/changes/2026-10-02-documentation-native-and-desktop-verification.md).
+- **Prepare version 0.5.0** (none): Prepare version 0.5.0 from 0.4.0, retaining all pending work records in the changelog and detailed release notes. [Full details and validation](docs/changes/2026-10-03-release-0.5.0.md).
 
 ## 0.4.0
 

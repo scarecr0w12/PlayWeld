@@ -69,6 +69,7 @@ export class SkillsWidget extends ControlRoomReactWidget {
               aria-label="Skills Project"
               value={this.selectedProjectId ?? ''}
               onChange={(event) => {
+                this.markProjectSelection();
                 this.selectedProjectId = event.currentTarget.value || undefined;
                 this.readingSkill = undefined;
                 this.resourcePage = undefined;
@@ -480,9 +481,9 @@ export class SkillsWidget extends ControlRoomReactWidget {
   private async refresh(): Promise<void> {
     try {
       this.projects = await this.controlRoomService.listProjects();
-      if (!this.selectedProjectId && this.projects.length > 0) {
-        this.selectedProjectId = this.projects[0]!.projectId;
-      }
+      this.selectedProjectId =
+        (await this.resolveProjectSelection(this.projects, () => this.selectedProjectId)) ||
+        undefined;
       const [skills, roles] = await Promise.all([
         this.controlRoomService.listSkills(this.selectedProjectId),
         this.controlRoomService.listRoles(this.selectedProjectId),

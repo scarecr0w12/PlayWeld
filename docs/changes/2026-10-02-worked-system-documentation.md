@@ -1,6 +1,6 @@
 # Worked system documentation and reusable testing Project
 
-**Release:** Unreleased
+**Release:** 0.5.0
 
 **Impact:** none
 

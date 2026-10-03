@@ -1,6 +1,6 @@
 # Stop incomplete IPC message diagnostics retaining closed connections
 
-**Release:** Unreleased
+**Release:** 0.5.0
 
 **Impact:** patch
 

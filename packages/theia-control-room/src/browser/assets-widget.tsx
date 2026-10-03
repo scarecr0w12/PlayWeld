@@ -130,6 +130,7 @@ export class AssetsWidget extends ControlRoomReactWidget {
             aria-label="Assets Project"
             value={this.selectedProjectId}
             onChange={(event) => {
+              this.markProjectSelection();
               this.selectedProjectId = event.currentTarget.value;
               this.selectedPath = '';
               this.preview = undefined;
@@ -555,8 +556,12 @@ export class AssetsWidget extends ControlRoomReactWidget {
   private async refresh(): Promise<void> {
     try {
       this.projects = await this.service.listProjects();
-      if (!this.selectedProjectId && this.projects.length) {
-        this.selectedProjectId = this.projects[0]!.projectId;
+      const projectId = await this.resolveProjectSelection(
+        this.projects,
+        () => this.selectedProjectId,
+      );
+      if (projectId !== this.selectedProjectId) {
+        this.selectedProjectId = projectId;
         await this.refreshProject();
       } else {
         this.update();

@@ -280,6 +280,7 @@ export class BackupsWidget extends ControlRoomReactWidget {
               <label>
                 Project
                 <select
+                  aria-label="Backups Project"
                   value={this.projectId}
                   onChange={(event) => this.set('projectId', event.currentTarget.value)}
                 >
@@ -551,7 +552,7 @@ export class BackupsWidget extends ControlRoomReactWidget {
       this.identities = identities;
       this.destinations = destinations;
       this.runs = runs;
-      if (!this.projectId && projects[0]) this.projectId = projects[0].projectId;
+      this.projectId = (await this.resolveProjectSelection(projects, () => this.projectId)) || '';
       if (!this.identityId && identities[0]) this.identityId = identities[0].identityId;
       if (!this.destinationId && destinations[0])
         this.destinationId = destinations[0].destinationId;
@@ -841,6 +842,7 @@ export class BackupsWidget extends ControlRoomReactWidget {
         if (value === 'project' || value === 'profile') this.scope = value;
         break;
       case 'projectId':
+        this.markProjectSelection();
         this.projectId = String(value);
         break;
       case 'destinationId':

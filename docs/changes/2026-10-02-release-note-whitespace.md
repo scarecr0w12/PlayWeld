@@ -1,6 +1,6 @@
 # Normalize generated release-note trailing whitespace
 
-**Release:** Unreleased
+**Release:** 0.5.0
 
 **Impact:** none
 

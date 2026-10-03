@@ -69,6 +69,7 @@ export class AuditWidget extends ControlRoomReactWidget {
               aria-label="Audit Project"
               value={this.projectId}
               onChange={(e) => {
+                this.markProjectSelection();
                 this.projectId = e.currentTarget.value;
                 this.afterSeq = 0;
                 this.snapshot = undefined;
@@ -212,8 +213,10 @@ export class AuditWidget extends ControlRoomReactWidget {
       const projects = await this.service.listProjects();
       if (version !== this.version) return;
       this.projects = projects;
-      if (!projects.some((project) => project.projectId === this.projectId)) {
-        this.projectId = projects[0]?.projectId ?? '';
+      const projectIdSelection = await this.resolveProjectSelection(projects, () => this.projectId);
+      if (version !== this.version) return;
+      if (projectIdSelection !== this.projectId) {
+        this.projectId = projectIdSelection;
         this.afterSeq = 0;
       }
       const snapshot = this.projectId

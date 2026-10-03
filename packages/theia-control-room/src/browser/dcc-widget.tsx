@@ -144,6 +144,7 @@ export class DccWidget extends ControlRoomReactWidget {
             aria-label="DCC Project"
             value={this.selectedProjectId}
             onChange={(event) => {
+              this.markProjectSelection();
               this.selectedProjectId = event.currentTarget.value;
               void this.loadProject(true);
             }}
@@ -473,8 +474,8 @@ export class DccWidget extends ControlRoomReactWidget {
   private async refresh(refreshCapabilities = false): Promise<void> {
     try {
       this.projects = await this.service.listProjects();
-      if (!this.selectedProjectId && this.projects[0])
-        this.selectedProjectId = this.projects[0].projectId;
+      this.selectedProjectId =
+        (await this.resolveProjectSelection(this.projects, () => this.selectedProjectId)) || '';
       this.installations = await this.service.listDccInstallations(this.tool);
       if (this.selectedProjectId) await this.loadProject(refreshCapabilities);
       this.update();

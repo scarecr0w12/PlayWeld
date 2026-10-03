@@ -1,6 +1,6 @@
 # Documentation cookbooks, glossary, inventory and sourced refresh
 
-**Release:** Unreleased
+**Release:** 0.5.0
 
 **Impact:** none
 

@@ -1,6 +1,6 @@
 # Selectable actual UI documentation workflows
 
-**Release:** Unreleased
+**Release:** 0.5.0
 
 **Impact:** none
 

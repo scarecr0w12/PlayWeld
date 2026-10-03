@@ -108,6 +108,7 @@ export class ChatWidget extends ControlRoomReactWidget {
               aria-label="Chat Project"
               value={this.projectId}
               onChange={(event) => {
+                this.markProjectSelection();
                 this.selectProject(event.currentTarget.value);
               }}
             >
@@ -366,8 +367,10 @@ export class ChatWidget extends ControlRoomReactWidget {
       const projects = await this.service.listProjects();
       if (version !== this.refreshVersion || this.isDisposed) return;
       this.projects = projects;
-      if (!this.projectId || !projects.some((project) => project.projectId === this.projectId)) {
-        this.projectId = projects[0]?.projectId ?? '';
+      const projectIdSelection = await this.resolveProjectSelection(projects, () => this.projectId);
+      if (version !== this.refreshVersion || this.isDisposed) return;
+      if (projectIdSelection !== this.projectId) {
+        this.projectId = projectIdSelection;
         this.conversationId = '';
         this.messages = [];
       }

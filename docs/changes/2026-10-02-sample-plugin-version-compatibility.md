@@ -1,6 +1,6 @@
 # Restore Sample Hello compatibility with the current platform
 
-**Release:** Unreleased
+**Release:** 0.5.0
 
 **Impact:** patch
 

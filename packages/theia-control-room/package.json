@@ -1,6 +1,6 @@
 {
   "name": "@gamecrafter/theia-control-room",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "private": true,
   "license": "Apache-2.0",
   "main": "lib/index.js",
@@ -26,9 +26,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@gamecrafter/contracts": "0.4.0",
-    "@gamecrafter/platform-service": "0.4.0",
-    "@gamecrafter/service-client": "0.4.0",
+    "@gamecrafter/contracts": "0.5.0",
+    "@gamecrafter/platform-service": "0.5.0",
+    "@gamecrafter/service-client": "0.5.0",
     "@theia/core": "1.75.0",
     "@theia/editor": "1.75.0",
     "@theia/workspace": "1.75.0",

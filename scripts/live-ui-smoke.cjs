@@ -136,6 +136,16 @@ async function main() {
       }, selector);
       const text = await page.$eval(selector, (node) => node.innerText);
       assert(!text.includes('Platform service did not become available'), `${label} lost its service connection`);
+      if (suffix === 'engine' || suffix === 'dcc') {
+        // This smoke creates a Project but opens its IDE workspace at the end.
+        // Choose it explicitly before exercising Project-specific setup forms.
+        const projectSelector = `select[aria-label="${suffix === 'engine' ? 'Engine' : 'DCC'} Project"]`;
+        await waitForUi(page, (selector, name) => [...document.querySelector(selector).options].some(option => option.textContent === name || option.textContent.startsWith(`${name} (`)), projectSelector, projectName);
+        const projectId = await page.$eval(projectSelector, (select, name) => [...select.options].find(option => option.textContent === name || option.textContent.startsWith(`${name} (`))?.value, projectName);
+        assert(projectId, `${label} must list the generated Project`);
+        await page.select(projectSelector, projectId);
+        await page.waitForSelector(suffix === 'engine' ? '.gamecrafter-engine form select' : 'select[aria-label="DCC installation kind"]', { visible: true });
+      }
       if (suffix === 'engine') {
         const selects = await page.$$('.gamecrafter-engine form select');
         await selects[0].select('unreal');
@@ -202,6 +212,9 @@ async function main() {
         assert(projectId, 'Skills must list the generated Project');
         await page.select('select[aria-label="Skills Project"]', projectId);
         await waitForUi(page, () => [...document.querySelectorAll('.gamecrafter-skills-scope')].filter(node => node.textContent.trim() === 'Bundled').length === 30);
+        // Platform-only rows can already be visible while the selected Project's
+        // enablement request is still loading. Wait for that scoped result too.
+        await waitForUi(page, () => document.querySelector('input[aria-label="Enable skill asset-pipeline"]')?.checked);
         const row = await page.$('input[aria-label="Enable skill asset-pipeline"]');
         assert(row && await row.evaluate(node => node.checked), 'Bundled guides must be enabled by default');
         await page.evaluate(() => {

@@ -124,6 +124,7 @@ export class SwarmWidget extends ControlRoomReactWidget {
               aria-label="Swarm Project"
               value={this.projectId ?? ''}
               onChange={(event) => {
+                this.markProjectSelection();
                 this.projectId = event.currentTarget.value || undefined;
                 this.requests = [];
                 this.requestId = '';
@@ -528,7 +529,20 @@ export class SwarmWidget extends ControlRoomReactWidget {
   private async refreshProjects(): Promise<void> {
     try {
       this.projects = await this.service.listProjects();
-      if (!this.projectId) this.projectId = this.projects[0]?.projectId;
+      const projectId =
+        (await this.resolveProjectSelection(this.projects, () => this.projectId)) || undefined;
+      if (projectId !== this.projectId) {
+        this.requestId = '';
+        this.requests = [];
+        this.taskTree = undefined;
+        this.questions = [];
+        this.locks = [];
+        this.integrations = [];
+        this.approvals = [];
+        this.impactPreview = undefined;
+        this.drafts.clear();
+      }
+      this.projectId = projectId;
       await this.refresh();
     } catch (error) {
       this.errorMessage = error instanceof Error ? error.message : String(error);

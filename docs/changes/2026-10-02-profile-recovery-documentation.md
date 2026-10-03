@@ -1,6 +1,6 @@
 # Executable profile recovery and diagnostic documentation
 
-**Release:** Unreleased
+**Release:** 0.5.0
 
 **Impact:** none
 

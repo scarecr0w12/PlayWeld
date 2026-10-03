@@ -142,6 +142,7 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
               aria-label="Knowledge Project"
               value={this.projectId}
               onChange={(event) => {
+                this.markProjectSelection();
                 this.projectId = event.currentTarget.value;
                 this.selectedRecordId = '';
                 this.recordDetail = undefined;
@@ -626,12 +627,8 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
   private async refresh(): Promise<void> {
     await this.withBusy(async () => {
       this.projects = await this.service.listProjects();
-      if (
-        !this.projectId ||
-        !this.projects.some((project) => project.projectId === this.projectId)
-      ) {
-        this.projectId = this.projects[0]?.projectId ?? '';
-      }
+      this.projectId =
+        (await this.resolveProjectSelection(this.projects, () => this.projectId)) || '';
       this.models = await this.service.listModels(undefined, true);
       this.accounts = await this.service.listProviderAccounts();
       if (this.projectId) await this.refreshProject();

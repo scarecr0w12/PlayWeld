@@ -120,6 +120,7 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
               aria-label="Plugins Project"
               value={this.selectedProjectId ?? ''}
               onChange={(event) => {
+                this.markProjectSelection();
                 this.selectedProjectId = event.currentTarget.value || undefined;
                 this.selectedPluginId = undefined;
                 this.panel = undefined;
@@ -711,12 +712,9 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
     this.errorMessage = undefined;
     try {
       this.projects = await this.service.listProjects();
-      if (
-        this.selectedProjectId &&
-        !this.projects.some((project) => project.projectId === this.selectedProjectId)
-      ) {
-        this.selectedProjectId = undefined;
-      }
+      this.selectedProjectId =
+        (await this.resolveProjectSelection(this.projects, () => this.selectedProjectId)) ||
+        undefined;
       const [plugins, modules, isolationReport] = await Promise.all([
         this.service.listPlugins(this.selectedProjectId),
         this.service.getPluginModules(),

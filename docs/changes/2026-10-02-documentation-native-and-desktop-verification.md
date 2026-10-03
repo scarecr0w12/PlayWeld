@@ -1,6 +1,6 @@
 # Reproducible native, service and desktop documentation acceptance
 
-**Release:** Unreleased
+**Release:** 0.5.0
 
 **Impact:** none
 

@@ -18,6 +18,10 @@ vi.mock('./control-room-react-widget', () => ({
     isDisposed = false;
     update() {}
     addClass() {}
+    async resolveProjectSelection(_projects: ProjectSummary[], current: () => string | undefined) {
+      // This fixture models an IDE workspace restored to Project A.
+      return current() || 'A';
+    }
   },
 }));
 vi.mock('@theia/editor/lib/browser/editor-manager', () => ({ EditorManager: class {} }));

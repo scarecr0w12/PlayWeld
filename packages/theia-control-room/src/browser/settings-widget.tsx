@@ -123,6 +123,7 @@ export class GameCrafterSettingsWidget extends ControlRoomReactWidget {
               disabled={this.importBusy}
               value={this.selectedProjectId ?? ''}
               onChange={(event) => {
+                this.markProjectSelection();
                 this.selectedProjectId = event.currentTarget.value || undefined;
                 this.importPreview = undefined;
                 this.drafts.clear();
@@ -567,20 +568,21 @@ export class GameCrafterSettingsWidget extends ControlRoomReactWidget {
   private async refresh(): Promise<void> {
     const version = ++this.refreshVersion;
     try {
-      const [description, projects, settings] = await Promise.all([
+      const [description, projects] = await Promise.all([
         this.controlRoomService.describeSettings(),
         this.controlRoomService.listProjects(),
-        this.controlRoomService.getAllSettings(this.selectedProjectId),
       ]);
+      const projectId =
+        (await this.resolveProjectSelection(projects, () => this.selectedProjectId)) || undefined;
+      if (version !== this.refreshVersion) return;
+      this.selectedProjectId = projectId;
+      const settings = await this.controlRoomService.getAllSettings(projectId);
       if (version !== this.refreshVersion) return;
       this.groups = description.groups;
       this.definitions = description.definitions;
       this.projects = projects;
       if (!this.groups.some((group) => group.id === this.selectedGroup)) {
         this.selectedGroup = this.groups[0]?.id;
-      }
-      if (!this.projects.some((project) => project.projectId === this.selectedProjectId)) {
-        this.selectedProjectId = undefined;
       }
       this.settings = new Map(settings.map((setting) => [setting.key, setting]));
       this.errorMessage = undefined;

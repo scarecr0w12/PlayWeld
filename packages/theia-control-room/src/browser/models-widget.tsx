@@ -71,6 +71,7 @@ export class ModelsWidget extends ControlRoomReactWidget {
               aria-label="Models Project"
               value={this.selectedProjectId ?? ''}
               onChange={(event) => {
+                this.markProjectSelection();
                 this.selectedProjectId = event.currentTarget.value || undefined;
                 void this.refresh();
               }}
@@ -530,8 +531,12 @@ export class ModelsWidget extends ControlRoomReactWidget {
   private async refresh(): Promise<void> {
     const version = ++this.refreshVersion;
     try {
-      const [projects, accounts, models, pools, decisions] = await Promise.all([
-        this.controlRoomService.listProjects(),
+      const projects = await this.controlRoomService.listProjects();
+      const projectId =
+        (await this.resolveProjectSelection(projects, () => this.selectedProjectId)) || undefined;
+      if (version !== this.refreshVersion || this.isDisposed) return;
+      this.selectedProjectId = projectId;
+      const [accounts, models, pools, decisions] = await Promise.all([
         this.controlRoomService.listProviderAccounts(),
         this.controlRoomService.listModels(),
         this.controlRoomService.listModelPools(this.selectedProjectId),

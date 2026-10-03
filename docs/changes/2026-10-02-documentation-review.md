@@ -1,6 +1,6 @@
 # Review documentation coverage, evidence and publication readiness
 
-**Release:** Unreleased
+**Release:** 0.5.0
 
 **Impact:** none
 
