@@ -21,6 +21,8 @@ interface OperationField {
   options?: string[];
 }
 
+type EngineSection = 'capabilities' | 'installations' | 'bridge' | 'operations' | 'runs';
+
 const operationFields: Partial<Record<EngineOperation, OperationField[]>> = {
   check: [{ name: 'path' }],
   build: [{ name: 'method' }, { name: 'platform' }],
@@ -51,6 +53,7 @@ export class EngineWidget extends ControlRoomReactWidget {
   private runs: EngineOperationRun[] = [];
   private selectedRun?: EngineOperationRun;
   private selectedOperation?: EngineOperation;
+  private activeSection: EngineSection = 'capabilities';
   private readonly logContents = new Map<string, string>();
   private runParams: Record<string, Record<string, string | number | boolean>> = {};
   private installationFamily: EngineFamily = 'godot';
@@ -99,9 +102,17 @@ export class EngineWidget extends ControlRoomReactWidget {
   }
 
   protected render(): React.ReactNode {
+    const selectedProject = this.projects.find(
+      (project) => project.projectId === this.selectedProjectId,
+    );
+    const familyInstallations = this.installations.filter(
+      (entry) => !selectedProject || entry.family === selectedProject.family,
+    );
+    const availableOperations =
+      this.report?.operations.filter((entry) => entry.available).length ?? 0;
     return (
       <div className="gamecrafter-engine gamecrafter-surface">
-        <header className="gamecrafter-engine-header">
+        <header className="gamecrafter-engine-header gamecrafter-page-header">
           <div>
             <h1>Engine</h1>
             <p>
@@ -117,26 +128,33 @@ export class EngineWidget extends ControlRoomReactWidget {
             Refresh
           </button>
         </header>
-        <label className="gamecrafter-engine-project">
-          Project
-          <select
-            aria-label="Engine Project"
-            value={this.selectedProjectId}
-            onChange={(event) => {
-              this.markProjectSelection();
-              this.selectedProjectId = event.currentTarget.value;
-              this.selectedRun = undefined;
-              void this.loadProject();
-            }}
-          >
-            <option value="">Select a Project</option>
-            {this.projects.map((project) => (
-              <option key={project.projectId} value={project.projectId}>
-                {project.name} ({project.family})
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="gamecrafter-engine-project gamecrafter-page-meta">
+          <label>
+            Project
+            <select
+              aria-label="Engine Project"
+              value={this.selectedProjectId}
+              onChange={(event) => {
+                this.markProjectSelection();
+                this.selectedProjectId = event.currentTarget.value;
+                this.selectedRun = undefined;
+                void this.loadProject();
+              }}
+            >
+              <option value="">Select a Project</option>
+              {this.projects.map((project) => (
+                <option key={project.projectId} value={project.projectId}>
+                  {project.name} ({project.family})
+                </option>
+              ))}
+            </select>
+          </label>
+          {selectedProject && (
+            <span className="gamecrafter-page-meta-item">
+              Engine family <strong>{selectedProject.family}</strong>
+            </span>
+          )}
+        </div>
         {this.errorMessage && (
           <p className="gamecrafter-engine-error" role="alert">
             {this.errorMessage}
@@ -148,14 +166,78 @@ export class EngineWidget extends ControlRoomReactWidget {
           </p>
         )}
         {!this.selectedProjectId ? (
-          <p>Select a Project to inspect its engine capabilities.</p>
+          <div className="gamecrafter-page-empty">
+            <h2>Select a Project</h2>
+            <p>Choose a Project to inspect engine readiness, installations, and recent runs.</p>
+          </div>
         ) : (
           <>
-            {this.report ? this.renderReport(this.report) : <p>Loading engine capabilities…</p>}
-            {this.renderInstallations()}
-            {this.renderBridge()}
-            {this.renderOperations()}
-            {this.renderRuns()}
+            <section
+              className="gamecrafter-work-guidance gamecrafter-page-guidance"
+              aria-label="Engine next steps"
+            >
+              <div>
+                <strong>What to do next</strong>
+                <p>
+                  {familyInstallations.length === 0
+                    ? `Register a ${selectedProject?.family ?? 'matching'} installation if this Project needs a local engine tool.`
+                    : !this.report
+                      ? 'Wait for the capability report, then check the readiness of each engine layer.'
+                      : availableOperations > 0
+                        ? 'Review operation availability and side effects before configuring a run.'
+                        : 'Review capability evidence and connect a live editor bridge if an operation requires one.'}
+                </p>
+              </div>
+              {familyInstallations.length === 0 && (
+                <button type="button" onClick={() => this.activateSection('installations')}>
+                  Add installation
+                </button>
+              )}
+              {availableOperations > 0 && (
+                <button type="button" onClick={() => this.activateSection('operations')}>
+                  Review operations ({availableOperations})
+                </button>
+              )}
+            </section>
+            <nav className="gamecrafter-section-nav" aria-label="Engine views">
+              {(
+                [
+                  ['capabilities', 'Capabilities', this.report?.operations.length ?? 0],
+                  ['installations', 'Installations', familyInstallations.length],
+                  ['bridge', 'Live bridge', this.liveConnections.length],
+                  ['operations', 'Operations', this.report?.operations.length ?? 0],
+                  ['runs', 'Runs', this.runs.length],
+                ] as const
+              ).map(([section, label, count]) => (
+                <button
+                  key={section}
+                  type="button"
+                  aria-pressed={this.activeSection === section}
+                  onClick={() => this.activateSection(section)}
+                >
+                  {label} <span className="gamecrafter-count">{count}</span>
+                </button>
+              ))}
+            </nav>
+            <section
+              className="gamecrafter-engine-section"
+              hidden={this.activeSection !== 'capabilities'}
+            >
+              {this.report ? (
+                this.renderReport(this.report)
+              ) : (
+                <div className="gamecrafter-page-empty" role="status">
+                  <h2>Checking engine capabilities</h2>
+                  <p>
+                    Capability layers and operation readiness appear here when the check completes.
+                  </p>
+                </div>
+              )}
+            </section>
+            <div hidden={this.activeSection !== 'installations'}>{this.renderInstallations()}</div>
+            <div hidden={this.activeSection !== 'bridge'}>{this.renderBridge()}</div>
+            <div hidden={this.activeSection !== 'operations'}>{this.renderOperations()}</div>
+            <div hidden={this.activeSection !== 'runs'}>{this.renderRuns()}</div>
           </>
         )}
       </div>
@@ -164,8 +246,30 @@ export class EngineWidget extends ControlRoomReactWidget {
 
   private renderReport(report: EngineCapabilityReport): React.ReactNode {
     return (
-      <section className="gamecrafter-engine-section">
+      <section className="gamecrafter-engine-section gamecrafter-page-panel">
         <h2>{report.family} capability report</h2>
+        <div className="gamecrafter-page-meta" aria-label="Capability report metadata">
+          <span className="gamecrafter-page-meta-item">
+            Project identity{' '}
+            <strong>{report.projectIdentity.proven ? 'Proven' : 'Unproven'}</strong>
+          </span>
+          <span className="gamecrafter-page-meta-item">
+            Detected version <strong>{report.engineVersion.detected ?? 'Not detected'}</strong>
+          </span>
+          <span className="gamecrafter-page-meta-item">
+            Preferred version <strong>{report.engineVersion.preferred ?? 'Not set'}</strong>
+          </span>
+          <span className="gamecrafter-page-meta-item">
+            Version match{' '}
+            <strong>
+              {report.engineVersion.matches === null
+                ? 'Unknown'
+                : report.engineVersion.matches
+                  ? 'Yes'
+                  : 'No'}
+            </strong>
+          </span>
+        </div>
         <div className="gamecrafter-engine-layer-list">
           {(['project-file', 'headless-process', 'live-editor'] as const).map((layer) => (
             <div className="gamecrafter-engine-layer" key={layer}>
@@ -179,27 +283,20 @@ export class EngineWidget extends ControlRoomReactWidget {
             </div>
           ))}
         </div>
-        <p>
-          <strong>Identity:</strong> {report.projectIdentity.proven ? 'proven' : 'unproven'}
-          {' · '}
-          <strong>Version:</strong> {report.engineVersion.detected ?? 'not detected'}
-          {' · '}
-          <strong>Preferred:</strong> {report.engineVersion.preferred ?? 'not set'}
-          {' · '}
-          <strong>Match:</strong>{' '}
-          {report.engineVersion.matches === null
-            ? 'unknown'
-            : report.engineVersion.matches
-              ? 'yes'
-              : 'no'}
-        </p>
-        <ul className="gamecrafter-engine-evidence">
-          {report.projectIdentity.evidence.map((entry, index) => (
-            <li key={`${entry.ref}-${index}`}>
-              <code>{entry.ref}</code> — {entry.detail}
-            </li>
-          ))}
-        </ul>
+        <details className="gamecrafter-page-advanced">
+          <summary>Identity evidence ({report.projectIdentity.evidence.length})</summary>
+          {report.projectIdentity.evidence.length === 0 ? (
+            <p className="gamecrafter-page-empty">No identity evidence was reported.</p>
+          ) : (
+            <ul className="gamecrafter-engine-evidence">
+              {report.projectIdentity.evidence.map((entry, index) => (
+                <li key={`${entry.ref}-${index}`}>
+                  <code>{entry.ref}</code> — {entry.detail}
+                </li>
+              ))}
+            </ul>
+          )}
+        </details>
       </section>
     );
   }
@@ -210,7 +307,7 @@ export class EngineWidget extends ControlRoomReactWidget {
     )?.family;
     const installations = this.installations.filter((entry) => !family || entry.family === family);
     return (
-      <section className="gamecrafter-engine-section">
+      <section className="gamecrafter-engine-section gamecrafter-page-panel">
         <h2>Engine installations</h2>
         <p>
           Register the engine tools PlayWeld should run. This is not the game-project folder: Unreal
@@ -218,74 +315,91 @@ export class EngineWidget extends ControlRoomReactWidget {
           Use <code>RunUAT.bat</code> for builds and <code>UnrealEditor-Cmd.exe</code> for
           commandlet operations.
         </p>
-        <form
-          className="gamecrafter-engine-install-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void this.withBusy(async () => {
-              await this.service.addEngineInstallation({
-                family: this.installationFamily,
-                executable: this.executable.trim(),
-                kind: this.installationKind,
-              });
-              this.executable = '';
-              await this.refresh(true);
-              this.resultMessage = 'Engine installation added.';
-            });
-          }}
-        >
-          <label>
-            Family
-            <select
-              value={this.installationFamily}
-              onChange={(event) => {
-                this.installationFamily = event.currentTarget.value as EngineFamily;
-                this.update();
-              }}
-            >
-              <option value="godot">Godot</option>
-              <option value="unity">Unity</option>
-              <option value="unreal">Unreal</option>
-            </select>
-          </label>
-          <label>
-            Kind
-            <select
-              value={this.installationKind}
-              onChange={(event) => {
-                this.installationKind = event.currentTarget.value as EngineInstallation['kind'];
-                this.update();
-              }}
-            >
-              <option value="cli">CLI</option>
-              <option value="editor">Editor</option>
-              <option value="uat">UAT</option>
-              <option value="commandlet">Commandlet</option>
-            </select>
-          </label>
-          <label>
-            Executable
-            <input
-              aria-label="Engine executable"
-              value={this.executable}
-              onChange={(event) => {
-                this.executable = event.currentTarget.value;
-                this.update();
-              }}
-              placeholder="Absolute executable path"
-            />
-          </label>
-          <button
-            className="theia-button"
-            type="submit"
-            disabled={this.busy || !this.executable.trim()}
-          >
-            Add installation
-          </button>
-        </form>
         {installations.length === 0 ? (
-          <p>No installations detected for this Project's engine family.</p>
+          <p className="gamecrafter-page-empty">
+            No {family ?? 'matching'} installations are registered. Add a local executable if this
+            Project needs engine operations.
+          </p>
         ) : (
+          <p className="gamecrafter-page-meta">
+            <span className="gamecrafter-page-meta-item">
+              Registered installations <strong>{installations.length}</strong>
+            </span>
+            <span className="gamecrafter-page-meta-item">
+              Managed by PlayWeld{' '}
+              <strong>{installations.filter((entry) => entry.source === 'manual').length}</strong>
+            </span>
+          </p>
+        )}
+        <details className="gamecrafter-page-advanced">
+          <summary>Register a manual installation</summary>
+          <form
+            className="gamecrafter-engine-install-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void this.withBusy(async () => {
+                await this.service.addEngineInstallation({
+                  family: this.installationFamily,
+                  executable: this.executable.trim(),
+                  kind: this.installationKind,
+                });
+                this.executable = '';
+                await this.refresh(true);
+                this.resultMessage = 'Engine installation added.';
+              });
+            }}
+          >
+            <label>
+              Family
+              <select
+                value={this.installationFamily}
+                onChange={(event) => {
+                  this.installationFamily = event.currentTarget.value as EngineFamily;
+                  this.update();
+                }}
+              >
+                <option value="godot">Godot</option>
+                <option value="unity">Unity</option>
+                <option value="unreal">Unreal</option>
+              </select>
+            </label>
+            <label>
+              Kind
+              <select
+                value={this.installationKind}
+                onChange={(event) => {
+                  this.installationKind = event.currentTarget.value as EngineInstallation['kind'];
+                  this.update();
+                }}
+              >
+                <option value="cli">CLI</option>
+                <option value="editor">Editor</option>
+                <option value="uat">UAT</option>
+                <option value="commandlet">Commandlet</option>
+              </select>
+            </label>
+            <label>
+              Executable
+              <input
+                aria-label="Engine executable"
+                value={this.executable}
+                onChange={(event) => {
+                  this.executable = event.currentTarget.value;
+                  this.update();
+                }}
+                placeholder="Absolute executable path"
+              />
+            </label>
+            <button
+              className="theia-button"
+              type="submit"
+              disabled={this.busy || !this.executable.trim()}
+            >
+              Add installation
+            </button>
+          </form>
+        </details>
+        {installations.length > 0 && (
           <table className="gamecrafter-engine-table">
             <thead>
               <tr>
@@ -330,7 +444,7 @@ export class EngineWidget extends ControlRoomReactWidget {
 
   private renderBridge(): React.ReactNode {
     return (
-      <section className="gamecrafter-engine-section">
+      <section className="gamecrafter-engine-section gamecrafter-page-panel">
         <h2>Live editor bridge</h2>
         <label>
           Connection
@@ -358,6 +472,23 @@ export class EngineWidget extends ControlRoomReactWidget {
           Only connected MCP connections tagged live-editor are considered. Project identity must be
           proven by the bridge before live operations are ready.
         </small>
+        <p className="gamecrafter-page-meta">
+          <span className="gamecrafter-page-meta-item">
+            Bound connection{' '}
+            <strong>
+              {this.liveConnections.find((entry) => entry.connectionId === this.selectedBridgeId)
+                ?.name ?? 'None'}
+            </strong>
+          </span>
+          <span className="gamecrafter-page-meta-item">
+            Eligible connections <strong>{this.liveConnections.length}</strong>
+          </span>
+        </p>
+        {this.liveConnections.length === 0 && (
+          <p className="gamecrafter-page-empty">
+            No connected MCP connections are tagged for live-editor operations.
+          </p>
+        )}
       </section>
     );
   }
@@ -365,10 +496,22 @@ export class EngineWidget extends ControlRoomReactWidget {
   private renderOperations(): React.ReactNode {
     const operations = this.report?.operations ?? [];
     return (
-      <section className="gamecrafter-engine-section">
+      <section className="gamecrafter-engine-section gamecrafter-page-panel">
         <h2>Operations</h2>
+        {this.report && (
+          <p className="gamecrafter-page-meta">
+            <span className="gamecrafter-page-meta-item">
+              Available <strong>{operations.filter((entry) => entry.available).length}</strong>
+            </span>
+            <span className="gamecrafter-page-meta-item">
+              Unavailable <strong>{operations.filter((entry) => !entry.available).length}</strong>
+            </span>
+          </p>
+        )}
         {operations.length === 0 ? (
-          <p>No operations are reported.</p>
+          <p className="gamecrafter-page-empty">
+            No engine operations are reported for this Project.
+          </p>
         ) : (
           <table className="gamecrafter-engine-table">
             <thead>
@@ -409,9 +552,16 @@ export class EngineWidget extends ControlRoomReactWidget {
           </table>
         )}
         {this.selectedOperation && (
-          <div className="gamecrafter-engine-run-form">
+          <div className="gamecrafter-engine-run-form gamecrafter-page-panel">
             <h3>Run {this.selectedOperation}</h3>
-            {this.renderOperationFields(this.selectedOperation)}
+            <p>
+              Confirm the operation, its side effects, and the Project-relative paths before
+              running.
+            </p>
+            <details className="gamecrafter-page-advanced">
+              <summary>Configure optional parameters</summary>
+              {this.renderOperationFields(this.selectedOperation)}
+            </details>
             <button
               className="theia-button"
               disabled={this.busy}
@@ -433,7 +583,7 @@ export class EngineWidget extends ControlRoomReactWidget {
       <div className="gamecrafter-engine-param-grid">
         {fields.map((field) => (
           <label key={field.name}>
-            {field.name}
+            {humanizeField(field.name)}
             {field.type === 'checkbox' ? (
               <input
                 type="checkbox"
@@ -476,10 +626,22 @@ export class EngineWidget extends ControlRoomReactWidget {
 
   private renderRuns(): React.ReactNode {
     return (
-      <section className="gamecrafter-engine-section">
+      <section className="gamecrafter-engine-section gamecrafter-page-panel">
         <h2>Runs</h2>
+        <p className="gamecrafter-page-meta">
+          <span className="gamecrafter-page-meta-item">
+            Recent runs <strong>{this.runs.length}</strong>
+          </span>
+          {this.selectedRun && (
+            <span className="gamecrafter-page-meta-item">
+              Selected status <strong>{this.selectedRun.status}</strong>
+            </span>
+          )}
+        </p>
         {this.runs.length === 0 ? (
-          <p>No engine operations have been run.</p>
+          <p className="gamecrafter-page-empty">
+            No engine runs yet. Review available operations to start one.
+          </p>
         ) : (
           <table className="gamecrafter-engine-table">
             <thead>
@@ -584,6 +746,11 @@ export class EngineWidget extends ControlRoomReactWidget {
     this.update();
   }
 
+  private activateSection(section: EngineSection): void {
+    this.activeSection = section;
+    this.update();
+  }
+
   private async runOperation(operation: EngineOperation): Promise<void> {
     const values = this.runParams[operation] ?? {};
     const params = Object.fromEntries(
@@ -596,6 +763,7 @@ export class EngineWidget extends ControlRoomReactWidget {
         params,
       });
       this.selectedRun = run;
+      this.activeSection = 'runs';
       this.runs = [run, ...this.runs.filter((entry) => entry.runId !== run.runId)].slice(0, 200);
       await this.loadRunLogs(run);
       this.resultMessage = `Engine ${operation} ${run.status}: ${run.summary}`;
@@ -646,6 +814,13 @@ export class EngineWidget extends ControlRoomReactWidget {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function humanizeField(value: string): string {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[-_]/g, ' ')
+    .replace(/^./, (character) => character.toUpperCase());
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

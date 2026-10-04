@@ -26,6 +26,7 @@ export class ModelsWidget extends ControlRoomReactWidget {
   private decisions: Awaited<ReturnType<ControlRoomServiceApi['listRouteDecisions']>> = [];
   private projects: ProjectSummary[] = [];
   private selectedProjectId?: string;
+  private activeSection: 'accounts' | 'models' | 'pools' | 'decisions' = 'accounts';
   private accountKind: ProviderKind = 'openai-compatible';
   private accountName = '';
   private accountBaseUrl = 'http://localhost:11434/v1';
@@ -62,11 +63,11 @@ export class ModelsWidget extends ControlRoomReactWidget {
 
   protected render(): React.ReactNode {
     return (
-      <div className="gamecrafter-models gamecrafter-surface">
-        <header className="gamecrafter-models-header">
+      <div className="gamecrafter-models gamecrafter-page gamecrafter-surface">
+        <header className="gamecrafter-models-header gamecrafter-page-header">
           <h1>Models &amp; Routing</h1>
           <label>
-            Project
+            Project context for pools and decisions
             <select
               aria-label="Models Project"
               value={this.selectedProjectId ?? ''}
@@ -93,9 +94,52 @@ export class ModelsWidget extends ControlRoomReactWidget {
             {this.errorMessage}
           </p>
         )}
+        <section
+          className="gamecrafter-work-guidance gamecrafter-page-guidance"
+          aria-label="Models next steps"
+        >
+          <div>
+            <strong>What to do next</strong>
+            <p>
+              {this.accounts.length === 0
+                ? 'Add a provider account, test the connection, and discover the models you want to enable.'
+                : this.models.length === 0
+                  ? 'Discover models from an enabled provider, then choose which models to add.'
+                  : 'Check enabled models and their routing metadata, then create a pool for a platform or Project target.'}
+            </p>
+          </div>
+        </section>
+        <nav className="gamecrafter-section-nav" aria-label="Model configuration sections">
+          {(
+            [
+              ['accounts', 'Provider accounts', this.accounts.length],
+              ['models', 'Models', this.models.length],
+              ['pools', 'Model pools', this.pools.length],
+              ['decisions', 'Routing decisions', this.decisions.length],
+            ] as const
+          ).map(([section, label, count]) => (
+            <button
+              key={section}
+              type="button"
+              aria-pressed={this.activeSection === section}
+              onClick={() => {
+                this.activeSection = section;
+                this.update();
+              }}
+            >
+              {label} <span className="gamecrafter-count">{count}</span>
+            </button>
+          ))}
+        </nav>
 
-        <section className="gamecrafter-models-section">
+        <section
+          className="gamecrafter-models-section gamecrafter-page-panel"
+          hidden={this.activeSection !== 'accounts'}
+        >
           <h2>Provider accounts</h2>
+          <p className="gamecrafter-page-section-intro">
+            Connect a local or cloud provider before discovering its model catalog.
+          </p>
           <form
             className="gamecrafter-models-account-form"
             onSubmit={(event) => {
@@ -172,7 +216,9 @@ export class ModelsWidget extends ControlRoomReactWidget {
             </button>
           </form>
           {this.accounts.length === 0 ? (
-            <p>No provider accounts.</p>
+            <p className="gamecrafter-page-empty">
+              No provider accounts yet. Add one here, then test it and discover available models.
+            </p>
           ) : (
             <div className="gamecrafter-models-table-scroll">
               <table className="gamecrafter-models-table">
@@ -240,28 +286,31 @@ export class ModelsWidget extends ControlRoomReactWidget {
           )}
         </section>
 
-        <section className="gamecrafter-models-section">
+        <section
+          className="gamecrafter-models-section gamecrafter-page-panel"
+          hidden={this.activeSection !== 'models'}
+        >
           <h2>Models</h2>
+          <p className="gamecrafter-page-section-intro">
+            Enable models for routing. Expand a model's details to edit prices, capabilities, and
+            routing tags.
+          </p>
           {this.models.length === 0 ? (
-            <p>No discovered models.</p>
+            <p className="gamecrafter-page-empty">
+              No models discovered. Open Provider accounts, test a provider, and discover its model
+              list.
+            </p>
           ) : (
             <div className="gamecrafter-models-table-scroll">
               <table className="gamecrafter-models-table">
                 <thead>
                   <tr>
                     <th>Account</th>
-                    <th>Model ID</th>
+                    <th>Provider model</th>
                     <th>Display name</th>
                     <th>Enabled</th>
-                    <th>Tools</th>
-                    <th>Vision</th>
-                    <th>Embeddings</th>
-                    <th>Context / input capacity</th>
-                    <th>Output capacity</th>
-                    <th>Pricing</th>
-                    <th>Work types</th>
-                    <th>Roles</th>
-                    <th>Tags</th>
+                    <th>Capabilities and limits</th>
+                    <th>Pricing and routing metadata</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -297,29 +346,83 @@ export class ModelsWidget extends ControlRoomReactWidget {
                           }
                         />
                       </td>
-                      <td>{model.capabilities.tools ? 'Yes' : 'No'}</td>
-                      <td>{model.capabilities.vision ? 'Yes' : 'No'}</td>
-                      <td>{model.capabilities.embeddings ? 'Yes' : 'No'}</td>
-                      <td
-                        title={`Metadata: ${model.metadataSource}; updated ${model.metadataUpdatedAt}`}
-                      >
-                        {model.capabilities.contextWindow
-                          ? `${model.capabilities.contextWindow.toLocaleString()} shared`
-                          : model.capabilities.maxInputTokens
-                            ? `${model.capabilities.maxInputTokens.toLocaleString()} input`
-                            : 'Unknown — provider-managed'}
+                      <td>
+                        <details className="gamecrafter-page-advanced">
+                          <summary>
+                            {model.capabilities.tools ? 'Tools' : ''}
+                            {model.capabilities.vision ? ' · Vision' : ''}
+                            {model.capabilities.embeddings ? ' · Embeddings' : ''}
+                            {!model.capabilities.tools &&
+                            !model.capabilities.vision &&
+                            !model.capabilities.embeddings
+                              ? 'No declared capabilities'
+                              : ''}
+                          </summary>
+                          <dl className="gamecrafter-page-meta">
+                            <div className="gamecrafter-page-meta-item">
+                              <dt>Tools</dt>
+                              <dd>{model.capabilities.tools ? 'Yes' : 'No'}</dd>
+                            </div>
+                            <div className="gamecrafter-page-meta-item">
+                              <dt>Vision</dt>
+                              <dd>{model.capabilities.vision ? 'Yes' : 'No'}</dd>
+                            </div>
+                            <div className="gamecrafter-page-meta-item">
+                              <dt>Embeddings</dt>
+                              <dd>{model.capabilities.embeddings ? 'Yes' : 'No'}</dd>
+                            </div>
+                            <div className="gamecrafter-page-meta-item">
+                              <dt>Context window</dt>
+                              <dd>
+                                {model.capabilities.contextWindow?.toLocaleString() ??
+                                  'Provider-managed'}
+                              </dd>
+                            </div>
+                            <div className="gamecrafter-page-meta-item">
+                              <dt>Maximum input</dt>
+                              <dd>
+                                {model.capabilities.maxInputTokens?.toLocaleString() ??
+                                  'Provider-managed'}
+                              </dd>
+                            </div>
+                            <div className="gamecrafter-page-meta-item">
+                              <dt>Maximum output</dt>
+                              <dd>
+                                {model.capabilities.maxOutputTokens?.toLocaleString() ??
+                                  'Provider-managed'}
+                              </dd>
+                            </div>
+                            <div className="gamecrafter-page-meta-item">
+                              <dt>Metadata source</dt>
+                              <dd>
+                                {model.metadataSource} · updated{' '}
+                                {new Date(model.metadataUpdatedAt).toLocaleString()}
+                              </dd>
+                            </div>
+                          </dl>
+                        </details>
                       </td>
                       <td>
-                        {model.capabilities.maxOutputTokens
-                          ? model.capabilities.maxOutputTokens.toLocaleString()
-                          : 'Unknown — provider-managed'}
+                        <details className="gamecrafter-page-advanced">
+                          <summary>{formatPricing(model.pricing)} · Edit routing metadata</summary>
+                          {this.renderPricingEditor(model)}
+                          <label>
+                            Work types{' '}
+                            {this.renderStringListEditor(
+                              model.modelId,
+                              'workTypes',
+                              model.workTypes,
+                            )}
+                          </label>
+                          <label>
+                            Agent roles{' '}
+                            {this.renderStringListEditor(model.modelId, 'roles', model.roles)}
+                          </label>
+                          <label>
+                            Tags {this.renderStringListEditor(model.modelId, 'tags', model.tags)}
+                          </label>
+                        </details>
                       </td>
-                      <td>{this.renderPricingEditor(model)}</td>
-                      <td>
-                        {this.renderStringListEditor(model.modelId, 'workTypes', model.workTypes)}
-                      </td>
-                      <td>{this.renderStringListEditor(model.modelId, 'roles', model.roles)}</td>
-                      <td>{this.renderStringListEditor(model.modelId, 'tags', model.tags)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -328,8 +431,15 @@ export class ModelsWidget extends ControlRoomReactWidget {
           )}
         </section>
 
-        <section className="gamecrafter-models-section">
+        <section
+          className="gamecrafter-models-section gamecrafter-page-panel"
+          hidden={this.activeSection !== 'pools'}
+        >
           <h2>Model pools</h2>
+          <p className="gamecrafter-page-section-intro">
+            Pools constrain model choices for platform-wide or Project-specific agents and task
+            types.
+          </p>
           <form
             className="gamecrafter-models-pool-form"
             onSubmit={(event) => {
@@ -423,7 +533,9 @@ export class ModelsWidget extends ControlRoomReactWidget {
             </button>
           </form>
           {this.pools.length === 0 ? (
-            <p>No model pools.</p>
+            <p className="gamecrafter-page-empty">
+              No pools yet. Select enabled models above and create a pool for the intended scope.
+            </p>
           ) : (
             <ul className="gamecrafter-models-pool-list">
               {this.pools.map((pool) => (
@@ -441,10 +553,16 @@ export class ModelsWidget extends ControlRoomReactWidget {
           )}
         </section>
 
-        <section className="gamecrafter-models-section">
+        <section
+          className="gamecrafter-models-section gamecrafter-page-panel"
+          hidden={this.activeSection !== 'decisions'}
+        >
           <h2>Recent routing decisions</h2>
           {this.decisions.length === 0 ? (
-            <p>No routing decisions yet.</p>
+            <p className="gamecrafter-page-empty">
+              No routing decisions recorded for this scope yet. Decisions appear after routed model
+              work.
+            </p>
           ) : (
             <div className="gamecrafter-models-table-scroll">
               <table className="gamecrafter-models-table">

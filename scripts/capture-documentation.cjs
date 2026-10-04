@@ -45,31 +45,164 @@ async function main() {
     await wait(
       (query, text) =>
         [...document.querySelectorAll(query)].some(
-          (node) => node.textContent.trim() === text && !node.disabled,
+          (node) =>
+            node.textContent.trim().includes(text) &&
+            !node.disabled &&
+            node.getClientRects().length > 0 &&
+            getComputedStyle(node).visibility !== 'hidden',
         ),
       selector,
       label,
     );
     for (const element of await page.$$(selector)) {
-      if ((await element.evaluate((node) => node.textContent.trim())) === label) {
+      if (
+        await element.evaluate(
+          (node, text) =>
+            node.textContent.trim().includes(text) &&
+            !node.disabled &&
+            node.getClientRects().length > 0 &&
+            getComputedStyle(node).visibility !== 'hidden',
+          label,
+        )
+      ) {
         await element.asLocator().click();
         return;
       }
     }
     throw new Error(`Missing ${label} in ${selector}`);
   }
+  async function selectSection(navigation, label) {
+    await wait(
+      (name, text) => {
+        const visible = (node) =>
+          node.getClientRects().length > 0 && getComputedStyle(node).visibility !== 'hidden';
+        const matches = (button) => {
+          const actual = button.textContent.trim();
+          return actual === text || (actual.startsWith(text) && /^\s*\d+$/.test(actual.slice(text.length)));
+        };
+        const nav = [...document.querySelectorAll('nav[aria-label]')].find(
+          (node) => node.getAttribute('aria-label') === name && visible(node),
+        );
+        return [...(nav?.querySelectorAll('button') ?? [])].some(
+          (button) => matches(button) && visible(button),
+        );
+      },
+      navigation,
+      label,
+    );
+    const targetFound = await page.evaluate((name, text) => {
+      for (const button of document.querySelectorAll('[data-documentation-section-target]'))
+        button.removeAttribute('data-documentation-section-target');
+      const visible = (node) =>
+        node.getClientRects().length > 0 && getComputedStyle(node).visibility !== 'hidden';
+      const matches = (node) => {
+        const actual = node.textContent.trim();
+        return actual === text || (actual.startsWith(text) && /^\s*\d+$/.test(actual.slice(text.length)));
+      };
+      const nav = [...document.querySelectorAll('nav[aria-label]')].find(
+        (node) => node.getAttribute('aria-label') === name && visible(node),
+      );
+      const button = [...(nav?.querySelectorAll('button') ?? [])].find(
+        (node) => matches(node) && visible(node),
+      );
+      if (!button) return false;
+      button.scrollIntoView({ block: 'nearest' });
+      button.setAttribute('data-documentation-section-target', 'true');
+      return true;
+    }, navigation, label);
+    assert(targetFound, `Missing ${label} in ${navigation}`);
+    await page.click('button[data-documentation-section-target="true"]');
+    await wait(
+      (name, text) => {
+        const visible = (node) =>
+          node.getClientRects().length > 0 && getComputedStyle(node).visibility !== 'hidden';
+        const matches = (button) => {
+          const actual = button.textContent.trim();
+          return actual === text || (actual.startsWith(text) && /^\s*\d+$/.test(actual.slice(text.length)));
+        };
+        const nav = [...document.querySelectorAll('nav[aria-label]')].find(
+          (node) => node.getAttribute('aria-label') === name && visible(node),
+        );
+        return [...(nav?.querySelectorAll('button') ?? [])].some(
+          (button) =>
+            matches(button) && button.getAttribute('aria-pressed') === 'true' && visible(button),
+        );
+      },
+      navigation,
+      label,
+    );
+  }
+  async function ensureDisclosure(selector, label) {
+    const expanded = await page.evaluate((query) => {
+      const visible = (node) =>
+        node.getClientRects().length > 0 && getComputedStyle(node).visibility !== 'hidden';
+      const summary = [...document.querySelectorAll(query)].find(visible);
+      return summary?.closest('details')?.open ?? false;
+    }, selector);
+    if (!expanded) await click(selector, label);
+  }
+  async function selectProject(selector, projectId) {
+    await wait(
+      (query, id) =>
+        [...document.querySelectorAll(query)]
+          .filter(
+            (node) => node.getClientRects().length > 0 && getComputedStyle(node).visibility !== 'hidden',
+          )
+          .some((node) => [...node.options].some((option) => option.value === id)),
+      selector,
+      projectId,
+    );
+    const targetFound = await page.evaluate((query, id) => {
+      for (const item of document.querySelectorAll('[data-documentation-project-target]'))
+        item.removeAttribute('data-documentation-project-target');
+      const node = [...document.querySelectorAll(query)].find(
+        (item) =>
+          item.getClientRects().length > 0 &&
+          getComputedStyle(item).visibility !== 'hidden' &&
+          [...item.options].some((option) => option.value === id),
+      );
+      if (!node) return false;
+      node.setAttribute('data-documentation-project-target', 'true');
+      return true;
+    }, selector, projectId);
+    assert(targetFound, `Project ${projectId} must be selectable in ${selector}`);
+    const selected = await page.select(
+      'select[data-documentation-project-target="true"]',
+      projectId,
+    );
+    assert(selected.includes(projectId), `Project ${projectId} must be selected in ${selector}`);
+    await wait(
+      (query, id) =>
+        [...document.querySelectorAll(query)].some(
+          (node) =>
+            node.value === id &&
+            node.getClientRects().length > 0 &&
+            getComputedStyle(node).visibility !== 'hidden',
+        ),
+      selector,
+      projectId,
+    );
+  }
   async function capture(name, selector) {
     await wait((root) => {
-      const node = document.querySelector(root);
+      const node = [...document.querySelectorAll(root)].find(
+        (item) => item.getClientRects().length > 0 && getComputedStyle(item).visibility !== 'hidden',
+      );
       return node && node.innerText.length > 30 && !node.innerText.trim().startsWith('Loading');
     }, selector);
     for (const notification of await page.$$(
       '.theia-notification-toasts .theia-notification-actions [title="Clear"]',
     )) {
-      await notification.click();
+      if (await notification.evaluate((node) => node.getClientRects().length > 0))
+        await notification.click();
     }
     // Capture the visible region; scrollable surfaces can extend beyond their dock viewport.
-    const element = await page.$(selector);
+    const element = await page.evaluateHandle((query) =>
+      [...document.querySelectorAll(query)].find(
+        (node) => node.getClientRects().length > 0 && getComputedStyle(node).visibility !== 'hidden',
+      ),
+    selector);
+    assert(element.asElement(), `${selector} must have a visible instance`);
     const clip = await element.evaluate((node) => {
       const rect = node.getBoundingClientRect();
       const x = Math.max(0, rect.x),
@@ -87,7 +220,7 @@ async function main() {
   }
   async function open(label, suffix) {
     await click('.lm-TabBar-tabLabel', 'Project Home');
-    await click('.gamecrafter-project-home button', label);
+    await click('.gamecrafter-home-navigation button', label);
     await page.waitForSelector(`.gamecrafter-${suffix}`, { visible: true, timeout: 60000 });
   }
   try {
@@ -105,6 +238,7 @@ async function main() {
       clientName: 'documentation',
       clientVersion: version,
     });
+    let fixtureChatRequests = 0;
     provider = createServer(async (request, response) => {
       const chunks = [];
       for await (const chunk of request) chunks.push(chunk);
@@ -128,6 +262,7 @@ async function main() {
           }),
         );
       } else if (request.url === '/v1/chat/completions') {
+        fixtureChatRequests++;
         response.end(
           JSON.stringify({
             choices: [
@@ -257,6 +392,8 @@ async function main() {
     );
     if (selectedScenarios.includes('overview')) {
       await open('Discussion Board', 'board');
+      await selectProject('[aria-label="Board Project"]', project.projectId);
+      await ensureDisclosure('.gamecrafter-board details summary', 'New thread');
       await page.locator('[aria-label="New thread title"]').fill('Lantern collection rule');
       await page.locator('[aria-label="New thread tags"]').fill('tutorial, gameplay');
       await page.type(
@@ -283,6 +420,7 @@ async function main() {
       );
       await capture('03-project', '.gamecrafter-project-home');
       await open('Chat', 'chat');
+      await selectProject('[aria-label="Chat Project"]', project.projectId);
       await wait(() => document.querySelector('[aria-label="Chat model"]')?.options.length > 1);
       await page.type(
         '[aria-label="Message"]',
@@ -298,7 +436,29 @@ async function main() {
       );
       checks.push('UI chat request completed through router and local fixture provider');
       await capture('05-chat', '.gamecrafter-chat');
+      await page.locator('.gamecrafter-chat-conversation-search input').fill('Lantern');
+      await wait(
+        () =>
+          [...document.querySelectorAll('[aria-label="Chat conversations"] button')].some(
+            (button) => button.textContent.toLowerCase().includes('lantern'),
+          ) &&
+          [...document.querySelectorAll('select[aria-label="Chat conversation"] option')].every(
+            (option) => option.textContent.toLowerCase().includes('lantern') || option.value === '',
+          ),
+      );
+      await capture('05-chat-search', '.gamecrafter-chat');
+      await click('[aria-label="New chat"]', 'New');
+      await wait(() => document.querySelector('[aria-label="Conversation starters"] button'));
+      await click('[aria-label="Conversation starters"] button', 'Help me plan a gameplay change.');
+      assert.equal(await page.$eval('[aria-label="Message"]', (node) => node.value), 'Help me plan a gameplay change.');
+      assert.equal(fixtureChatRequests, 1, 'Choosing a starter must not send another model request');
+      await page.setViewport({ width: 650, height: 1000 });
+      await capture('05-chat-mobile-starter', '.gamecrafter-chat');
+      await page.setViewport({ width: 1600, height: 1100 });
+      checks.push('Chat search filters the conversation list and picker; a starter fills a draft only and the compact mobile view is captured');
       await open('Knowledge', 'knowledge');
+      await selectProject('[aria-label="Knowledge Project"]', project.projectId);
+      await selectSection('Knowledge sections', 'Index status');
       await click('.gamecrafter-knowledge-actions button', 'Reconcile');
       for (let attempt = 0; attempt < 60; attempt++) {
         const status = await client.call('knowledge/index/status', {
@@ -308,6 +468,11 @@ async function main() {
         if (attempt === 59) throw new Error('Knowledge reconcile did not complete');
         await delay(500);
       }
+      await selectSection('Knowledge sections', 'Search');
+      await ensureDisclosure(
+        '.gamecrafter-knowledge-query-form details summary, .gamecrafter-knowledge details summary',
+        'Search mode and filters',
+      );
       await page.select('[aria-label="Knowledge search mode"]', 'lexical');
       await page.select('[aria-label="Knowledge search source"]', 'docs');
       await page.locator('[aria-label="Knowledge search query"]').fill('lantern');
@@ -350,6 +515,32 @@ async function main() {
       ];
       for (const [label, suffix, name] of surfaces) {
         await open(label, suffix);
+        const sectionBySurface = {
+          models: ['Model configuration sections', 'Provider accounts'],
+          skills: ['Skills workspace sections', 'Project skills'],
+          swarm: ['Swarm views', 'Agents'],
+          connections: ['Connection views', 'Add connection'],
+          engine: ['Engine views', 'Capabilities'],
+          dcc: ['DCC views', 'Capabilities'],
+          assets: ['Asset workspace sections', 'Generate'],
+          plugins: ['Platform plugin sections', 'Install'],
+          backups: ['Backup sections', 'Identities'],
+          updates: ['Update sections', 'Status'],
+          audit: ['Audit sections', 'Tool calls'],
+      }[suffix];
+        const projectControlBySurface = {
+          skills: 'Skills Project',
+          swarm: 'Swarm Project',
+          connections: 'Connections Project',
+          engine: 'Engine Project',
+          dcc: 'DCC Project',
+          assets: 'Assets Project',
+          audit: 'Audit Project',
+        }[suffix];
+        if (projectControlBySurface) {
+          await selectProject(`[aria-label="${projectControlBySurface}"]`, project.projectId);
+        }
+        if (sectionBySurface) await selectSection(...sectionBySurface);
         if (suffix === 'settings') {
           await page.locator('.gamecrafter-settings-search input').fill('access.mode');
           await page.waitForSelector('select[aria-label="Access mode"]');
@@ -368,12 +559,14 @@ async function main() {
           checks.push('Settings platform override saved, inspected, and reset in UI');
         }
         if (suffix === 'skills') {
-          await wait(() =>
-            document.querySelector('input[aria-label="Enable skill asset-pipeline"]'),
+          const skillCard = await page.evaluateHandle(() =>
+            [...document.querySelectorAll('.gamecrafter-skill-card')].find((node) =>
+              node.textContent.toLowerCase().includes('asset-pipeline'),
+            ),
           );
-          const row = await page.$('input[aria-label="Enable skill asset-pipeline"]');
-          const buttons = await row.evaluateHandle((node) => node.closest('tr'));
-          for (const button of await buttons.$$('button')) {
+          const readGuide = await skillCard.asElement()?.$('button');
+          assert(readGuide, 'Asset pipeline skill card must be visible');
+          for (const button of await skillCard.asElement().$$('button')) {
             if ((await button.evaluate((node) => node.textContent.trim())) === 'Read guide')
               await button.asLocator().click();
           }
@@ -385,6 +578,7 @@ async function main() {
           checks.push('Bundled asset-pipeline guide opened in UI');
         }
         if (suffix === 'swarm') {
+          await ensureDisclosure('.gamecrafter-swarm-request-composer summary', 'New request');
           await page.type(
             '[aria-label="Change request"]',
             'Preview the impact of documenting the lantern reset rule in docs/DESIGN.md.',
@@ -406,6 +600,9 @@ async function main() {
       checks,
       open,
       click,
+      selectSection,
+      ensureDisclosure,
+      selectProject,
       capture,
       wait,
     });

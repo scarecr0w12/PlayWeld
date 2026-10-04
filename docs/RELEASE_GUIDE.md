@@ -17,9 +17,9 @@ Keep work records pending while developing. Before preparation, review their det
 For example, prepare the next patch testing version (use a minor bump for new features or breaking changes before 1.0):
 
 ```bash
-npm run release:version -- 0.1.5
+npm run release:version -- 0.7.0
 npm install --package-lock-only --ignore-scripts
-node scripts/check-release-version.cjs v0.1.5
+node scripts/check-release-version.cjs v0.7.0
 npm run changelog:check -- --release --base HEAD
 npm ci
 npx turbo run build typecheck lint test
@@ -92,6 +92,8 @@ Double-click `Launch-PlayWeld-Test.cmd` for an isolated local test. It sets the 
 
 Staging rejects an existing `Windows-Release/<version>` destination so previous evidence/builds are preserved. It does not delete or overwrite an earlier version. Installers, unpacked apps, credentials and generated test artifacts remain ignored by Git.
 
+When a local installer is built before its source commit, `local-build.json` identifies the base commit and explicitly records `workingTreeDirty` plus changed, nonignored source paths and SHA-256 fingerprints. A dirty build must not be attributed solely to the base commit. A later source commit can also include documentation/evidence updates written after staging; its hash is not retroactively treated as the build's original provenance.
+
 ## Test the packaged application
 
 Use an isolated profile/configuration, launch the unpacked app outside the development Electron process, and verify startup, Project creation/opening, Settings, Models, Chat, Skills & Roles, Connections, Board, Swarm, Plugins, Engine/DCC, Knowledge, Assets, Backups, Updates and Audit.
@@ -104,9 +106,21 @@ node scripts/live-ui-smoke.cjs --electron
 
 Configure `GAMECRAFTER_CDP_URL` and `GAMECRAFTER_SMOKE_ARTIFACT_DIR` for that owned test session. Close only the session and service created by the test. An unpacked executable smoke is not installer install/uninstall acceptance or an upgrade/rollback drill.
 
+The repeatable Electron runner can also launch a particular unpacked or installed executable with its own disposable profile, IDE configuration, Electron user data and local debugging port. In packaged mode it verifies the bundled service version rather than substituting the source service. For example, in PowerShell:
+
+```powershell
+$env:GAMECRAFTER_ELECTRON_EXECUTABLE = (Resolve-Path 'Windows-Release/0.7.0/app/GameCrafter.exe').Path
+node scripts/verify-documentation-electron.cjs
+Remove-Item Env:GAMECRAFTER_ELECTRON_EXECUTABLE
+```
+
+Use the version actually being prepared; preparation rejects an existing version or release record. The runner stops only its own disposable service and desktop process tree. A successful run still does not install the package or verify the normal profile's preservation.
+
 Inspect the packaged service over authenticated RPC as well: check `service/info`, create a disposable Project, list the thirty builtin skills, activate an appropriate guide and read its reference. This confirms the shipped runtime can use the library, rather than only confirming source files exist.
 
 ## Release evidence and limitations
+
+The [0.7.0 local deployment record](changes/2026-10-04-local-0.7.0-deployment.md) tracks the interface/docs update, local Windows package, installer outcome, retained configuration checks and evidence limits. Documentation screenshots are real isolated development-browser captures labelled with their capture version; they are not installation screenshots or evidence of external provider/engine acceptance. No tag or public release is implied by a local installer or the staging tool's conventional tag field.
 
 Keep quality logs, package logs, screenshots, UI reports, metadata/checksum verification and the exact GitHub workflow/tag IDs with each build. Source fixtures and sanitized records are versioned; generated artifacts live in ignored local output or GitHub release assets.
 

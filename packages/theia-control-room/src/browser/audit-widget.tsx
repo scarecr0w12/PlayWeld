@@ -20,6 +20,7 @@ export class AuditWidget extends ControlRoomReactWidget {
   private error?: string;
   private busy = false;
   private version = 0;
+  private activeSection: 'calls' | 'events' = 'calls';
 
   constructor(
     @inject(ControlRoomService) private readonly service: ServiceApi,
@@ -57,8 +58,8 @@ export class AuditWidget extends ControlRoomReactWidget {
     const calls = this.snapshot?.calls.filter(matches) ?? [];
     const events = this.snapshot?.events.filter(matches) ?? [];
     return (
-      <div className="gamecrafter-audit gamecrafter-surface">
-        <header>
+      <div className="gamecrafter-audit gamecrafter-page gamecrafter-surface">
+        <header className="gamecrafter-page-header">
           <h1>Audit &amp; History</h1>
           <p>Inspect tool decisions, execution results, and the Project event history.</p>
         </header>
@@ -88,6 +89,7 @@ export class AuditWidget extends ControlRoomReactWidget {
             Filter records
             <input
               type="search"
+              aria-label="Filter audit records"
               value={this.query}
               onChange={(e) => {
                 this.query = e.currentTarget.value;
@@ -112,16 +114,64 @@ export class AuditWidget extends ControlRoomReactWidget {
           </p>
         )}
         {!this.projectId ? (
-          <p>Select a Project to inspect its recorded activity.</p>
+          <p className="gamecrafter-page-empty">
+            Select a Project to inspect its recorded activity.
+          </p>
         ) : (
           <>
-            <section>
+            <section
+              className="gamecrafter-work-guidance gamecrafter-page-guidance"
+              aria-label="Audit next steps"
+            >
+              <div>
+                <strong>What to do next</strong>
+                <p>
+                  {!this.snapshot
+                    ? 'Load the Project history, then search records or move between event pages.'
+                    : 'Inspect a tool call or event for full recorded evidence. Exports contain the redacted page currently loaded.'}
+                </p>
+              </div>
+            </section>
+            <nav className="gamecrafter-section-nav" aria-label="Audit sections">
+              {(
+                [
+                  ['calls', 'Tool calls', calls.length],
+                  ['events', 'Project events', events.length],
+                ] as const
+              ).map(([section, label, count]) => (
+                <button
+                  key={section}
+                  type="button"
+                  aria-pressed={this.activeSection === section}
+                  onClick={() => {
+                    this.activeSection = section;
+                    this.update();
+                  }}
+                >
+                  {label} <span className="gamecrafter-count">{count}</span>
+                </button>
+              ))}
+            </nav>
+            <section className="gamecrafter-page-panel" hidden={this.activeSection !== 'calls'}>
               <h2>Recent tool calls</h2>
               <p>
                 Up to {this.snapshot?.limit ?? 500} most recent calls. Expand a record to inspect
                 its evidence.
               </p>
-              {calls.length ? (
+              <dl className="gamecrafter-page-meta">
+                <div className="gamecrafter-page-meta-item">
+                  <dt>Matching calls</dt>
+                  <dd>{calls.length}</dd>
+                </div>
+                <div className="gamecrafter-page-meta-item">
+                  <dt>Project</dt>
+                  <dd>
+                    {this.projects.find((project) => project.projectId === this.projectId)?.name ??
+                      this.projectId}
+                  </dd>
+                </div>
+              </dl>
+              {this.snapshot && calls.length ? (
                 <table>
                   <thead>
                     <tr>
@@ -159,24 +209,52 @@ export class AuditWidget extends ControlRoomReactWidget {
                   </tbody>
                 </table>
               ) : (
-                <p>No matching tool calls.</p>
+                <p className="gamecrafter-page-empty">
+                  {!this.snapshot && this.busy
+                    ? 'Loading recorded tool calls…'
+                    : !this.snapshot
+                      ? 'No audit page is loaded. Refresh the Project history.'
+                      : 'No matching tool calls. Change the filter or refresh the Project history.'}
+                </p>
               )}
             </section>
-            <section>
+            <section className="gamecrafter-page-panel" hidden={this.activeSection !== 'events'}>
               <h2>Project events</h2>
               <p>
                 Events after sequence {this.afterSeq}. Export includes this event page and the
                 recent calls above.
               </p>
-              {events.map((event) => (
-                <details key={event.eventId}>
-                  <summary>
-                    #{event.seq} · {event.kind} · {new Date(event.occurredAt).toLocaleString()}
-                  </summary>
-                  <pre>{JSON.stringify(event, null, 2)}</pre>
-                </details>
-              ))}
-              {!events.length && <p>No matching events on this page.</p>}
+              <dl className="gamecrafter-page-meta">
+                <div className="gamecrafter-page-meta-item">
+                  <dt>Events on page</dt>
+                  <dd>{events.length}</dd>
+                </div>
+                <div className="gamecrafter-page-meta-item">
+                  <dt>Next sequence</dt>
+                  <dd>{this.snapshot?.nextAfterSeq ?? 'Not loaded'}</dd>
+                </div>
+              </dl>
+              {this.snapshot &&
+                events.map((event) => (
+                  <details key={event.eventId}>
+                    <summary>
+                      #{event.seq} · {event.kind} · {new Date(event.occurredAt).toLocaleString()}
+                    </summary>
+                    <pre>{JSON.stringify(event, null, 2)}</pre>
+                  </details>
+                ))}
+              {!this.snapshot && (
+                <p className="gamecrafter-page-empty">
+                  {this.busy
+                    ? 'Loading Project events…'
+                    : 'No audit page is loaded. Refresh the Project history.'}
+                </p>
+              )}
+              {this.snapshot && !events.length && (
+                <p className="gamecrafter-page-empty">
+                  No matching events on this page. Change the filter or load another event page.
+                </p>
+              )}
               <button
                 type="button"
                 disabled={this.busy || !this.afterSeq}

@@ -87,37 +87,50 @@ export class GameCrafterSettingsWidget extends ControlRoomReactWidget {
     const visibleGroups = this.searchQuery.trim()
       ? grouped.filter(({ definitions }) => definitions.length > 0)
       : grouped;
-    const activeGroup = visibleGroups.find(({ group }) => group.id === this.selectedGroup);
-    const activeDefinitions = activeGroup?.definitions ?? [];
-
     return (
-      <div className="gamecrafter-settings gamecrafter-surface">
-        <header className="gamecrafter-settings-header">
+      <div className="gamecrafter-settings gamecrafter-page gamecrafter-surface">
+        <header className="gamecrafter-settings-header gamecrafter-page-header">
           <div>
             <h1>Settings</h1>
             <p>Configure the platform once, then override values for individual Projects.</p>
           </div>
         </header>
-        <div className="gamecrafter-settings-toolbar">
-          <label className="gamecrafter-settings-import-button">
-            Import settings
-            <input
-              aria-label="Import settings file"
-              type="file"
-              accept=".json,application/json"
-              disabled={this.importBusy}
-              onChange={(event) => {
-                const file = event.currentTarget.files?.[0];
-                event.currentTarget.value = '';
-                if (file) void this.previewImport(file);
-              }}
-            />
-          </label>
-          <button type="button" onClick={() => void this.exportSettings()}>
-            Export redacted settings
-          </button>
+        <section
+          className="gamecrafter-work-guidance gamecrafter-page-guidance"
+          aria-label="Settings next steps"
+        >
+          <div>
+            <strong>What to do next</strong>
+            <p>
+              {this.selectedProjectId
+                ? 'Choose a settings group, then adjust a value. The effective source shows which scope currently wins.'
+                : 'Choose a settings group and set platform defaults. Select a Project to add Project-specific overrides.'}
+            </p>
+          </div>
+          <details className="gamecrafter-page-advanced">
+            <summary>Import and export</summary>
+            <label className="gamecrafter-settings-import-button">
+              Import settings
+              <input
+                aria-label="Import settings file"
+                type="file"
+                accept=".json,application/json"
+                disabled={this.importBusy}
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = '';
+                  if (file) void this.previewImport(file);
+                }}
+              />
+            </label>
+            <button type="button" onClick={() => void this.exportSettings()}>
+              Export redacted settings
+            </button>
+          </details>
+        </section>
+        <div className="gamecrafter-settings-toolbar gamecrafter-page-toolbar">
           <label className="gamecrafter-settings-project">
-            <span>Project overrides</span>
+            <span>Project scope</span>
             <select
               aria-label="Project"
               disabled={this.importBusy}
@@ -143,6 +156,7 @@ export class GameCrafterSettingsWidget extends ControlRoomReactWidget {
           <label className="gamecrafter-settings-search">
             <span>Search settings</span>
             <input
+              aria-label="Search settings"
               type="search"
               value={this.searchQuery}
               onChange={(event) => {
@@ -207,44 +221,54 @@ export class GameCrafterSettingsWidget extends ControlRoomReactWidget {
           </section>
         )}
         {this.importNotice && <p role="status">{this.importNotice}</p>}
-        <div className="gamecrafter-settings-layout">
-          <nav className="gamecrafter-settings-groups" aria-label="Settings groups">
+        <div className="gamecrafter-settings-layout gamecrafter-page-layout">
+          <nav
+            className="gamecrafter-settings-groups gamecrafter-section-nav"
+            aria-label="Settings groups"
+          >
             {visibleGroups.map(({ group, definitions }) => (
               <button
-                className={
-                  group.id === this.selectedGroup
-                    ? 'gamecrafter-settings-group is-active'
-                    : 'gamecrafter-settings-group'
-                }
+                className="gamecrafter-settings-group"
                 key={group.id}
                 type="button"
+                aria-pressed={group.id === this.selectedGroup}
+                aria-controls={`gamecrafter-settings-group-${group.id}`}
                 onClick={() => {
                   this.selectedGroup = group.id;
                   this.update();
                 }}
               >
                 <span>{group.title}</span>
-                <span className="gamecrafter-settings-count">{definitions.length}</span>
+                <span className="gamecrafter-count">{definitions.length}</span>
               </button>
             ))}
           </nav>
-          <section className="gamecrafter-settings-content">
-            {activeGroup ? (
-              <>
-                <h2>{activeGroup.group.title}</h2>
-                <p className="gamecrafter-settings-group-description">
-                  {activeGroup.group.description}
-                </p>
-              </>
-            ) : (
-              <h2>Settings</h2>
+          <div className="gamecrafter-settings-content gamecrafter-page-panels">
+            {visibleGroups.map(({ group, definitions }) => (
+              <section
+                className="gamecrafter-page-panel"
+                id={`gamecrafter-settings-group-${group.id}`}
+                aria-label={`${group.title} settings`}
+                hidden={group.id !== this.selectedGroup}
+                key={group.id}
+              >
+                <h2>{group.title}</h2>
+                <p className="gamecrafter-settings-group-description">{group.description}</p>
+                {definitions.length === 0 ? (
+                  <p className="gamecrafter-page-empty">
+                    No settings in this group match the current search.
+                  </p>
+                ) : (
+                  definitions.map((definition) => this.renderSetting(definition))
+                )}
+              </section>
+            ))}
+            {visibleGroups.length === 0 && (
+              <p className="gamecrafter-page-empty">
+                No settings match this search. Try another term or clear the search.
+              </p>
             )}
-            {activeDefinitions.length === 0 ? (
-              <p>No settings in this group match the current search.</p>
-            ) : (
-              activeDefinitions.map((definition) => this.renderSetting(definition))
-            )}
-          </section>
+          </div>
         </div>
       </div>
     );

@@ -13,7 +13,15 @@ import { KnowledgeWidget } from './knowledge-widget';
 
 function widget() {
   return Object.assign(Object.create(KnowledgeWidget.prototype), {
+    projects: [],
     projectId: 'project',
+    activeSection: 'search',
+    records: [],
+    selectedRecordId: '',
+    recordDetail: undefined,
+    searchResult: undefined,
+    graph: undefined,
+    indexStatus: undefined,
     vectorKind: 'qdrant',
     vectorDeployment: 'remote',
     allowRemoteVectorStore: true,
@@ -25,7 +33,15 @@ function widget() {
     accounts: [],
     modelId: '',
     providerAccountId: '',
+    mode: 'hybrid',
+    source: 'all',
+    recordType: '',
+    status: 'all',
+    includeInactive: false,
+    query: '',
     busy: false,
+    errorMessage: undefined,
+    resultMessage: undefined,
     update: vi.fn(),
     refreshStatus: vi.fn(),
   });
@@ -88,5 +104,17 @@ describe('Knowledge vector settings', () => {
     expect(
       renderToStaticMarkup(React.createElement('div', {}, view.renderVectorSettings())),
     ).toContain('Registered adapter ID');
+  });
+});
+
+describe('Knowledge workspace layout', () => {
+  it('renders accessible section navigation, concise guidance, and collapsed search filters', () => {
+    const view = widget();
+    const html = renderToStaticMarkup(React.createElement(view.render.bind(view)));
+    expect(html).toContain('aria-label="Knowledge sections"');
+    expect(html).toContain('aria-controls="gamecrafter-knowledge-search-view"');
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain('Search mode and filters');
+    expect(html).toContain('Enter a query to search indexed Project sources');
   });
 });

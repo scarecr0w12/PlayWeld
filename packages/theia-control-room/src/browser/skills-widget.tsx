@@ -23,7 +23,9 @@ export class SkillsWidget extends ControlRoomReactWidget {
   private skills: ProjectSkillEntry[] = [];
   private roles: RoleRecord[] = [];
   private catalog: SkillCatalogEntry[] = [];
+  private activeSection: 'skills' | 'install' | 'catalog' | 'roles' = 'skills';
   private catalogTruncated = false;
+  private catalogPreviewed = false;
   private readingSkill?: ProjectSkillEntry;
   private readingResource = 'SKILL.md';
   private resourcePage?: SkillResourceReadResult;
@@ -61,8 +63,11 @@ export class SkillsWidget extends ControlRoomReactWidget {
     );
     return (
       <div className="gamecrafter-skills gamecrafter-surface">
-        <header className="gamecrafter-skills-header">
-          <h1>Skills &amp; Roles</h1>
+        <header className="gamecrafter-skills-header gamecrafter-page-header">
+          <div>
+            <h1>Skills &amp; Roles</h1>
+            <p>Browse installed workflows, adjust platform skill eligibility, and inspect roles.</p>
+          </div>
           <label>
             Project
             <select
@@ -90,6 +95,29 @@ export class SkillsWidget extends ControlRoomReactWidget {
             Refresh
           </button>
         </header>
+        <nav className="gamecrafter-section-nav" aria-label="Skills workspace sections">
+          {(['skills', 'install', 'catalog', 'roles'] as const).map((section) => (
+            <button
+              key={section}
+              type="button"
+              aria-controls={`gamecrafter-skills-${section === 'skills' ? 'list' : section}`}
+              aria-pressed={this.activeSection === section}
+              onClick={() => {
+                this.activeSection = section;
+                this.update();
+              }}
+            >
+              {
+                {
+                  skills: 'Project skills',
+                  install: 'Install',
+                  catalog: 'Preview catalog',
+                  roles: 'Roles',
+                }[section]
+              }
+            </button>
+          ))}
+        </nav>
         {selectedProject && !selectedProject.trusted && (
           <aside className="gamecrafter-skills-untrusted" role="alert">
             <span>
@@ -112,7 +140,26 @@ export class SkillsWidget extends ControlRoomReactWidget {
           </p>
         )}
 
-        <section className="gamecrafter-skills-section">
+        <section className="gamecrafter-page-guidance gamecrafter-work-guidance">
+          <div>
+            <strong>
+              {this.selectedProjectId
+                ? 'Review the skills available to this Project'
+                : 'Choose a Project for its local skills'}
+            </strong>
+            <p>
+              {this.selectedProjectId
+                ? 'Read guides, adjust platform eligibility, or preview role-based catalog matches.'
+                : 'Platform skills and roles can also be reviewed without a Project selected.'}
+            </p>
+          </div>
+        </section>
+
+        <section
+          className="gamecrafter-skills-section gamecrafter-page-panel"
+          id="gamecrafter-skills-install"
+          hidden={this.activeSection !== 'install'}
+        >
           <h2>Install a skill</h2>
           <form
             className="gamecrafter-skills-install-form"
@@ -162,12 +209,24 @@ export class SkillsWidget extends ControlRoomReactWidget {
           </form>
         </section>
 
-        {this.readingSkill && (
+        {this.readingSkill && this.activeSection === 'skills' && (
           <section
             className="gamecrafter-skills-section gamecrafter-skill-reader"
             aria-label="Skill reference reader"
           >
-            <h2>{this.readingSkill.name}</h2>
+            <header className="gamecrafter-page-header">
+              <h2>{this.readingSkill.name}</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  this.readingSkill = undefined;
+                  this.resourcePage = undefined;
+                  this.update();
+                }}
+              >
+                Close guide
+              </button>
+            </header>
             <label>
               Document
               <select
@@ -216,176 +275,202 @@ export class SkillsWidget extends ControlRoomReactWidget {
           </section>
         )}
 
-        <section className="gamecrafter-skills-section">
+        <section
+          className="gamecrafter-skills-section gamecrafter-page-panel"
+          id="gamecrafter-skills-list"
+          hidden={this.activeSection !== 'skills'}
+        >
           <h2>Project skills</h2>
-          <p>
-            Browse game development workflows for engines, assets, coding, testing and delivery.
-            Choose a Project to read guides and adjust which skills its agents can use.
-          </p>
+          <p>Enable platform skills and set optional role or work-type overrides.</p>
           {this.skills.length === 0 ? (
-            <p>No skills found for this Project.</p>
+            <p className="gamecrafter-page-empty">
+              No skills are available in this scope yet. Install a skill or choose another Project.
+            </p>
           ) : (
-            <div className="gamecrafter-skills-table-scroll">
-              <table className="gamecrafter-skills-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Scope</th>
-                    <th>Version</th>
-                    <th>Description</th>
-                    <th>Enabled</th>
-                    <th>Roles override</th>
-                    <th>Work types override</th>
-                    <th>Shadowing</th>
-                    <th>Warnings</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {this.skills.map((skill) => (
-                    <tr key={`${skill.scope}:${skill.location}`}>
-                      <td>{skill.name}</td>
-                      <td>
-                        <span
-                          className={`gamecrafter-skills-scope gamecrafter-skills-scope-${skill.scope}`}
-                        >
+            <div className="gamecrafter-skills-card-list">
+              {this.skills.map((skill) => (
+                <article
+                  className="gamecrafter-page-panel gamecrafter-skill-card"
+                  key={`${skill.scope}:${skill.location}`}
+                >
+                  <header>
+                    <div>
+                      <h3>{skill.name}</h3>
+                      <div className="gamecrafter-page-meta">
+                        <span className="gamecrafter-page-meta-item">
                           {skill.source === 'builtin:gamecrafter' ? 'Bundled' : skill.scope}
                         </span>
-                      </td>
-                      <td>{skill.version ?? '—'}</td>
-                      <td>{skill.description}</td>
-                      <td>
-                        {skill.scope === 'platform' ? (
-                          <input
-                            aria-label={`Enable skill ${skill.name}`}
-                            type="checkbox"
-                            checked={skill.enablement?.enabled ?? false}
-                            onChange={(event) =>
-                              void this.updateEnablement(skill, {
-                                enabled: event.currentTarget.checked,
-                              })
-                            }
-                          />
-                        ) : (
-                          'Local'
+                        {skill.version && (
+                          <span className="gamecrafter-page-meta-item">v{skill.version}</span>
                         )}
-                      </td>
-                      <td>
-                        {skill.scope === 'platform' ? (
-                          <input
-                            aria-label={`Skill roles ${skill.name}`}
-                            defaultValue={skill.enablement?.roles?.join(', ') ?? ''}
-                            onBlur={(event) =>
-                              void this.updateEnablement(skill, {
-                                roles: parseOverride(event.currentTarget.value),
-                              })
-                            }
-                          />
-                        ) : (
-                          '—'
+                        {skill.shadowedBy && (
+                          <span className="gamecrafter-page-meta-item">
+                            Shadowed by {skill.shadowedBy}
+                          </span>
                         )}
-                      </td>
-                      <td>
-                        {skill.scope === 'platform' ? (
-                          <input
-                            aria-label={`Skill work types ${skill.name}`}
-                            defaultValue={skill.enablement?.workTypes?.join(', ') ?? ''}
-                            onBlur={(event) =>
-                              void this.updateEnablement(skill, {
-                                workTypes: parseOverride(event.currentTarget.value),
-                              })
-                            }
-                          />
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                      <td>{skill.shadowedBy ? `Shadowed by ${skill.shadowedBy}` : '—'}</td>
-                      <td>{skill.warnings.join('; ') || '—'}</td>
-                      <td>
-                        <button
-                          type="button"
-                          disabled={
-                            !this.selectedProjectId ||
-                            skill.shadowedBy !== null ||
-                            (skill.scope === 'platform' && !skill.enablement?.enabled)
+                      </div>
+                    </div>
+                    {skill.scope === 'platform' ? (
+                      <label className="gamecrafter-skills-inline-checkbox">
+                        <input
+                          aria-label={`Enable skill ${skill.name}`}
+                          type="checkbox"
+                          checked={skill.enablement?.enabled ?? false}
+                          onChange={(event) =>
+                            void this.updateEnablement(skill, {
+                              enabled: event.currentTarget.checked,
+                            })
                           }
-                          onClick={() => {
-                            this.readingSkill = skill;
-                            this.readingResource = 'SKILL.md';
-                            this.resourcePage = undefined;
-                            void this.readResource(1, true);
-                          }}
-                        >
-                          Read guide
-                        </button>
-                        {skill.scope === 'platform' && skill.source !== 'builtin:gamecrafter' && (
-                          <button
-                            type="button"
-                            onClick={() => void this.uninstallSkill(skill.name)}
-                          >
-                            Uninstall
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        />
+                        Enabled
+                      </label>
+                    ) : (
+                      <span>Project-local</span>
+                    )}
+                  </header>
+                  <p>{skill.description}</p>
+                  {skill.scope === 'platform' && (
+                    <details className="gamecrafter-page-advanced">
+                      <summary>Eligibility and diagnostics</summary>
+                      <label>
+                        Roles override
+                        <input
+                          aria-label={`Skill roles ${skill.name}`}
+                          defaultValue={skill.enablement?.roles?.join(', ') ?? ''}
+                          placeholder="Any role"
+                          onBlur={(event) =>
+                            void this.updateEnablement(skill, {
+                              roles: parseOverride(event.currentTarget.value),
+                            })
+                          }
+                        />
+                      </label>
+                      <label>
+                        Work types override
+                        <input
+                          aria-label={`Skill work types ${skill.name}`}
+                          defaultValue={skill.enablement?.workTypes?.join(', ') ?? ''}
+                          placeholder="Any work type"
+                          onBlur={(event) =>
+                            void this.updateEnablement(skill, {
+                              workTypes: parseOverride(event.currentTarget.value),
+                            })
+                          }
+                        />
+                      </label>
+                      {skill.warnings.length > 0 && (
+                        <ul className="gamecrafter-skills-warnings">
+                          {skill.warnings.map((warning) => (
+                            <li key={warning}>{warning}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </details>
+                  )}
+                  <footer>
+                    <button
+                      type="button"
+                      aria-current={
+                        this.readingSkill?.location === skill.location ? 'true' : undefined
+                      }
+                      disabled={
+                        !this.selectedProjectId ||
+                        skill.shadowedBy !== null ||
+                        (skill.scope === 'platform' && !skill.enablement?.enabled)
+                      }
+                      onClick={() => {
+                        this.readingSkill = skill;
+                        this.readingResource = 'SKILL.md';
+                        this.resourcePage = undefined;
+                        void this.readResource(1, true);
+                      }}
+                    >
+                      Read guide
+                    </button>
+                    {skill.scope === 'platform' && skill.source !== 'builtin:gamecrafter' && (
+                      <button type="button" onClick={() => void this.uninstallSkill(skill.name)}>
+                        Uninstall
+                      </button>
+                    )}
+                  </footer>
+                </article>
+              ))}
             </div>
           )}
         </section>
 
-        <section className="gamecrafter-skills-section">
+        <section
+          className="gamecrafter-skills-section gamecrafter-page-panel"
+          id="gamecrafter-skills-catalog"
+          hidden={this.activeSection !== 'catalog'}
+        >
           <h2>Preview catalog</h2>
-          <div className="gamecrafter-skills-catalog-form">
-            <label>
-              Agent role
-              <input
-                aria-label="Catalog agent role"
-                list="gamecrafter-skill-roles"
-                value={this.catalogRole}
-                onChange={(event) => {
-                  this.catalogRole = event.currentTarget.value;
-                  this.update();
-                }}
-              />
-            </label>
-            <datalist id="gamecrafter-skill-roles">
-              {this.roles.map((role) => (
-                <option key={role.name} value={role.name} />
-              ))}
-            </datalist>
-            <label>
-              Work type
-              <input
-                aria-label="Catalog work type"
-                value={this.catalogWorkType}
-                onChange={(event) => {
-                  this.catalogWorkType = event.currentTarget.value;
-                  this.update();
-                }}
-              />
-            </label>
-            <label className="gamecrafter-skills-task-text">
-              Task text
-              <input
-                aria-label="Catalog task text"
-                value={this.taskText}
-                onChange={(event) => {
-                  this.taskText = event.currentTarget.value;
-                  this.update();
-                }}
-              />
-            </label>
-            <button
-              type="button"
-              disabled={!this.selectedProjectId}
-              onClick={() => void this.previewCatalog()}
-            >
-              Preview catalog
-            </button>
-          </div>
+          <details className="gamecrafter-page-advanced">
+            <summary>Catalog matching criteria</summary>
+            <div className="gamecrafter-skills-catalog-form">
+              <label>
+                Agent role
+                <input
+                  aria-label="Catalog agent role"
+                  list="gamecrafter-skill-roles"
+                  value={this.catalogRole}
+                  onChange={(event) => {
+                    this.catalogRole = event.currentTarget.value;
+                    this.catalogPreviewed = false;
+                    this.catalog = [];
+                    this.update();
+                  }}
+                />
+              </label>
+              <datalist id="gamecrafter-skill-roles">
+                {this.roles.map((role) => (
+                  <option key={role.name} value={role.name} />
+                ))}
+              </datalist>
+              <label>
+                Work type
+                <input
+                  aria-label="Catalog work type"
+                  value={this.catalogWorkType}
+                  onChange={(event) => {
+                    this.catalogWorkType = event.currentTarget.value;
+                    this.catalogPreviewed = false;
+                    this.catalog = [];
+                    this.update();
+                  }}
+                />
+              </label>
+              <label className="gamecrafter-skills-task-text">
+                Task text
+                <input
+                  aria-label="Catalog task text"
+                  value={this.taskText}
+                  onChange={(event) => {
+                    this.taskText = event.currentTarget.value;
+                    this.catalogPreviewed = false;
+                    this.catalog = [];
+                    this.update();
+                  }}
+                />
+              </label>
+            </div>
+          </details>
+          <button
+            type="button"
+            disabled={!this.selectedProjectId}
+            onClick={() => void this.previewCatalog()}
+          >
+            Preview catalog
+          </button>
+          {this.catalogPreviewed && this.catalog.length === 0 && (
+            <p className="gamecrafter-page-empty">No eligible skills match these criteria.</p>
+          )}
+          {!this.catalogPreviewed && (
+            <p className="gamecrafter-page-empty">
+              Preview eligible skills for a role, work type, or task. Empty criteria show the
+              default Project catalog.
+            </p>
+          )}
           {this.catalog.length > 0 && (
             <>
               {this.catalogTruncated && (
@@ -396,7 +481,7 @@ export class SkillsWidget extends ControlRoomReactWidget {
                   <li key={`${entry.scope}:${entry.location}`}>
                     <strong>{entry.name}</strong>{' '}
                     <span>
-                      ({entry.scope}, score {entry.score.toFixed(3)})
+                      ({entry.scope}, score {entry.score.toFixed(2)})
                     </span>
                     <p>{entry.description}</p>
                     <code>{entry.location}</code>
@@ -407,34 +492,29 @@ export class SkillsWidget extends ControlRoomReactWidget {
           )}
         </section>
 
-        <section className="gamecrafter-skills-section">
+        <section
+          className="gamecrafter-skills-section gamecrafter-page-panel"
+          id="gamecrafter-skills-roles"
+          hidden={this.activeSection !== 'roles'}
+        >
           <h2>Roles</h2>
           {this.roles.length === 0 ? (
-            <p>No roles found.</p>
+            <p className="gamecrafter-page-empty">No roles are registered yet.</p>
           ) : (
-            <div className="gamecrafter-skills-table-scroll">
-              <table className="gamecrafter-skills-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Scope</th>
-                    <th>Work types</th>
-                    <th>Max access</th>
-                    <th>Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {this.roles.map((role) => (
-                    <tr key={`${role.scope}:${role.name}`}>
-                      <td>{role.name}</td>
-                      <td>{role.scope}</td>
-                      <td>{role.workTypes.join(', ') || 'Any'}</td>
-                      <td>{role.maxAccess}</td>
-                      <td>{role.description}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="gamecrafter-skills-card-list">
+              {this.roles.map((role) => (
+                <article className="gamecrafter-page-panel" key={`${role.scope}:${role.name}`}>
+                  <h3>{role.name}</h3>
+                  <div className="gamecrafter-page-meta">
+                    <span className="gamecrafter-page-meta-item">{role.scope}</span>
+                    <span className="gamecrafter-page-meta-item">
+                      Work types: {role.workTypes.join(', ') || 'Any'}
+                    </span>
+                    <span className="gamecrafter-page-meta-item">Max access: {role.maxAccess}</span>
+                  </div>
+                  <p>{role.description}</p>
+                </article>
+              ))}
             </div>
           )}
         </section>
@@ -556,6 +636,7 @@ export class SkillsWidget extends ControlRoomReactWidget {
       });
       this.catalog = result.entries;
       this.catalogTruncated = result.truncated;
+      this.catalogPreviewed = true;
     });
   }
 

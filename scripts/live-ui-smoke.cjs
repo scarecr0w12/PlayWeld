@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { setTimeout: delay } = require('node:timers/promises');
+const { connect } = require('@gamecrafter/service-client');
+const { resolvePaths } = require('../packages/platform-service/lib/paths');
 
 async function connectDesktop(puppeteer) {
   const deadline = Date.now() + 15000;
@@ -29,7 +31,7 @@ async function clickHandle(page, element) {
 
 async function clickText(page, selector, text) {
   for (const element of await page.$$(selector)) {
-    if ((await element.evaluate((node) => node.textContent.trim())) === text) {
+    if (await element.evaluate((node, label) => node.getClientRects().length > 0 && (node.textContent.trim() === label || node.querySelector('strong')?.textContent.trim() === label || [...node.childNodes].filter(child => child.nodeType === Node.TEXT_NODE).map(child => child.textContent).join('').trim() === label), text)) {
       await clickHandle(page, element);
       return;
     }
@@ -144,6 +146,9 @@ async function main() {
         const projectId = await page.$eval(projectSelector, (select, name) => [...select.options].find(option => option.textContent === name || option.textContent.startsWith(`${name} (`))?.value, projectName);
         assert(projectId, `${label} must list the generated Project`);
         await page.select(projectSelector, projectId);
+        await page.waitForSelector(`${selector} .gamecrafter-section-nav button`, { visible: true });
+        await clickText(page, `${selector} .gamecrafter-section-nav button`, 'Installations');
+        await clickText(page, `${selector} .gamecrafter-page-advanced summary`, 'Register a manual installation');
         await page.waitForSelector(suffix === 'engine' ? '.gamecrafter-engine form select' : 'select[aria-label="DCC installation kind"]', { visible: true });
       }
       if (suffix === 'engine') {
@@ -177,10 +182,11 @@ async function main() {
         await waitForUi(page, () => document.querySelector('select[aria-label="Access mode"]')?.value === 'ask-always' && document.querySelector('.gamecrafter-setting-source')?.textContent.includes('Effective from Default'));
         checks.push('Settings saves a platform override and resets to the inherited default');
         const downloadPath = path.join(directory, 'gamecrafter-settings.json');
+        await clickText(page, '.gamecrafter-settings .gamecrafter-page-advanced summary', 'Import and export');
         fs.rmSync(downloadPath, { force: true });
         const cdp = await page.createCDPSession();
         await cdp.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: directory });
-        await clickText(page, '.gamecrafter-settings-toolbar button', 'Export redacted settings');
+        await clickText(page, '.gamecrafter-settings .gamecrafter-page-advanced button', 'Export redacted settings');
         const downloadDeadline = Date.now() + 15000;
         while (!fs.existsSync(downloadPath) && Date.now() < downloadDeadline) await delay(100);
         assert(fs.existsSync(downloadPath), 'Settings export must download a JSON file');
@@ -211,7 +217,7 @@ async function main() {
         const projectId = await page.$eval('select[aria-label="Skills Project"]', (select, name) => [...select.options].find(option => option.textContent === name)?.value, projectName);
         assert(projectId, 'Skills must list the generated Project');
         await page.select('select[aria-label="Skills Project"]', projectId);
-        await waitForUi(page, () => [...document.querySelectorAll('.gamecrafter-skills-scope')].filter(node => node.textContent.trim() === 'Bundled').length === 30);
+        await waitForUi(page, () => [...document.querySelectorAll('.gamecrafter-skill-card .gamecrafter-page-meta-item')].filter(node => node.textContent.trim() === 'Bundled').length === 30);
         // Platform-only rows can already be visible while the selected Project's
         // enablement request is still loading. Wait for that scoped result too.
         await waitForUi(page, () => document.querySelector('input[aria-label="Enable skill asset-pipeline"]')?.checked);
@@ -219,7 +225,7 @@ async function main() {
         assert(row && await row.evaluate(node => node.checked), 'Bundled guides must be enabled by default');
         await page.evaluate(() => {
           const checkbox = document.querySelector('input[aria-label="Enable skill asset-pipeline"]');
-          const row = checkbox.closest('tr');
+           const row = checkbox.closest('.gamecrafter-skill-card');
           [...row.querySelectorAll('button')].find(button => button.textContent.trim() === 'Read guide').click();
         });
         await waitForUi(page, () => document.querySelector('.gamecrafter-skill-reader-content')?.textContent.includes('Asset pipeline'));
@@ -230,12 +236,12 @@ async function main() {
         await page.screenshot({ path: path.join(directory, 'skills-reader.png') });
         await row.click();
         await waitForUi(page, () => {
-          const row = document.querySelector('input[aria-label="Enable skill asset-pipeline"]').closest('tr');
+           const row = document.querySelector('input[aria-label="Enable skill asset-pipeline"]').closest('.gamecrafter-skill-card');
           return [...row.querySelectorAll('button')].some(button => button.textContent.trim() === 'Read guide' && button.disabled);
         });
         await page.click('input[aria-label="Enable skill asset-pipeline"]');
         await waitForUi(page, () => {
-          const row = document.querySelector('input[aria-label="Enable skill asset-pipeline"]').closest('tr');
+           const row = document.querySelector('input[aria-label="Enable skill asset-pipeline"]').closest('.gamecrafter-skill-card');
           return [...row.querySelectorAll('button')].some(button => button.textContent.trim() === 'Read guide' && !button.disabled);
         });
         checks.push('Thirty bundled guides load with Project controls and readable supporting references');
@@ -247,6 +253,29 @@ async function main() {
           await page.setViewport({ width: 1600, height: 1000 });
           checks.push('Skill reference reader remains contained at a narrow viewport');
         }
+      }
+      if (suffix === 'assets') {
+        const paths = resolvePaths();
+        const client = await connect({ socketPath: paths.socketPath, token: fs.readFileSync(paths.tokenPath, 'utf8').trim(), clientName: 'desktop-assets-smoke', clientVersion: require('../packages/platform-service/package.json').version });
+        try {
+          const registered = await client.call('project/list', {});
+          const project = registered.projects.find(item => item.name === projectName);
+          if (!project || !path.resolve(project.path).startsWith(path.resolve('.turbo/live-projects') + path.sep)) throw new Error('Asset fixture must stay in the disposable smoke Project.');
+          const assetDirectory = path.join(project.path, 'game', 'assets');
+          fs.mkdirSync(assetDirectory, { recursive: true });
+          fs.writeFileSync(path.join(assetDirectory, 'desktop-smoke.png'), Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=', 'base64'));
+          await page.select('.gamecrafter-assets select[aria-label="Assets Project"]', project.projectId);
+          await page.waitForSelector('.gamecrafter-assets .gamecrafter-section-nav button', { visible: true });
+          await clickText(page, '.gamecrafter-assets .gamecrafter-section-nav button', 'Library');
+          await clickText(page, '.gamecrafter-assets header button', 'Refresh');
+          await waitForUi(page, () => [...document.querySelectorAll('.gamecrafter-assets-file-list button')].some(node => node.textContent.includes('desktop-smoke.png')));
+          for (const file of await page.$$('.gamecrafter-assets-file-list button')) {
+            if (await file.evaluate(node => node.textContent.includes('desktop-smoke.png'))) { await clickHandle(page, file); break; }
+          }
+          await waitForUi(page, () => [...document.querySelectorAll('.gamecrafter-assets .gamecrafter-section-nav button')].some(node => node.getAttribute('aria-pressed') === 'true' && node.textContent.trim() === 'Preview'));
+          await waitForUi(page, () => { const image = document.querySelector('.gamecrafter-image-viewer img'); return image?.complete && image.naturalWidth === 1 && image.naturalHeight === 1; });
+          checks.push('Assets library opens its real image preview in the visible Preview pane');
+        } finally { client.close(); }
       }
       if (suffix === 'audit') {
         await waitForUi(page, (name) => [...document.querySelector('.gamecrafter-audit select').options].some(option => option.textContent === name), projectName);
@@ -278,7 +307,7 @@ async function main() {
     if (!desktop) {
       await page.setViewport({width: 700, height: 1000});
       await waitForUi(page, () => {
-        const actions = document.querySelector('.gamecrafter-project-home-actions');
+         const actions = document.querySelector('.gamecrafter-home-navigation');
         return actions && Array.from(actions.querySelectorAll('button')).every(button => {
           const bounds = button.getBoundingClientRect();
           return bounds.width >= 155 && bounds.width <= actions.clientWidth + 1 && button.scrollWidth <= button.clientWidth + 1;

@@ -40,6 +40,7 @@ export class CreateProjectCommand implements CommandContribution, MenuContributi
       const nameInput = await this.quickInput.input({
         title: 'Create Project (1/6)',
         prompt: 'Project name',
+        placeHolder: 'A short, recognizable name for your game',
         validateInput: async (value) => (value.trim() ? undefined : 'Project name is required'),
       });
       if (nameInput === undefined) return;
@@ -49,6 +50,7 @@ export class CreateProjectCommand implements CommandContribution, MenuContributi
       const description = await this.quickInput.input({
         title: 'Create Project (2/6)',
         prompt: 'Description (optional)',
+        placeHolder: 'Describe the game or the idea you want to explore',
       });
       if (description === undefined) return;
 
@@ -64,13 +66,14 @@ export class CreateProjectCommand implements CommandContribution, MenuContributi
       const genresInput = await this.quickInput.input({
         title: 'Create Project (4/6)',
         prompt: 'Genres, separated by commas (optional)',
+        placeHolder: 'For example: adventure, puzzle',
       });
       if (genresInput === undefined) return;
 
       const defaultDirectory = await this.controlRoomService.getDefaultProjectsDirectory();
       const parentDirectory = await this.quickInput.input({
         title: 'Create Project (5/6)',
-        prompt: 'Parent directory',
+        prompt: 'Parent directory. PlayWeld creates a new Project folder here.',
         value: defaultDirectory,
         validateInput: async (value) => (value.trim() ? undefined : 'Parent directory is required'),
       });
@@ -79,10 +82,12 @@ export class CreateProjectCommand implements CommandContribution, MenuContributi
       const confirmation = await this.quickInput.showQuickPick(
         [
           {
-            label: `Create '${name}' (${engine.family}, locked) in ${parentDirectory.trim()}`,
+            label: `Create '${name}'`,
+            description: engine.label,
+            detail: `Folder: ${parentDirectory.trim()} | Engine choice is permanent.`,
             create: true,
           },
-          { label: 'Cancel', create: false },
+          { label: 'Cancel', detail: 'No Project files will be created.', create: false },
         ],
         {
           title: 'Create Project (6/6)',

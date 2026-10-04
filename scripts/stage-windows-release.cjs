@@ -29,6 +29,14 @@ const revision = spawnSync('git', ['rev-parse', 'HEAD'], {
   timeout: 10000,
 });
 if (revision.status !== 0) throw new Error('Cannot determine source revision.');
+const changed = spawnSync('git', ['diff', '--name-only', 'HEAD'], { cwd: root, encoding: 'utf8', timeout: 10000 });
+const untracked = spawnSync('git', ['ls-files', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8', timeout: 10000 });
+if (changed.status !== 0 || untracked.status !== 0) throw new Error('Cannot determine working-tree provenance.');
+const changedPaths = [...new Set([...changed.stdout.trim().split(/\r?\n/), ...untracked.stdout.trim().split(/\r?\n/)].filter(Boolean))].sort();
+const workingTree = changedPaths.map((file) => ({
+  path: file,
+  sha256: fs.existsSync(path.join(root, file)) ? createHash('sha256').update(fs.readFileSync(path.join(root, file))).digest('hex') : null,
+}));
 fs.mkdirSync(output, { recursive: true });
 fs.cpSync(unpacked, path.join(output, 'app'), { recursive: true });
 fs.copyFileSync(installer, path.join(output, installerName));
@@ -46,6 +54,8 @@ const provenance = {
   version,
   tag: `v${version}`,
   commit: revision.stdout.trim(),
+  workingTreeDirty: workingTree.length > 0,
+  workingTree,
   builtAt: new Date().toISOString(),
   platform: 'windows',
   arch: 'x64',

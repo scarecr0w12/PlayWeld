@@ -1,6 +1,6 @@
 # Streamlined navigation, discussion browsing, and Swarm hierarchy
 
-**Release:** Unreleased
+**Release:** 0.7.0
 
 **Impact:** minor
 

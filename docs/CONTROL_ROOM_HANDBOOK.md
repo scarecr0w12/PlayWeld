@@ -1,10 +1,28 @@
 # Control Room handbook
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-04
 
 Use this handbook to understand each surface, its inputs, the records it creates, and how to tell whether work succeeded. The [worked tutorial](WORKED_TUTORIAL.md) supplies a repeatable testing Project. The [API reference](API_REFERENCE.md) describes service requests; the [settings reference](SETTINGS_REFERENCE.md) describes configurable defaults and scopes. The [coverage record](DOCUMENTATION_COVERAGE.md) gives the limits of this documentation run.
 
-Screenshots use a real isolated service and the development browser target. Configuration screens with empty tables are intentional: this test does not provision paid providers, backup accounts, DCC applications, or live engine bridges. The chat provider is explicitly a scripted local fixture.
+Screenshots use a real isolated service and the built development browser target. The capture report records browser/service version 0.6.0 on 2026-10-04, a local deterministic Chat fixture, and zero renderer errors. Configuration screens with empty tables are intentional: this test does not provision paid providers, backup accounts, DCC applications, or live engine bridges. The chat provider is explicitly a scripted local fixture. These images are not evidence for the later 0.7.0 package, a paid model, or a live engine/editor.
+
+Use the top-level **PlayWeld** menu to reach platform views without depending on IDE layout. Project Home/Create Project appear directly; **Plan & Collaborate**, **Build & Connect**, **Configure & Extend**, and **Review & Maintain** organize the remaining destinations. Project Home repeats the platform routes as purpose-grouped cards. Within a view, choose its section navigation; expand a disclosure to reveal advanced or less frequent inputs. Project selectors and selected sections are independent per view.
+
+## IDE Tools And Shell
+
+**PlayWeld Settings** configures the platform and Project overrides. **IDE Settings** under **PlayWeld > Configure & Extend** opens Theia's editor/workbench Preferences; **Open IDE View** opens its view picker. The original File/Edit/View/Help menus and keyboard shortcuts remain available. Shared styling does not replace their commands or restyle arbitrary third-party webview contents.
+
+![Grouped PlayWeld menu in the rebuilt 0.7.0 browser](images/workspace-shell-2026-10-04/workspace-menu.png)
+
+![Built-in IDE Preferences with theme-aware field cards](images/workspace-shell-2026-10-04/ide-settings-desktop.png)
+
+The [shell capture report](images/workspace-shell-2026-10-04/capture-report.json) records the fresh 0.7.0 development browser and a real isolated service on 2026-10-04. It makes no model/provider/engine requests and does not use the private installed profile. This separate eight-image gallery complements the 0.6.0 scripted workflow captures above; it is not installed Electron acceptance.
+
+- [Command palette](images/workspace-shell-2026-10-04/command-palette.png), [About dialog](images/workspace-shell-2026-10-04/about-dialog.png), and [Explorer](images/workspace-shell-2026-10-04/explorer-tree.png) retain native keyboard entry and dismissal.
+- [Light theme](images/workspace-shell-2026-10-04/models-light.png) and [High Contrast theme](images/workspace-shell-2026-10-04/models-high-contrast.png) demonstrate theme-token changes in a representative platform view, not an accessibility certification for every widget.
+- [Compact Chat](images/workspace-shell-2026-10-04/chat-narrow.png) demonstrates the conversation picker, retained starter draft and reachable send action in a narrow dock; no request was sent.
+
+Reproduce with the rebuilt browser app and `GAMECRAFTER_OVERHAUL_CAPTURE_DIR=docs/images/<new-directory>` when running `node scripts/workspace-overhaul-ui-smoke.cjs`. Publication refuses an existing destination so previous capture evidence is retained.
 
 ## Project Home and the workspace
 
@@ -13,6 +31,8 @@ Project Home lists registered Projects, their engine families, paths, creation t
 Use the path, not just the display name, to identify the game. The engine family is locked at creation. Keep native engine files under `game/`; keep authoritative design Markdown under `docs/`. The platform creates its identity manifest and local operational state. Preserve those during recovery.
 
 Project-specific screens can select a Project independently. Check the selector before submitting a request. Closing a tab changes the presentation; it does not delete the underlying records. The service can continue after the desktop window closes, according to `window.closeBehavior`.
+
+![Purpose-grouped Project Home workspace](images/lantern-workshop/01-home.png)
 
 ## Models and routing
 
@@ -37,7 +57,11 @@ If routing fails, inspect model enabled state, required capabilities, account av
 
 ![Tutorial Chat exchange](images/lantern-workshop/05-chat.png)
 
-Choose a Project, conversation, model, and mode. **New chat** starts a conversation; existing conversations can be reopened. **Delete conversation** removes that conversation through the service. Enter submits and Shift+Enter inserts a newline. The transcript records user/assistant entries and model usage when returned.
+![Chat conversation search and filtered results](images/lantern-workshop/05-chat-search.png)
+
+![Compact Chat layout with an unsent starter draft](images/lantern-workshop/05-chat-mobile-starter.png)
+
+Choose a Project, conversation, model, and mode. **New** starts a conversation; **Find a conversation** filters both the visible conversation list and the conversation selector. A starter on an empty conversation fills the composer as a draft; it does not send the request. **Delete** removes the selected conversation through the service. Enter submits and Shift+Enter inserts a newline. At a compact width the project/search/conversation controls stack above the conversation. The transcript records user/assistant entries and model usage when returned.
 
 **Chat** requests an answer. **Agent** creates supervised work in Swarm. **Delegate conversation to Swarm** hands off a prior request. Chat itself does not expose a general tool loop. An answer proposing code is different from a task that actually edited, validated, and integrated code.
 
@@ -49,7 +73,7 @@ Example question: “Explain the reset rule in the attached `main.gd` and compar
 
 ![Swarm request, task, approval, and integration areas](images/lantern-workshop/10-swarm.png)
 
-Select the Project and enter a **Change request**, coordinator **Role**, and **Token budget**. Include Project-relative paths such as `docs/DESIGN.md` or canon IDs so **Preview impact** can identify seeds and inspect related graph nodes. A request without either reports that no IDs/paths were found. **Submit request** creates work. Preview is not execution; a graph with no related nodes is not proof that a change has no effects.
+Select the Project and expand **New request** to enter a **Change request**, coordinator **Role**, and **Token budget**. Include Project-relative paths such as `docs/DESIGN.md` or canon IDs so **Preview impact** can identify seeds and inspect related graph nodes. A request without either reports that no IDs/paths were found. **Submit request** creates work. The **Agents**, **Approvals**, **Integrations**, and **Resource locks** sections separate these records. Preview is not execution; a graph with no related nodes is not proof that a change has no effects.
 
 Inspect the selected request's task tree, questions, approvals, resource locks, integrations, and feedback. Task execution uses leases and checkpoints in the service. Worktrees isolate source changes; locks coordinate declared resources such as shared editors or tool sessions.
 
@@ -61,7 +85,7 @@ A task reporting success does not by itself prove that its work is integrated or
 
 ![Discussion thread and maintenance controls](images/lantern-workshop/06-discussion.png)
 
-Select the Project and create a thread using title, kind, tags, first message, and message type. Filters select status/kind/tags/search. Opening a thread shows its messages and supported decision actions. Posting a comment, blocker, evidence, or decision message retains discussion context.
+Select the Project and expand **New thread** to create a thread using title, kind, tags, first message, and message type. The **All**, **Open**, **Questions**, **Blockers**, and **Decisions** quick views filter the list; detailed filters select status/kind/tags/search. Opening a thread shows its messages and supported decision actions. Posting a comment, blocker, evidence, or decision message retains discussion context.
 
 Resolve a thread when its question is settled; archive according to the intended workflow. Deletion depends on the access/deletion settings and is different from resolution. A binding decision can produce document proposals; inspect those proposals and their application result. Maintenance **Run audit**, **Run cleanup**, and **Run sync** act on supported board records. Broad reconciliation limitations remain in [implementation status](STATUS.md).
 
@@ -71,7 +95,7 @@ Example evidence message: “Godot version X, fixture revision Y, reset check pa
 
 ![Index status and lexical search](images/lantern-workshop/07-knowledge.png)
 
-**Reconcile** queues index synchronization. **Rebuild** queues a full rebuild. Inspect records, chunks, vectors, pending work, timestamps, and conflicts. The source files are authoritative; the index is derived data. A plain design document can have indexed chunks while the canon-record count remains zero.
+The **Index status**, **Search**, **Canon records**, and **Settings** sections separate indexing, retrieval and configuration. **Reconcile** queues index synchronization. **Rebuild** queues a full rebuild. Inspect records, chunks, vectors, pending work, timestamps, and conflicts. The source files are authoritative; the index is derived data. A plain design document can have indexed chunks while the canon-record count remains zero.
 
 Search accepts query, mode, source, record status/type, and inclusion of inactive records. **Lexical** searches text. **Semantic** requires a configured embedding profile and vector store. **Hybrid** combines retrieval and can report a degraded path. Inspect each hit's citation, path, excerpt, revision, and source before using it as evidence.
 
@@ -81,7 +105,7 @@ The expandable vector/embedding area configures the Project's store and model pr
 
 ![Grouped settings, scopes, and effective values](images/lantern-workshop/08-settings.png)
 
-Settings are grouped and searchable. Select the appropriate supported scope and Project/session context. The effective value shows which layer supplied it. **Reset** removes an override rather than writing the default as another override. Use the [settings reference](SETTINGS_REFERENCE.md) for exact types, defaults, and allowed scopes.
+Settings are grouped and searchable. Select a group or search by setting key, then choose the appropriate supported scope and Project/session context. The effective value shows which layer supplied it. Expand **Import and export** to validate, preview, apply, or export a settings file. **Reset** removes an override rather than writing the default as another override. Use the [settings reference](SETTINGS_REFERENCE.md) for exact types, defaults, and allowed scopes.
 
 For a tutorial, search `access.mode` and inspect the source before changing it. **Ask always** permits read-only calls and asks before applicable side effects. **Restricted** uses configured side-effect categories/tool rules. **Full** remains subject to applicable access ceilings, schema/path validation and operation identity checks. Roles and tools can impose additional boundaries.
 
@@ -101,7 +125,7 @@ Example: enable an asset workflow skill for a model task, read the export/valida
 
 ![MCP connection configuration](images/lantern-workshop/11-connections.png)
 
-Select platform scope or a Project. Configure the connection name, tags, and execution mode. Supported configuration includes a local command with arguments/environment, an endpoint with its transport/headers, and Docker configuration. Inspect connection state, negotiated capabilities, discovered tools, and logs after connecting.
+The **Servers**, **Add connection**, **Tool safety**, and **Logs** sections separate server setup from discovered-tool policy and diagnostics. Select platform scope or a Project. Configure the connection name, tags, and execution mode. Expand **Command arguments and environment**, **Custom request headers**, **Advanced metadata and credentials**, or **Advanced Docker settings** when those inputs apply. Save the connection, then explicitly connect it; inspect negotiated capabilities, classify discovered tools, and review logs in their sections.
 
 Use a slug such as `lantern-editor`; names follow `^[a-z0-9][a-z0-9-]{0,63}$`. Supply arguments/environment in the shapes requested by the form, not a pasted shell command with accidental quoting. Use credentials controls for secrets. Docker additionally needs an available runtime and deliberately configured mounts/network.
 
@@ -131,7 +155,7 @@ For an asset task, specify the editable source, units, axes, origin, expected di
 
 ![Asset accounts, requests, and job inspection](images/lantern-workshop/14-assets.png)
 
-Configure a provider account and choose a supported generation operation. Describe the intended asset, format, scale, references, and use. Job submission, provider completion, downloaded artifact, review, and import are distinct stages. Inspect terminal state and files rather than assuming a submitted request finished.
+The **Library**, **Preview**, **Generate**, and **Jobs** sections separate stored files, inspection, requests, and job lifecycle. Configure a provider account in the expandable account form, choose a supported generation operation, and describe the intended asset, format, scale, references, and use. **Advanced generation options** reveals optional inputs. Job submission, provider completion, downloaded artifact, review, and import are distinct stages. Inspect terminal state and files rather than assuming a submitted request finished.
 
 Preview 2D or 3D output, then validate dimensions, topology, UV/materials, rig/animation if applicable, provenance, and licensing needed for the use. Human review through `asset/review` must approve an artifact before `asset/import`; that review is a user-only service action. Imports preserve provenance and existing files, allocating a fresh filename on collision rather than overwriting the original. Outside-Project destinations are rejected. The [asset workflow screenshots](WORKFLOW_SCREENSHOTS.md#synthetic-asset-review-and-import-recovery) show actual review/import with a local synthetic artifact.
 
@@ -141,7 +165,7 @@ Example request: “A stylized lantern prop, upright, centered at its base, inte
 
 ![Plugin catalog and installation controls](images/lantern-workshop/15-plugins.png)
 
-Inspect plugin type, source, version, declared capabilities, granted permissions, settings, and enabled state. Platform plugins have a manifest/runtime distinct from compiled Theia extensions and VS Code-compatible editor plugins. They cannot become owners of task/Project/router state.
+The platform-plugin page sections are **Installed**, **Install**, **Selected plugin**, and **Modules**; editor extensions are a separate plugin type/view. Inspect plugin type, source, version, declared capabilities, granted permissions, settings, and enabled state. Platform plugins have a manifest/runtime distinct from compiled Theia extensions and VS Code-compatible editor plugins. They cannot become owners of task/Project/router state.
 
 Install only after reviewing the proposed privileges and compatibility. Project activation can differ from platform installation. Inspect plugin panels/tools and runtime errors separately. Removing a plugin can remove its contributed tools/settings/panels; consider retained records and dependent tasks before uninstalling. The [plugin SDK/integration guide](INTEGRATION_GUIDE.md) describes implementation contracts.
 
@@ -149,7 +173,7 @@ Install only after reviewing the proposed privileges and compatibility. Project 
 
 ![Backup identities, destinations, plans, and recovery](images/lantern-workshop/16-backups.png)
 
-Configure identity/recovery material, a destination, then a profile or Project plan. Review schedule, retention, and scope before running it. A configured plan is not an archive. Inspect transfer, verification, run failure/cancellation, archive manifest, and recoverability.
+Use the **Identities**, **Destinations**, **Plans**, **Runs**, and **Archives and restore** sections in order. Configure recovery material and a destination, then a profile or Project plan. Review schedule, retention, and scope before running it. A configured plan is not an archive. Inspect transfer, verification, run failure/cancellation, archive manifest, and recoverability.
 
 For a learning exercise, use a local destination and the disposable Project. Verify an archive, then restore to a new empty directory. Inspect restored Project identity, registration warnings, representative files, settings, and engine behavior. Keep the recovery secret available independently. Profile restoration requires launching the service with the restored profile; it does not overwrite the active profile in place.
 

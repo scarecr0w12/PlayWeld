@@ -1,6 +1,6 @@
 {
   "name": "@gamecrafter/service-client",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "license": "Apache-2.0",
   "main": "lib/index.js",
@@ -13,7 +13,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@gamecrafter/contracts": "0.6.0",
+    "@gamecrafter/contracts": "0.7.0",
     "vscode-jsonrpc": "9.0.2"
   }
 }

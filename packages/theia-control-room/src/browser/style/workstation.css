@@ -3,6 +3,336 @@
   display: none !important;
 }
 
+/* Common page anatomy: purpose, next action, section navigation, focused content. */
+.gamecrafter-page-header {
+  align-items: center;
+  border-bottom: 1px solid var(--gc-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  justify-content: space-between;
+  padding-bottom: 18px;
+}
+.gamecrafter-page-header > div:first-child {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.gamecrafter-page-header :is(h1, h2) {
+  margin: 0 0 6px;
+}
+.gamecrafter-page-header p {
+  color: var(--theia-descriptionForeground);
+  margin: 0;
+  max-width: 76ch;
+}
+.gamecrafter-page-panel {
+  background: var(--gc-panel);
+  border: 1px solid var(--gc-border);
+  border-radius: 8px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  min-width: 0;
+  padding: 18px;
+}
+.gamecrafter-page-panel > :is(h2, h3):first-child {
+  margin-top: 0;
+}
+.gamecrafter-page-meta {
+  align-items: center;
+  color: var(--theia-descriptionForeground);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 8px 18px;
+  margin: 10px 0;
+}
+.gamecrafter-page-meta-item {
+  background: var(--gc-surface);
+  border: 1px solid var(--gc-border);
+  border-radius: 5px;
+  padding: 4px 8px;
+}
+.gamecrafter-page-meta strong {
+  color: var(--theia-foreground);
+}
+.gamecrafter-page-meta > label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gamecrafter-page-meta-item dt {
+  color: var(--theia-descriptionForeground);
+  font-size: 11px;
+}
+.gamecrafter-page-meta-item dd {
+  color: var(--theia-foreground);
+  font-weight: 600;
+  margin: 0;
+}
+.gamecrafter-page-section-intro {
+  color: var(--theia-descriptionForeground);
+  max-width: 76ch;
+}
+.gamecrafter-page-empty {
+  border: 1px dashed var(--gc-border);
+  border-radius: 6px;
+  color: var(--theia-descriptionForeground);
+  padding: 16px;
+}
+.gamecrafter-page-advanced {
+  border: 1px solid var(--gc-border);
+  border-radius: 6px;
+  margin: 12px 0;
+  padding: 10px 14px;
+}
+.gamecrafter-page-advanced > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.gamecrafter-page-advanced[open] > summary {
+  border-bottom: 1px solid var(--gc-border);
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+}
+.gamecrafter-setting-advanced {
+  color: var(--theia-descriptionForeground);
+  font-size: 12px;
+  margin-top: 8px;
+}
+.gamecrafter-setting-advanced summary {
+  cursor: pointer;
+}
+.gamecrafter-setting-advanced-content {
+  border-left: 1px solid var(--gc-border);
+  margin-top: 8px;
+  padding-left: 12px;
+}
+.gamecrafter-page-guidance {
+  background: color-mix(in srgb, var(--gc-accent) 7%, var(--gc-panel));
+  border: 1px solid var(--gc-border);
+  border-left: 3px solid var(--gc-accent);
+  border-radius: 8px;
+  padding: 14px 18px;
+}
+.gamecrafter-page-guidance p {
+  color: var(--theia-descriptionForeground);
+  margin: 4px 0 0;
+}
+.gamecrafter-surface
+  > :is(
+    .gamecrafter-work-guidance,
+    .gamecrafter-section-nav,
+    .gamecrafter-page-header,
+    .gamecrafter-page-meta
+  ) {
+  flex-shrink: 0;
+}
+.gamecrafter-surface > .gamecrafter-section-nav {
+  border-bottom: 1px solid var(--gc-border);
+  padding-bottom: 12px;
+}
+.gamecrafter-surface :is(label, section, form, details) {
+  min-width: 0;
+}
+.gamecrafter-surface :is(input, select, textarea) {
+  max-width: 100%;
+}
+.gamecrafter-surface :is(code, pre, .gamecrafter-page-meta) {
+  overflow-wrap: anywhere;
+}
+.gamecrafter-surface .gamecrafter-page-panel pre {
+  background: var(--gc-surface);
+  border: 1px solid var(--gc-border);
+  border-radius: 6px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 12px;
+  white-space: pre-wrap;
+}
+.gamecrafter-surface :is(th, td) {
+  line-height: 1.5;
+}
+.gamecrafter-surface th {
+  color: var(--theia-descriptionForeground);
+  font-size: 12px;
+  font-weight: 600;
+}
+.gamecrafter-chat-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 18px;
+}
+.gamecrafter-chat-starters button {
+  max-width: 30ch;
+  text-align: left;
+}
+.gamecrafter-chat-mode-guidance {
+  color: var(--theia-descriptionForeground);
+  font-size: 12px;
+  margin: 6px 0;
+}
+.gamecrafter-chat-message-label {
+  font-weight: 600;
+}
+.gamecrafter-assets-columns {
+  flex: 1 0 auto;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+}
+@container gamecrafter-view (max-width: 850px) {
+  .gamecrafter-knowledge-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@container gamecrafter-view (max-width: 600px) {
+  .gamecrafter-surface
+    :is(
+      .gamecrafter-connections-form,
+      .gamecrafter-backups-form,
+      .gamecrafter-dcc-form,
+      .gamecrafter-engine-install-form,
+      .gamecrafter-plugins-install-form,
+      .gamecrafter-plugins-catalog-form,
+      .gamecrafter-knowledge-status-grid,
+      .gamecrafter-dcc-layer-list
+    ) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .gamecrafter-surface
+    :is(
+      .gamecrafter-knowledge-form,
+      .gamecrafter-models-account-form,
+      .gamecrafter-models-pool-form,
+      .gamecrafter-skills-install-form,
+      .gamecrafter-skills-catalog-form
+    )
+    > label {
+    flex: 1 1 100%;
+  }
+  .gamecrafter-knowledge-query input,
+  .gamecrafter-knowledge-form label {
+    min-width: 0;
+  }
+  .gamecrafter-page-panel {
+    padding: 12px;
+  }
+  .gamecrafter-surface :is(.gamecrafter-plugin-review, .gamecrafter-plugin-card-details) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Use public theme tokens and existing shell classes, not widget internals or
+   virtualized row dimensions. Built-in commands, layout and keyboard behavior stay intact. */
+.playweld-workbench .lm-Menu {
+  border-color: var(--theia-menu-border, var(--theia-widget-border));
+  border-radius: 8px;
+  padding: 6px;
+}
+.playweld-workbench .lm-MenuBar-item {
+  border-radius: 5px;
+}
+.playweld-workbench .lm-TabBar.theia-app-centers .lm-TabBar-tab {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+.playweld-workbench .lm-Menu-itemShortcut {
+  color: var(--theia-descriptionForeground);
+  padding-left: 18px;
+}
+.playweld-workbench .lm-Menu-item.lm-mod-active .lm-Menu-itemShortcut {
+  color: inherit;
+}
+.playweld-workbench .lm-Widget.dialogOverlay .dialogBlock {
+  border: 1px solid var(--theia-contrastBorder, var(--theia-widget-border));
+  border-radius: 10px;
+  min-width: min(400px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+}
+.playweld-workbench .dialogOverlay .dialogTitle {
+  font-weight: 600;
+  min-height: 42px;
+  padding: 0 16px;
+}
+.playweld-workbench .dialogOverlay .dialogContent {
+  line-height: 1.6;
+  padding: 18px;
+}
+.playweld-workbench .dialogOverlay .dialogControl {
+  border-top: 1px solid var(--theia-widget-border);
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 14px 18px;
+}
+.playweld-workbench
+  :is(.theia-input:not([type='checkbox']):not([type='radio']), .theia-select, .theia-button) {
+  border-radius: 5px;
+}
+.playweld-workbench
+  :is(.dialogOverlay, .theia-settings-container)
+  :is(.theia-input:not([type='checkbox']):not([type='radio']), .theia-select, .theia-button) {
+  box-sizing: border-box;
+  min-height: 32px;
+  max-width: 100%;
+}
+.playweld-workbench .quick-input-widget {
+  border: 1px solid var(--theia-widget-border);
+  border-radius: 10px;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+}
+.playweld-workbench .quick-input-titlebar {
+  border-bottom: 1px solid var(--theia-widget-border);
+}
+.playweld-workbench .quick-input-header {
+  padding: 10px 12px;
+}
+.playweld-workbench .quick-input-message {
+  line-height: 1.5;
+}
+.playweld-workbench .theia-TreeNode {
+  border-radius: 4px;
+}
+.playweld-workbench .theia-TreeNode.theia-mod-selected {
+  box-shadow: inset 2px 0 var(--theia-focusBorder);
+}
+.playweld-workbench .theia-settings-container {
+  grid-template-columns: minmax(110px, 24%) minmax(0, 1fr);
+  max-width: 1200px;
+}
+.playweld-workbench
+  .theia-settings-container
+  :is(.preferences-editor-widget, .settings-main, .settings-main-scroll-container) {
+  min-width: 0;
+}
+.playweld-workbench .theia-settings-container li.single-pref {
+  background: var(--theia-editorWidget-background);
+  border: 1px solid var(--theia-widget-border);
+  border-radius: 8px;
+  box-sizing: border-box;
+  margin: 12px 0;
+  padding: 14px;
+}
+.playweld-workbench .theia-notifications-container {
+  max-width: calc(100vw - 32px);
+}
+.playweld-workbench :is(.theia-notification-list-item, .theia-notification-center) {
+  border-radius: 8px;
+}
+.playweld-workbench .theia-notification-list-item-content {
+  margin: 10px;
+}
+.playweld-workbench :is(.theia-input, .theia-select, .theia-button):focus-visible {
+  outline: 2px solid var(--theia-focusBorder);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .playweld-workbench .gamecrafter-surface button {
+    transition: none;
+  }
+}
+
 .gamecrafter-work-guidance,
 .gamecrafter-board-next-action,
 .gamecrafter-home-next-step {
@@ -28,6 +358,9 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+.gamecrafter-section-nav {
+  margin-bottom: 12px;
 }
 .gamecrafter-surface
   :is(.gamecrafter-section-nav, .gamecrafter-board-quick-views)
@@ -712,7 +1045,8 @@
   flex: 0 1 140px;
 }
 
-.gamecrafter-chat-conversation-select {
+.gamecrafter-chat-conversation-select,
+.gamecrafter-chat-conversation-picker {
   display: none;
 }
 
@@ -792,7 +1126,7 @@
     border-right: 0;
     border-bottom: 1px solid var(--gc-border);
     gap: 6px;
-    max-height: 170px;
+    max-height: 240px;
     padding: 8px 10px;
   }
 
@@ -800,7 +1134,8 @@
     display: none;
   }
 
-  .gamecrafter-chat-conversation-select {
+  .gamecrafter-chat-conversation-select,
+  .gamecrafter-chat-conversation-picker {
     display: block;
     flex-shrink: 0;
   }

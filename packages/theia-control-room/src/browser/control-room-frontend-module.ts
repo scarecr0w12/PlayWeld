@@ -43,12 +43,14 @@ import { AuditWidget } from './audit-widget';
 import { AuditViewContribution } from './audit-view-contribution';
 import { GameCrafterThemeContribution } from './theme-contribution';
 import { PlayWeldBrandContribution } from './brand-contribution';
+import { WorkspaceMenuContribution } from './workspace-menu-contribution';
 import '../../src/browser/style/index.css';
 import '../../src/browser/style/workstation.css';
 
 export default new ContainerModule((bind) => {
   bind(FrontendApplicationContribution).to(GameCrafterThemeContribution).inSingletonScope();
   bind(FrontendApplicationContribution).to(PlayWeldBrandContribution).inSingletonScope();
+  bind(MenuContribution).to(WorkspaceMenuContribution).inSingletonScope();
   bind(ControlRoomClientEvents).toSelf().inSingletonScope();
   bind(ControlRoomClientToken).toService(ControlRoomClientEvents);
   bind(ControlRoomService)

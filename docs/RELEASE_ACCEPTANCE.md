@@ -1,6 +1,8 @@
 # GameCrafter 0.1.1 release acceptance
 
-**Last updated:** 2026-10-01
+**Last updated:** 2026-10-04
+
+The 0.1.1 acceptance results below were recorded on 2026-10-01. The later-local-evidence links at the end were added on 2026-10-04 without changing that historical test scope.
 
 This record covers the versioned testing build from source commit `4ffc8dc25f63be1ef2e8f8bcbec4e5c4be1a9cc9`, identified by annotated tag `v0.1.1`. It supplements the [release guide](RELEASE_GUIDE.md) and does not mark the remaining WP19 installation/update/rollback criteria complete.
 
@@ -41,3 +43,7 @@ The first prerelease is assembled from the validated local native Windows instal
 ## Remaining acceptance
 
 Signing-key/certificate provisioning, a stable signed release, installer install/uninstall, previous-installer capture, in-place update and rollback/recovery remain open. Live provider coverage, production-game acceptance, physical desktop input/accessibility and broader engine/isolation matrices retain the limits in [status](STATUS.md).
+
+## Later Local Evidence
+
+The sections above are the historical 0.1.1 acceptance record, not a statement that subsequent local installations were never tested. Later version-specific evidence is retained separately: [0.6.0 local upgrade](changes/2026-10-03-local-0.6.0-deployment.md) and [0.7.0 interface/docs deployment](changes/2026-10-04-local-0.7.0-deployment.md). Those records distinguish source tests, packaged desktop checks and actual Windows installer outcomes. They do not retroactively certify 0.1.1 or resolve signing, uninstall, rollback, Linux packaging or the complete WP19 lifecycle.

@@ -1,6 +1,6 @@
 # PlayWeld integration and extension guide
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-04
 
 **Audience:** Engine, DCC, MCP, skill, role, plugin and provider integrators. [Documentation index](README.md).
 
@@ -75,6 +75,8 @@ The connection manager supports:
 | Docker   | Image, command, transport/port, mounts, environment, network and pull policy | Tracks owned container startup/cleanup; optional stop-on-disconnect |
 
 Connection scope is platform or Project. Project-scoped connections must carry the Project identity. Connection state and negotiated revision are observable; tool discovery is a separate step from server startup.
+
+In the Control Room, open **PlayWeld > Build & Connect > Tool Connections**. The **Servers**, **Add connection**, **Tool safety**, and **Logs** sections separate setup, policy and diagnostics. Expand the relevant advanced disclosure for command arguments/environment, endpoint headers, credentials or Docker settings; adding a connection does not start it, so explicitly connect it and then inspect the negotiated revision and discovered tools.
 
 The contract lists revisions `2026-07-28`, `2025-11-25`, `2025-06-18` and `2025-03-26`. In-repository fixtures exercise multiple revisions. Live Unity/adapted Unreal acceptance negotiated `2025-11-25`; fixture coverage of another revision is not live certification of that revision.
 

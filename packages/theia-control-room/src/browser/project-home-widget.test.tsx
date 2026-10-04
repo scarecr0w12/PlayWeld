@@ -2,6 +2,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { ProjectSummary } from '@gamecrafter/contracts';
+import type { MenuModelRegistry } from '@theia/core/lib/common/menu';
 
 vi.mock('@theia/core/shared/inversify', () => ({
   inject: () => () => {},
@@ -12,6 +13,13 @@ vi.mock('./control-room-react-widget', () => ({ ControlRoomReactWidget: class {}
 vi.mock('./control-room-client', () => ({ ControlRoomClientEvents: class {} }));
 vi.mock('../common/control-room-protocol', () => ({ ControlRoomService: Symbol('service') }));
 vi.mock('@theia/core/lib/common/command', () => ({ CommandService: class {} }));
+vi.mock('@theia/core/lib/common/menu', () => ({ MAIN_MENU_BAR: ['menubar'] }));
+vi.mock('@theia/core/lib/browser/common-commands', () => ({
+  CommonCommands: { OPEN_PREFERENCES: { id: 'ide-settings' }, OPEN_VIEW: { id: 'open-view' } },
+}));
+vi.mock('./project-home-contribution', () => ({
+  PROJECT_HOME_TOGGLE_COMMAND_ID: 'gamecrafter.projectHome.toggle',
+}));
 vi.mock('@theia/core/lib/common/uri', () => ({ default: class URI {} }));
 vi.mock('@theia/core/lib/common/message-service', () => ({ MessageService: class {} }));
 vi.mock('@theia/workspace/lib/browser/workspace-service', () => ({ WorkspaceService: class {} }));
@@ -57,6 +65,7 @@ vi.mock('./updates-view-contribution', () => ({
 }));
 
 import { ProjectHomeWidget } from './project-home-widget';
+import { WorkspaceMenuContribution } from './workspace-menu-contribution';
 
 interface RenderableHome extends ProjectHomeWidget {
   render(): React.ReactNode;
@@ -96,6 +105,35 @@ function collectNavigationButtons(
 }
 
 describe('Project Home navigation and guidance', () => {
+  it('adds a grouped menu route for every Home destination without unregistering IDE menus', () => {
+    const menus = {
+      registerSubmenu: vi.fn(),
+      registerMenuAction: vi.fn(),
+      unregisterMenuAction: vi.fn(),
+    };
+    new WorkspaceMenuContribution().registerMenus(menus as unknown as MenuModelRegistry);
+    expect(menus.registerSubmenu.mock.calls.map((call) => call[1])).toEqual([
+      'PlayWeld',
+      'Plan & Collaborate',
+      'Build & Connect',
+      'Configure & Extend',
+      'Review & Maintain',
+    ]);
+    const actions = menus.registerMenuAction.mock.calls.map(
+      (call) => call[1] as { commandId: string },
+    );
+    const { widget, commands } = fixture();
+    for (const button of collectNavigationButtons(widget.render())) button.props.onClick?.();
+    const commandIds = actions.map((action) => action.commandId);
+    for (const [id] of commands.executeCommand.mock.calls) expect(commandIds).toContain(id);
+    expect(new Set(commandIds).size).toBe(19);
+    expect(commandIds).toContain('ide-settings');
+    expect(commandIds).toContain('open-view');
+    expect(commandIds).toContain('gamecrafter.projectHome.toggle');
+    expect(commandIds).toContain('gamecrafter.project.create');
+    expect(menus.unregisterMenuAction).not.toHaveBeenCalled();
+  });
+
   it('groups all workspace destinations with actionable descriptions and preserves their commands', () => {
     const { widget, commands } = fixture();
     const content = widget.render();

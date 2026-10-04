@@ -1,8 +1,20 @@
 const path = require('node:path');
 const assert = require('node:assert/strict');
-async function pluginScenario({ client, page, project, checks, open, click, capture, wait }) {
+async function pluginScenario({
+  client,
+  page,
+  project,
+  checks,
+  open,
+  click,
+  selectSection,
+  selectProject,
+  capture,
+  wait,
+}) {
   await open('Plugins', 'plugins');
-  await page.waitForSelector('[aria-label="Plugin source"]');
+  await selectSection('Platform plugin sections', 'Install');
+  await page.waitForSelector('[aria-label="Plugin source"]', { visible: true });
   await page.type('[aria-label="Plugin source"]', path.resolve('packages/plugins/sample-hello'));
   await click('.gamecrafter-plugins button', 'Inspect source');
   await page.waitForSelector('[aria-label="Plugin capability review"]');
@@ -12,7 +24,8 @@ async function pluginScenario({ client, page, project, checks, open, click, capt
   await wait(() =>
     document.querySelector('.gamecrafter-plugins')?.textContent.includes('Installed Sample Hello'),
   );
-  await page.select('[aria-label="Plugins Project"]', project.projectId);
+  await selectProject('[aria-label="Plugins Project"]', project.projectId);
+  await selectSection('Platform plugin sections', 'Installed');
   await wait(() =>
     [...document.querySelectorAll('.gamecrafter-plugin-card-actions label')].some((node) =>
       node.textContent.includes('Enabled for this Project'),

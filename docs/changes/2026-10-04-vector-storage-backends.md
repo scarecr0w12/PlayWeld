@@ -1,6 +1,6 @@
 # Selectable embedded and managed vector storage
 
-**Release:** Unreleased
+**Release:** 0.7.0
 
 **Impact:** minor
 

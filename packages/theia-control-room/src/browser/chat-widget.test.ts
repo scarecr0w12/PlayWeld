@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import type { ChatConversation, ChatEntry, Model, ProjectSummary } from '@gamecrafter/contracts';
 import type { ControlRoomService } from '../common/control-room-protocol';
 import type { ControlRoomClientEvents } from './control-room-client';
@@ -42,6 +44,8 @@ function deferred<T>() {
 }
 
 interface Harness {
+  render(): React.ReactNode;
+  conversationSearch: string;
   projectId: string;
   conversationId: string;
   selectedModelId: string;
@@ -139,6 +143,61 @@ async function fixture() {
 }
 
 describe('chat request ownership', () => {
+  it('filters conversation navigation without changing the active conversation or its draft', async () => {
+    const f = await fixture();
+    f.widget.conversationSearch = 'TWO';
+    const html = renderToStaticMarkup(f.widget.render());
+    const navigation = html.slice(html.indexOf('<nav'), html.indexOf('</nav>'));
+    expect(navigation).toContain('A-two');
+    expect(navigation).not.toContain('A-one');
+    const mobilePicker = html.slice(
+      html.indexOf('aria-label="Chat conversation"'),
+      html.indexOf('<nav'),
+    );
+    expect(mobilePicker).toContain('A-two');
+    expect(mobilePicker).toContain('Current: A-one');
+    expect(f.widget.conversationId).toBe('A-one');
+    expect(f.widget.draft).toBe('Question for A');
+    f.widget.conversationSearch = 'missing';
+    expect(renderToStaticMarkup(f.widget.render())).toContain(
+      'No conversations match this search.',
+    );
+  });
+
+  it('conversation starters only fill the draft and focus the labelled message field', async () => {
+    const f = await fixture();
+    const focus = vi.fn();
+    Object.assign(f.widget, { node: { querySelector: () => ({ focus }) } });
+    f.widget.newConversation();
+    const buttons: React.ReactElement<{ children?: React.ReactNode; onClick?: () => void }>[] = [];
+    const visit = (node: React.ReactNode) => {
+      React.Children.forEach(node, (child) => {
+        if (!React.isValidElement(child)) return;
+        const element = child as React.ReactElement<{
+          children?: React.ReactNode;
+          onClick?: () => void;
+        }>;
+        if (
+          element.type === 'button' &&
+          element.props.children === 'Help me plan a gameplay change.'
+        )
+          buttons.push(element);
+        visit(element.props.children);
+      });
+    };
+    visit(f.widget.render());
+    expect(buttons).toHaveLength(1);
+    buttons[0]!.props.onClick?.();
+    expect(f.widget.draft).toBe('Help me plan a gameplay change.');
+    expect(focus).toHaveBeenCalledOnce();
+    expect(f.service.completeChat).not.toHaveBeenCalled();
+    expect(f.service.requestChange).not.toHaveBeenCalled();
+    f.widget.mode = 'agent';
+    expect(renderToStaticMarkup(f.widget.render())).toContain(
+      'Agent creates a tracked change request.',
+    );
+  });
+
   it('grounds Chat in current local engine, authoring, and Agent tool capabilities', async () => {
     const f = await fixture();
     const send = f.widget.send();

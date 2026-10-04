@@ -5,6 +5,7 @@ const { spawn } = require('node:child_process');
 const { setTimeout: delay } = require('node:timers/promises');
 const { PlatformService } = require('../packages/platform-service/lib/service');
 const { resolvePaths } = require('../packages/platform-service/lib/paths');
+const { connect } = require('@gamecrafter/service-client');
 async function freePort() {
   const server = net.createServer();
   await new Promise((resolve, reject) => {
@@ -22,7 +23,9 @@ async function main() {
     ...process.env,
     GAMECRAFTER_PROFILE_DIR: path.join(directory, 'profile'),
   });
-  const service = await PlatformService.start({
+  const packagedExecutable = process.env.GAMECRAFTER_ELECTRON_EXECUTABLE;
+  if (packagedExecutable && !fs.existsSync(packagedExecutable)) throw new Error('Packaged Electron executable does not exist.');
+  const service = packagedExecutable ? undefined : await PlatformService.start({
     paths,
     platformVersion: require('../packages/platform-service/package.json').version,
   });
@@ -38,9 +41,10 @@ async function main() {
   delete env.ELECTRON_RUN_AS_NODE;
   const log = fs.openSync(path.join(directory, 'electron.log'), 'a');
   const electron = spawn(
-    require('electron'),
+    packagedExecutable ?? require('electron'),
     [
-      path.resolve('apps/control-room'),
+      ...(packagedExecutable ? [] : [path.resolve('apps/control-room')]),
+      `--user-data-dir=${path.join(directory, 'desktop')}`,
       '--port',
       String(port),
       '--hostname',
@@ -82,17 +86,40 @@ async function main() {
           : reject(new Error(`Electron smoke exited ${code}; inspect ${directory}`)),
       );
     });
+    if (packagedExecutable) {
+      const client = await connect({ socketPath: paths.socketPath, token: fs.readFileSync(paths.tokenPath, 'utf8').trim(), clientName: 'packaged-release-smoke', clientVersion: require('../packages/platform-service/package.json').version });
+      try {
+        const info = await client.call('service/info', {});
+        if (info.serviceVersion !== require('../packages/platform-service/package.json').version) throw new Error('Packaged service version does not match release source.');
+        fs.writeFileSync(path.join(directory, 'service-info.json'), JSON.stringify(info, null, 2));
+      } finally { client.close(); }
+    }
     console.log(`Electron documentation smoke passed: ${directory}`);
   } finally {
-    if (process.platform === 'win32' && electron.pid) {
-      const kill = spawn('taskkill', ['/PID', String(electron.pid), '/T', '/F'], {
-        windowsHide: true,
-        stdio: 'ignore',
-      });
-      await new Promise((resolve) => kill.once('exit', resolve));
-    } else electron.kill();
-    await service.stop();
-    fs.closeSync(log);
+    try {
+      if (service) await service.stop();
+      else if (fs.existsSync(paths.tokenPath)) {
+        const client = await connect({ socketPath: paths.socketPath, token: fs.readFileSync(paths.tokenPath, 'utf8').trim(), clientName: 'packaged-release-cleanup', clientVersion: require('../packages/platform-service/package.json').version }).catch(() => undefined);
+        if (client) {
+          try {
+            await client.call('service/stop', { checkpoint: true });
+            const deadline = Date.now() + 10000;
+            while (fs.existsSync(paths.lockPath) && Date.now() < deadline) await delay(100);
+            if (fs.existsSync(paths.lockPath)) throw new Error('Owned packaged service did not finish checkpointed shutdown.');
+          }
+          finally { client.close(); }
+        }
+      }
+    } finally {
+      if (process.platform === 'win32' && electron.pid) {
+        const kill = spawn('taskkill', ['/PID', String(electron.pid), '/T', '/F'], {
+          windowsHide: true,
+          stdio: 'ignore',
+        });
+        await new Promise((resolve) => kill.once('exit', resolve));
+      } else electron.kill();
+      fs.closeSync(log);
+    }
   }
 }
 main().catch((error) => {

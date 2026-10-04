@@ -1,6 +1,15 @@
 {
-  "capturedAt": "2026-10-03T00:00:36.676Z",
-  "platformVersion": "0.4.0",
+  "capturedAt": "2026-10-04T04:20:34.145Z",
+  "platformVersion": "0.6.0",
+  "source": {
+    "commit": "ee36787c0cf7532734ed87cda324226eb2d8c41a",
+    "workingTree": "pending changes",
+    "captureScriptSha256": "6e606cad11c8f91880c2e4b59d261a0a4d2469b2e53c63e1fae405b46a2eb969",
+    "scenarioModulesSha256": "6428054c7f0d7098c5d71ccd2eb36c3430cd0935927be7aec4de9a88030a4917"
+  },
+  "selectedScenarios": [
+    "overview"
+  ],
   "target": "Built development browser Control Room, real platform service",
   "provider": "Local deterministic HTTP fixture; no live model, paid provider, or engine execution",
   "projectName": "Lantern Workshop",
@@ -8,6 +17,7 @@
     "Six-step UI wizard created a real Project; reusable documentation and native Godot fixture copied into it",
     "Discussion thread submitted in UI and verified through service RPC",
     "UI chat request completed through router and local fixture provider",
+    "Chat search filters the conversation list and picker; a starter fills a draft only and the compact mobile view is captured",
     "Knowledge reconciliation and text search returned the fixture design document",
     "Models rendered against isolated service",
     "Settings platform override saved, inspected, and reset in UI",
@@ -31,6 +41,8 @@
     "06-discussion.png",
     "03-project.png",
     "05-chat.png",
+    "05-chat-search.png",
+    "05-chat-mobile-starter.png",
     "07-knowledge.png",
     "04-models.png",
     "08-settings-override.png",

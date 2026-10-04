@@ -236,9 +236,13 @@
         "packages/platform-service/src/knowledge/chunker.test.ts",
         "packages/platform-service/src/knowledge/knowledge-store.test.ts",
         "packages/platform-service/src/knowledge/knowledge.integration.test.ts",
+        "packages/platform-service/src/knowledge/lancedb-vector-store.test.ts",
+        "packages/platform-service/src/knowledge/managed-qdrant.test.ts",
         "packages/platform-service/src/knowledge/qdrant-vector-store.integration.test.ts",
         "packages/platform-service/src/knowledge/qdrant-vector-store.test.ts",
-        "packages/platform-service/src/knowledge/retriever.test.ts"
+        "packages/platform-service/src/knowledge/retriever.test.ts",
+        "packages/platform-service/src/knowledge/sqlite-vector-store.test.ts",
+        "packages/platform-service/src/knowledge/vector-store-registry.test.ts"
       ],
       "evidence": "Source/schema inventory; test paths are discoverability, not a claim that these tests passed. See DOCUMENTATION_COVERAGE.md for live results and gaps."
     },
@@ -288,6 +292,7 @@
       ],
       "implementation": "packages/platform-service/src/models",
       "tests": [
+        "packages/platform-service/src/models/completion-service.test.ts",
         "packages/platform-service/src/models/model-registry.test.ts",
         "packages/platform-service/src/models/models.integration.test.ts",
         "packages/platform-service/src/models/providers/http-utils.test.ts",
@@ -335,6 +340,7 @@
       ],
       "implementation": "packages/platform-service/src/models",
       "tests": [
+        "packages/platform-service/src/models/completion-service.test.ts",
         "packages/platform-service/src/models/model-registry.test.ts",
         "packages/platform-service/src/models/models.integration.test.ts",
         "packages/platform-service/src/models/providers/http-utils.test.ts",
@@ -372,6 +378,7 @@
       ],
       "implementation": "packages/platform-service/src/models",
       "tests": [
+        "packages/platform-service/src/models/completion-service.test.ts",
         "packages/platform-service/src/models/model-registry.test.ts",
         "packages/platform-service/src/models/models.integration.test.ts",
         "packages/platform-service/src/models/providers/http-utils.test.ts",
@@ -405,6 +412,7 @@
       ],
       "implementation": "packages/platform-service/src/models",
       "tests": [
+        "packages/platform-service/src/models/completion-service.test.ts",
         "packages/platform-service/src/models/model-registry.test.ts",
         "packages/platform-service/src/models/models.integration.test.ts",
         "packages/platform-service/src/models/providers/http-utils.test.ts",
@@ -697,8 +705,10 @@
         "knowledge.indexBoard",
         "knowledge.indexCode",
         "knowledge.reconcileIntervalMinutes",
+        "knowledge.vectorStore.allowRemote",
         "knowledge.vectorStore.apiKeyRef",
         "knowledge.vectorStore.collectionPrefix",
+        "knowledge.vectorStore.deployment",
         "knowledge.vectorStore.kind",
         "knowledge.vectorStore.timeoutMs",
         "knowledge.vectorStore.url"
@@ -775,7 +785,8 @@
       "implementation": "packages/platform-service/src/agents",
       "tests": [
         "packages/platform-service/src/agents/agent-approval.integration.test.ts",
-        "packages/platform-service/src/agents/agent-runtime.test.ts"
+        "packages/platform-service/src/agents/agent-runtime.test.ts",
+        "packages/platform-service/src/agents/agent-tools.test.ts"
       ],
       "guide": "TECHNICAL_ARCHITECTURE.md"
     },
@@ -886,9 +897,13 @@
         "packages/platform-service/src/knowledge/chunker.test.ts",
         "packages/platform-service/src/knowledge/knowledge-store.test.ts",
         "packages/platform-service/src/knowledge/knowledge.integration.test.ts",
+        "packages/platform-service/src/knowledge/lancedb-vector-store.test.ts",
+        "packages/platform-service/src/knowledge/managed-qdrant.test.ts",
         "packages/platform-service/src/knowledge/qdrant-vector-store.integration.test.ts",
         "packages/platform-service/src/knowledge/qdrant-vector-store.test.ts",
-        "packages/platform-service/src/knowledge/retriever.test.ts"
+        "packages/platform-service/src/knowledge/retriever.test.ts",
+        "packages/platform-service/src/knowledge/sqlite-vector-store.test.ts",
+        "packages/platform-service/src/knowledge/vector-store-registry.test.ts"
       ],
       "guide": "WORKFLOW_COOKBOOK.md"
     },
@@ -916,6 +931,7 @@
       "name": "models",
       "implementation": "packages/platform-service/src/models",
       "tests": [
+        "packages/platform-service/src/models/completion-service.test.ts",
         "packages/platform-service/src/models/model-registry.test.ts",
         "packages/platform-service/src/models/models.integration.test.ts",
         "packages/platform-service/src/models/providers/http-utils.test.ts",

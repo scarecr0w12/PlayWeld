@@ -12,7 +12,7 @@ The desktop Control Room organizes a local Project, its design records, source a
 
 PlayWeld does not install or license a game engine for you. Unity, Unreal, Godot, DCC applications, model endpoints and asset-provider accounts have their own installation and configuration requirements. The development browser target exists for smoke testing; the Electron application is the desktop product.
 
-The current interface uses a dark violet background and neon green accents. Its view contributions expose Project Home, Settings, Models & Routing, Chat, Skills & Roles, Connections, Discussion Board, Swarm, Plugins, Engine, DCC, Knowledge, Assets, Backups, Updates, and Audit & History. Project-dependent actions require an opened Project.
+The current interface uses a dark violet background and neon green accents. Project Home groups tools into **Build and review**, **AI and teamwork**, **Reference and extensions**, and **Workspace**. The top-level **PlayWeld** menu groups the same destinations under **Plan & Collaborate**, **Build & Connect**, **Configure & Extend**, and **Review & Maintain**, with Project Home and Create Project under **Start**. A view may have its own section navigation and expandable advanced controls; selecting a view does not necessarily expose every form at once. Project-dependent actions require the intended Project in that view's selector.
 
 ## Install and launch from source
 
@@ -64,7 +64,7 @@ Use the Project clone operation when you need an independent copy. Clone/registe
 
 ## Configure settings and access
 
-Settings are layered: supported session overrides take precedence over Project overrides, platform settings and builtin defaults. The Settings view shows effective values and their origin. A setting can permit only some scopes. Resetting an override returns control to the next layer.
+Settings are layered: supported session overrides take precedence over Project overrides, platform settings and builtin defaults. The Settings view groups searchable keys; choose the relevant group or search by key to find a value. Expand **Import and export** for settings-file preview/application. Effective values show their origin. A setting can permit only some scopes. Resetting an override returns control to the next layer.
 
 The builtin access default is `ask-always`. Tool decisions use the most restrictive applicable setting and task/request/agent ceiling.
 
@@ -90,7 +90,7 @@ Live model-provider and embedding-provider acceptance is still outstanding. Exis
 
 ## Chat and agent work
 
-Chat stores Project-scoped conversations and presents router responses. Models declaring streaming support can stream; other eligible chat models use a complete-response flow. Optional editor context helps explain the currently selected file. Review the context sent with the request, especially when using a remote endpoint.
+Chat stores Project-scoped conversations and presents router responses. Use **Find a conversation** to filter the conversation list and selector. On an empty conversation, a starter fills the message draft; it does not send until you explicitly press **Send** or Enter. At a narrow window width the conversation controls stack above the conversation, while the Chat/Agent choice and composer remain available. Models declaring streaming support can stream; other eligible chat models use a complete-response flow. Optional editor context helps explain the currently selected file. Review the context sent with the request, especially when using a remote endpoint.
 
 Use Agent mode when the request should become supervised Swarm work. Describe the goal, affected files or game systems, expected result, acceptance evidence and budget. A useful request includes a reproducible defect or explicit desired behavior, rather than only “finish the game.”
 
@@ -104,9 +104,11 @@ implement the fix, and report the test log and affected save/load code.
 
 The current Chat does not execute an arbitrary tool loop directly inside the chat view. Its Agent handoff uses the platform's supervised runtime. A native Theia AI LanguageModel adapter and external IDE MCP server remain unimplemented.
 
+The current [conversation search](images/lantern-workshop/05-chat-search.png) and [compact starter draft](images/lantern-workshop/05-chat-mobile-starter.png) screenshots use the disposable Lantern Workshop fixture. They demonstrate UI state only; the starter was not submitted in the mobile capture.
+
 ## Monitor the Swarm
 
-The Swarm view exposes requests, task trees, resource locks, integration records and feedback. The service owns task/event persistence, worker leases, checkpoints and recovery; the UI presents those records.
+The Swarm view separates **Agents**, **Approvals**, **Integrations**, and **Resource locks**. Expand **New request** to enter a change request, role, and budget; use **Preview impact** before **Submit request**. The service owns task/event persistence, worker leases, checkpoints and recovery; the UI presents those records.
 
 | State              | Meaning for the user                                           |
 | ------------------ | -------------------------------------------------------------- |
@@ -124,6 +126,8 @@ Answer task questions in their prompts. Cancelling work should propagate to owne
 ## Discussion and design records
 
 Use Discussion Board for threads, messages and decisions related to the Project. Keep durable design/canon Markdown under `docs/` reviewable in Git. The board maintenance agent can synchronize supported decisions into records and report contradictions or proposed changes.
+
+Quick views filter the thread list to **All**, **Open**, **Questions**, **Blockers**, or **Decisions**; use the detailed filters for status, kind, tags, and text search. The **New thread** composer may be collapsed while you review existing work.
 
 A board discussion, a proposed edit, a canon record and a user-confirmed requirement are distinct artifacts. Review the actual record change before relying on it. Whole-file proposal diffs and broader canon reconciliation remain limitations listed in [status](STATUS.md).
 
@@ -145,7 +149,7 @@ DCC follows similar installation, capability and run-history flows. Blender has 
 
 ## Knowledge and search
 
-Knowledge maintains canon records and indexes Project material for retrieval with citations. Choose lexical-only, embedded LanceDB, embedded SQLite exact vector search, managed local Qdrant, an existing local Qdrant instance, or remote Qdrant in the Knowledge view. SQLite exact search is intended as a lightweight alternative, not an ANN index. Managed Qdrant is supplied by desktop packaging; development checkouts prepare it with `npm run prepare:qdrant -w @gamecrafter/control-room`.
+Knowledge maintains canon records and indexes Project material for retrieval with citations. Use **Index status**, **Search**, **Canon records**, and **Settings** to move between those concerns. In **Search**, expand **Search mode and filters** for retrieval configuration. Choose lexical-only, embedded LanceDB, embedded SQLite exact vector search, managed local Qdrant, an existing local Qdrant instance, or remote Qdrant. SQLite exact search is intended as a lightweight alternative, not an ANN index. Managed Qdrant is supplied by desktop packaging; development checkouts prepare it with `npm run prepare:qdrant -w @gamecrafter/control-room`.
 
 Remote mode requires an HTTPS URL and explicit permission to send embeddings and indexed metadata. Put API keys in the encrypted credential store and configure their `${cred:KEY}` reference. Legacy Qdrant configurations retain their external-endpoint behavior; migrate remote connections to explicit remote mode for the stronger checks. Changing storage schedules reconciliation and re-embeds sources for the new destination; old backend data is retained. Additional trusted adapters use their registered ID, but marketplace installation of vector adapters is not yet supported.
 
@@ -157,7 +161,7 @@ After editing source documents, inspect indexing state before relying on retriev
 
 ## Asset generation and inspection
 
-Assets manages provider accounts, generation requests, job lifecycle, imported files, provenance and preview derivatives. The UI includes 2D inspection and a Three.js 3D viewer. Provider operations can incur charges and are subject to access policy.
+Assets separates **Library**, **Preview**, **Generate**, and **Jobs**. Expand **Add provider account** to configure an account or **Advanced generation options** for optional request inputs. It manages generation requests, job lifecycle, imported files, provenance and preview derivatives. The UI includes 2D inspection and a Three.js 3D viewer. Provider operations can incur charges and are subject to access policy.
 
 The job lifecycle passes through submission, running, download and review. User review through `asset/review` must approve an artifact before `asset/import` copies it into the configured import directory with a provenance sidecar. Review is a user-only service action, not an agent broker tool; imports do not overwrite existing files. A submitted job is not a completed asset. Wait for the terminal provider state, retrieve outputs, inspect the imported artifact, and validate the topology, scale, materials, rig, licensing/provenance and engine import needed by the intended use. A rendered preview does not establish collision or gameplay suitability.
 
@@ -165,7 +169,7 @@ Meshy and Tripo3D requests are implemented with fixture-server tests. Provider d
 
 ## Backups, updates and troubleshooting
 
-Backups configures destinations/plans and records snapshot, transfer and verification results. Restore to an empty destination and inspect identity/plugin warnings. Keep the backup recovery secret independently available. Native Windows Project/profile recovery drills have evidence; remote destinations are fake-tested.
+Backups separates **Identities**, **Destinations**, **Plans**, **Runs**, and **Archives and restore**. Use a verified archive and an empty destination, then inspect restored identity/plugin warnings. Keep the backup recovery secret independently available. Native Windows Project/profile recovery drills have evidence; remote destinations are fake-tested.
 
 Updates reports available releases and download verification. A checksum-verified download, a signature-verified release, installer handoff and successful rollback are separate stages. Installation/signing/tagged-release acceptance is still outstanding.
 

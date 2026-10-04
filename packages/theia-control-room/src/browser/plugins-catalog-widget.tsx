@@ -45,6 +45,7 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
   private inspection?: PluginInspection;
   private capabilitiesAccepted = false;
   private tab: CatalogTab = 'platform';
+  private activeSection: 'plugins' | 'install' | 'details' | 'modules' = 'plugins';
   private secretName = '';
   private secretValue = '';
   private confirmUninstallPluginId?: string;
@@ -107,7 +108,7 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
     );
     return (
       <div className="gamecrafter-plugins gamecrafter-surface">
-        <header className="gamecrafter-plugins-header">
+        <header className="gamecrafter-plugins-header gamecrafter-page-header">
           <div>
             <h1>Plugins</h1>
             <p>
@@ -142,16 +143,20 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
 
         <div className="gamecrafter-plugins-tabs" role="tablist" aria-label="Plugin catalog type">
           <button
+            id="gamecrafter-plugin-tab-platform"
             type="button"
             role="tab"
+            aria-controls="gamecrafter-plugin-panel-platform"
             aria-selected={this.tab === 'platform'}
             onClick={() => this.setTab('platform')}
           >
             Platform plugins
           </button>
           <button
+            id="gamecrafter-plugin-tab-editor"
             type="button"
             role="tab"
+            aria-controls="gamecrafter-plugin-panel-editor"
             aria-selected={this.tab === 'editor'}
             onClick={() => this.setTab('editor')}
           >
@@ -178,46 +183,107 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
             }
             role="status"
           >
-            Isolation probe ({this.isolationReport.platform}):{' '}
+            Isolation:{' '}
             {this.isolationReport.available
               ? `${this.isolationReport.backend} available`
-              : this.isolationReport.checks
-                  .map((check) => `${check.name}: ${check.detail}`)
-                  .join('; ')}
+              : `${this.isolationReport.platform} unavailable`}
           </p>
         )}
+        <section className="gamecrafter-page-guidance gamecrafter-work-guidance">
+          <div>
+            <strong>
+              {this.tab === 'platform'
+                ? 'Review capabilities before installing'
+                : 'Manage IDE extensions separately'}
+            </strong>
+            <p>
+              {this.tab === 'platform'
+                ? 'Platform plugins run in a separate worker; enable only what the Project needs.'
+                : 'Theia extensions run in the editor host and use a separate install and trust system.'}
+            </p>
+          </div>
+        </section>
 
-        {this.tab === 'editor' ? (
-          this.renderEditorExtensions()
-        ) : (
-          <>
-            {this.renderInstallFlow()}
-            <section className="gamecrafter-plugins-section">
-              <h2>Installed platform plugins</h2>
-              {this.plugins.length === 0 ? (
-                <p>No platform plugins are installed.</p>
-              ) : (
-                <div className="gamecrafter-plugins-list">
-                  {this.plugins.map((entry) => this.renderPluginCard(entry))}
-                </div>
-              )}
+        <section
+          id="gamecrafter-plugin-panel-platform"
+          role="tabpanel"
+          aria-labelledby="gamecrafter-plugin-tab-platform"
+          hidden={this.tab !== 'platform'}
+        >
+          <nav className="gamecrafter-section-nav" aria-label="Platform plugin sections">
+            {(['plugins', 'install', 'details', 'modules'] as const).map((section) => (
+              <button
+                key={section}
+                type="button"
+                aria-controls={`gamecrafter-plugins-${section}`}
+                aria-pressed={this.activeSection === section}
+                disabled={section === 'details' && !selected}
+                onClick={() => {
+                  this.activeSection = section;
+                  this.update();
+                }}
+              >
+                {
+                  {
+                    plugins: 'Installed',
+                    install: 'Install',
+                    details: 'Selected plugin',
+                    modules: 'Modules',
+                  }[section]
+                }
+              </button>
+            ))}
+          </nav>
+          {this.renderInstallFlow()}
+          <section
+            className="gamecrafter-plugins-section gamecrafter-page-panel"
+            id="gamecrafter-plugins-plugins"
+            hidden={this.activeSection !== 'plugins'}
+          >
+            <h2>Installed platform plugins</h2>
+            {this.plugins.length === 0 ? (
+              <p className="gamecrafter-page-empty">
+                No platform plugins are installed. Inspect a manifest to review its capabilities
+                before adding one.
+              </p>
+            ) : (
+              <div className="gamecrafter-plugins-list">
+                {this.plugins.map((entry) => this.renderPluginCard(entry))}
+              </div>
+            )}
+          </section>
+          {selected ? (
+            this.renderPluginDetails(selected)
+          ) : (
+            <section
+              className="gamecrafter-plugins-section gamecrafter-page-panel"
+              id="gamecrafter-plugins-details"
+              hidden={this.activeSection !== 'details'}
+            >
+              <p className="gamecrafter-page-empty">Select a plugin to inspect its details.</p>
             </section>
-            {selected && this.renderPluginDetails(selected)}
-            {this.renderModuleCatalog()}
-          </>
-        )}
+          )}
+          {this.renderModuleCatalog()}
+        </section>
+        <section
+          id="gamecrafter-plugin-panel-editor"
+          role="tabpanel"
+          aria-labelledby="gamecrafter-plugin-tab-editor"
+          hidden={this.tab !== 'editor'}
+        >
+          {this.renderEditorExtensions()}
+        </section>
       </div>
     );
   }
 
   private renderEditorExtensions(): React.ReactNode {
     return (
-      <section className="gamecrafter-plugins-section">
+      <section className="gamecrafter-plugins-section gamecrafter-page-panel">
         <h2>Theia editor extensions</h2>
         <p>
-          VS Code-compatible editor extensions run in Theia&apos;s plugin host. They are separate
-          from PlayWeld platform plugins and are not governed by the platform tool broker or this
-          catalog&apos;s capability controls.
+          Use this view for IDE extensions only. Platform plugins have separate manifests, workers,
+          and capability consent.
         </p>
         <button
           type="button"
@@ -231,7 +297,11 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
 
   private renderInstallFlow(): React.ReactNode {
     return (
-      <section className="gamecrafter-plugins-section">
+      <section
+        className="gamecrafter-plugins-section gamecrafter-page-panel"
+        id="gamecrafter-plugins-install"
+        hidden={this.activeSection !== 'install'}
+      >
         <h2>Install a platform plugin</h2>
         <form
           className="gamecrafter-plugins-install-form"
@@ -282,13 +352,17 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
             ))}
             <h4>Requested capabilities</h4>
             <ul className="gamecrafter-plugin-capabilities">
-              {this.inspection.capabilities.map((capability, index) => (
-                <li key={`${capabilityName(capability)}-${index}`}>
-                  <strong>{capabilityName(capability)}</strong>
-                  <span>{capabilityExplanation(capability)}</span>
-                  <small>Declared by this manifest</small>
-                </li>
-              ))}
+              {this.inspection.capabilities.length === 0 ? (
+                <li>No capabilities requested.</li>
+              ) : (
+                this.inspection.capabilities.map((capability, index) => (
+                  <li key={`${capabilityName(capability)}-${index}`}>
+                    <strong>{capabilityName(capability)}</strong>
+                    <span>{capabilityExplanation(capability)}</span>
+                    <small>Declared by this manifest</small>
+                  </li>
+                ))
+              )}
             </ul>
             <label className="gamecrafter-plugins-checkbox">
               <input
@@ -329,8 +403,10 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
               <button
                 type="button"
                 className="gamecrafter-plugin-select"
+                aria-current={pluginId === this.selectedPluginId ? 'true' : undefined}
                 onClick={() => {
                   this.selectedPluginId = pluginId;
+                  this.activeSection = 'details';
                   this.selectedPanelId = installed.manifest.contributes.ui.panels[0]?.id;
                   void this.loadSelectedPanel();
                 }}
@@ -338,27 +414,29 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
                 {installed.manifest.name}
               </button>
             </h3>
-            <p>
-              {pluginId} · v{installed.version} · {installed.manifest.publisher.name} ·{' '}
-              {signatureText}
-            </p>
+            <div className="gamecrafter-page-meta">
+              <span className="gamecrafter-page-meta-item">{pluginId}</span>
+              <span className="gamecrafter-page-meta-item">v{installed.version}</span>
+              <span className="gamecrafter-page-meta-item">
+                {installed.manifest.publisher.name}
+              </span>
+              <span className="gamecrafter-page-meta-item">Signature: {signatureText}</span>
+            </div>
           </div>
           <span className={isolationClass(worker)}>{isolationLabel(worker)}</span>
         </header>
-        <dl className="gamecrafter-plugin-card-details">
-          <dt>Worker</dt>
-          <dd>{worker?.status ?? 'stopped'}</dd>
-          <dt>Runtime</dt>
-          <dd>{installed.manifest.runtime.kind}</dd>
-          <dt>Isolation</dt>
-          <dd>{isolationLabel(worker)}</dd>
-          {worker?.lastError && (
-            <>
-              <dt>Last error</dt>
-              <dd>{worker.lastError}</dd>
-            </>
-          )}
-        </dl>
+        <div className="gamecrafter-page-meta">
+          <span className="gamecrafter-page-meta-item">Worker: {worker?.status ?? 'stopped'}</span>
+          <span className="gamecrafter-page-meta-item">
+            Runtime: {installed.manifest.runtime.kind}
+          </span>
+        </div>
+        {worker?.lastError && (
+          <details className="gamecrafter-page-advanced">
+            <summary>Last worker error</summary>
+            <p>{worker.lastError}</p>
+          </details>
+        )}
         <div className="gamecrafter-plugin-card-actions">
           <label className="gamecrafter-plugins-checkbox">
             <input
@@ -428,21 +506,34 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
       (panel) => panel.id === this.selectedPanelId,
     );
     return (
-      <section className="gamecrafter-plugins-section">
+      <section
+        className="gamecrafter-plugins-section gamecrafter-page-panel"
+        id="gamecrafter-plugins-details"
+        hidden={this.activeSection !== 'details'}
+      >
         <h2>{plugin.manifest.name} details</h2>
         <p>{plugin.manifest.description}</p>
-        <p className="gamecrafter-plugin-provenance">
-          Source: {plugin.source.kind} · {plugin.source.ref} · SHA-256 {plugin.sha256}
-        </p>
+        <details className="gamecrafter-page-advanced">
+          <summary>Package provenance</summary>
+          <div className="gamecrafter-page-meta">
+            <span className="gamecrafter-page-meta-item">Source: {plugin.source.kind}</span>
+            <span className="gamecrafter-page-meta-item">Reference: {plugin.source.ref}</span>
+            <span className="gamecrafter-page-meta-item">SHA-256: {plugin.sha256}</span>
+          </div>
+        </details>
         <h3>Accepted capabilities</h3>
-        <ul className="gamecrafter-plugin-capabilities">
-          {(plugin.trust?.acceptedCapabilities ?? []).map((capability, index) => (
-            <li key={`${capabilityName(capability)}-${index}`}>
-              <strong>{capabilityName(capability)}</strong>
-              <span>{capabilityExplanation(capability)}</span>
-            </li>
-          ))}
-        </ul>
+        {(plugin.trust?.acceptedCapabilities ?? []).length === 0 ? (
+          <p className="gamecrafter-page-empty">No capabilities have been accepted.</p>
+        ) : (
+          <ul className="gamecrafter-plugin-capabilities">
+            {(plugin.trust?.acceptedCapabilities ?? []).map((capability, index) => (
+              <li key={`${capabilityName(capability)}-${index}`}>
+                <strong>{capabilityName(capability)}</strong>
+                <span>{capabilityExplanation(capability)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
         {plugin.manifest.contributes.ui.panels.length > 0 && (
           <div className="gamecrafter-plugin-panel-picker">
             <label>
@@ -473,8 +564,8 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
           (capability) => capabilityName(capability) === 'secrets.read',
         ) &&
           this.selectedProjectId && (
-            <div className="gamecrafter-plugin-secret-form">
-              <h3>Plugin secret</h3>
+            <details className="gamecrafter-plugin-secret-form gamecrafter-page-advanced">
+              <summary>Configure plugin secret</summary>
               <label>
                 Secret name
                 <input
@@ -505,14 +596,17 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
               >
                 Save encrypted secret
               </button>
-            </div>
+            </details>
           )}
         {this.logs.has(plugin.pluginId) && (
-          <pre className="gamecrafter-plugin-log">
-            {(this.logs.get(plugin.pluginId) ?? [])
-              .map((entry) => `${entry.at} [${entry.level}] ${entry.message}`)
-              .join('\n') || 'No log entries.'}
-          </pre>
+          <details className="gamecrafter-page-advanced">
+            <summary>Worker logs ({this.logs.get(plugin.pluginId)?.length ?? 0})</summary>
+            <pre className="gamecrafter-plugin-log">
+              {(this.logs.get(plugin.pluginId) ?? [])
+                .map((entry) => `${entry.at} [${entry.level}] ${entry.message}`)
+                .join('\n') || 'No log entries.'}
+            </pre>
+          </details>
         )}
       </section>
     );
@@ -563,20 +657,31 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
         }}
       >
         <h4>{tool.title}</h4>
-        {Object.entries(properties).map(([name, schema]) => (
-          <label key={name}>
-            {name}
-            {required.has(name) ? ' *' : ''}
-            {this.renderSchemaInput(tool.toolId, name, schema, values[name])}
-          </label>
-        ))}
+        {Object.entries(properties).map(([name, schema]) => {
+          const fieldSchema = getRecord(schema);
+          const label =
+            typeof fieldSchema.title === 'string' ? fieldSchema.title : formatFieldName(name);
+          return (
+            <label key={name}>
+              {label}
+              {required.has(name) ? ' *' : ''}
+              {typeof fieldSchema.description === 'string' && (
+                <small>{fieldSchema.description}</small>
+              )}
+              {this.renderSchemaInput(tool.toolId, name, schema, values[name])}
+            </label>
+          );
+        })}
         <button type="submit" disabled={this.busy || !this.selectedProjectId}>
           {submitLabel}
         </button>
         {this.panelOutputs.has(tool.toolId) && (
-          <pre className="gamecrafter-plugin-tool-output">
-            {JSON.stringify(this.panelOutputs.get(tool.toolId), null, 2)}
-          </pre>
+          <details className="gamecrafter-page-advanced">
+            <summary>Last tool output</summary>
+            <pre className="gamecrafter-plugin-tool-output">
+              {JSON.stringify(this.panelOutputs.get(tool.toolId), null, 2)}
+            </pre>
+          </details>
         )}
       </form>
     );
@@ -676,29 +781,36 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
   }
 
   private renderModuleCatalog(): React.ReactNode {
-    if (this.modules.modules.length === 0 && this.modules.genres.length === 0) return null;
     return (
-      <section className="gamecrafter-plugins-section">
+      <section
+        className="gamecrafter-plugins-section gamecrafter-page-panel"
+        id="gamecrafter-plugins-modules"
+        hidden={this.activeSection !== 'modules'}
+      >
         <h2>Module and genre catalog</h2>
         {this.modules.conflicts.map((conflict) => (
           <p className="gamecrafter-plugins-error" role="alert" key={conflict.id}>
             Conflict for {conflict.id}: {conflict.pluginIds.join(', ')}
           </p>
         ))}
-        <ul className="gamecrafter-plugin-module-list">
-          {this.modules.modules.map((entry) => (
-            <li key={`module-${entry.pluginId}-${entry.module.id}`}>
-              {entry.module.name} ({entry.module.id}) · {entry.pluginId} ·{' '}
-              {entry.active ? 'active' : 'inactive'}
-            </li>
-          ))}
-          {this.modules.genres.map((entry) => (
-            <li key={`genre-${entry.pluginId}-${entry.genre.id}`}>
-              {entry.genre.name} ({entry.genre.id}) · {entry.pluginId} ·{' '}
-              {entry.active ? 'active' : 'inactive'}
-            </li>
-          ))}
-        </ul>
+        {this.modules.modules.length === 0 && this.modules.genres.length === 0 ? (
+          <p className="gamecrafter-page-empty">No modules or genres are contributed.</p>
+        ) : (
+          <ul className="gamecrafter-plugin-module-list">
+            {this.modules.modules.map((entry) => (
+              <li key={`module-${entry.pluginId}-${entry.module.id}`}>
+                {entry.module.name} ({entry.module.id}) · {entry.pluginId} ·{' '}
+                {entry.active ? 'active' : 'inactive'}
+              </li>
+            ))}
+            {this.modules.genres.map((entry) => (
+              <li key={`genre-${entry.pluginId}-${entry.genre.id}`}>
+                {entry.genre.name} ({entry.genre.id}) · {entry.pluginId} ·{' '}
+                {entry.active ? 'active' : 'inactive'}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     );
   }
@@ -760,6 +872,7 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
       this.capabilitiesAccepted = false;
       this.source = '';
       this.selectedPluginId = installed.pluginId;
+      this.activeSection = 'details';
       this.selectedPanelId = installed.manifest.contributes.ui.panels[0]?.id;
       await this.refresh();
       if (this.selectedPanelId) {
@@ -811,6 +924,7 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
       await this.service.uninstallPlugin(pluginId);
       this.confirmUninstallPluginId = undefined;
       this.selectedPluginId = undefined;
+      this.activeSection = 'plugins';
       this.panel = undefined;
       this.resultMessage = `Uninstalled ${pluginId}.`;
       await this.refresh();
@@ -976,4 +1090,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function formatFieldName(value: string): string {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[-_]+/g, ' ')
+    .replace(/^\w/, (character) => character.toUpperCase());
 }

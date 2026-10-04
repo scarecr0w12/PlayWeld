@@ -34,6 +34,7 @@ export class BackupsWidget extends ControlRoomReactWidget {
   private runs: BackupRun[] = [];
   private archives = [] as Awaited<ReturnType<ControlRoomServiceApi['listBackupArchives']>>;
   private projectId = '';
+  private activeSection: 'identities' | 'destinations' | 'plans' | 'runs' | 'archives' = 'plans';
   private scope: 'project' | 'profile' = 'project';
   private identityId = '';
   private destinationId = '';
@@ -89,11 +90,23 @@ export class BackupsWidget extends ControlRoomReactWidget {
     const plans = this.plans.filter(
       (plan) => plan.scope === 'profile' || plan.projectId === this.projectId,
     );
+    const nextSection =
+      this.identities.length === 0
+        ? 'identities'
+        : this.destinations.length === 0
+          ? 'destinations'
+          : 'plans';
+    const nextStep =
+      nextSection === 'identities'
+        ? 'Create a recovery identity and store its secret separately from the archive.'
+        : nextSection === 'destinations'
+          ? 'Add and test a destination, then create a backup plan.'
+          : 'Choose a Project or profile scope, destination, recovery identity, and schedule.';
     return (
-      <div className="gamecrafter-backups gamecrafter-surface">
-        <header className="gamecrafter-backups-header">
+      <div className="gamecrafter-backups gamecrafter-page gamecrafter-surface">
+        <header className="gamecrafter-backups-header gamecrafter-page-header">
           <div>
-            <h2>Backups</h2>
+            <h1>Backups</h1>
             <p>Encrypted Project and profile archives with verified restore workflows.</p>
           </div>
           <button
@@ -110,7 +123,51 @@ export class BackupsWidget extends ControlRoomReactWidget {
             {this.message}
           </p>
         )}
-        <section className="gamecrafter-backups-section">
+        <section
+          className="gamecrafter-work-guidance gamecrafter-page-guidance"
+          aria-label="Backup next steps"
+        >
+          <div>
+            <strong>What to do next</strong>
+            <p>{nextStep} Archives can be verified or restored to a separate location.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              this.activeSection = nextSection;
+              this.update();
+            }}
+          >
+            Go to {nextSection}
+          </button>
+        </section>
+        <nav className="gamecrafter-section-nav" aria-label="Backup sections">
+          {(
+            [
+              ['identities', 'Identities', this.identities.length],
+              ['destinations', 'Destinations', this.destinations.length],
+              ['plans', 'Plans', plans.length],
+              ['runs', 'Runs', this.runs.length],
+              ['archives', 'Archives and restore', this.archives.length],
+            ] as const
+          ).map(([section, label, count]) => (
+            <button
+              key={section}
+              type="button"
+              aria-pressed={this.activeSection === section}
+              onClick={() => {
+                this.activeSection = section;
+                this.update();
+              }}
+            >
+              {label} <span className="gamecrafter-count">{count}</span>
+            </button>
+          ))}
+        </nav>
+        <section
+          className="gamecrafter-backups-section gamecrafter-page-panel"
+          hidden={this.activeSection !== 'identities'}
+        >
           <h3>Identities</h3>
           <p>Recovery secrets are never stored. Keep the secret separate from the archive.</p>
           <div className="gamecrafter-backups-form">
@@ -146,25 +203,38 @@ export class BackupsWidget extends ControlRoomReactWidget {
               Create identity
             </button>
           </div>
-          <ul className="gamecrafter-backups-list">
-            {this.identities.map((identity) => (
-              <li key={identity.identityId}>
-                <span>{identity.label}</span>
-                <code>{identity.identityId}</code>
-                <button
-                  type="button"
-                  onClick={() => void this.removeIdentity(identity.identityId)}
-                  disabled={this.busy}
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
+          {this.identities.length === 0 ? (
+            <p className="gamecrafter-page-empty">
+              No recovery identities yet. Create one before saving a backup plan.
+            </p>
+          ) : (
+            <ul className="gamecrafter-backups-list">
+              {this.identities.map((identity) => (
+                <li className="gamecrafter-page-meta-item" key={identity.identityId}>
+                  <span>{identity.label}</span>
+                  <code>{identity.identityId}</code>
+                  <button
+                    type="button"
+                    onClick={() => void this.removeIdentity(identity.identityId)}
+                    disabled={this.busy}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
-        <section className="gamecrafter-backups-section">
+        <section
+          className="gamecrafter-backups-section gamecrafter-page-panel"
+          hidden={this.activeSection !== 'destinations'}
+        >
           <h3>Destinations</h3>
+          <p className="gamecrafter-page-section-intro">
+            Credentials are stored separately from archive contents. Test a destination before
+            relying on it for scheduled backups.
+          </p>
           <div className="gamecrafter-backups-form">
             <label>
               Kind
@@ -221,37 +291,43 @@ export class BackupsWidget extends ControlRoomReactWidget {
               </button>
             )}
           </div>
-          <ul className="gamecrafter-backups-list">
-            {this.destinations.map((entry) => (
-              <li key={entry.destinationId}>
-                <span>
-                  {entry.displayName} ({entry.kind})
-                </span>
-                <span>{entry.hasSecrets ? 'Credentials saved' : 'No credentials'}</span>
-                <button
-                  type="button"
-                  onClick={() => this.editDestination(entry)}
-                  disabled={this.busy}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void this.testDestination(entry.destinationId)}
-                  disabled={this.busy}
-                >
-                  Test
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void this.removeDestination(entry.destinationId)}
-                  disabled={this.busy}
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
+          {this.destinations.length === 0 ? (
+            <p className="gamecrafter-page-empty">
+              No destinations yet. Add local storage or configure a remote destination here.
+            </p>
+          ) : (
+            <ul className="gamecrafter-backups-list">
+              {this.destinations.map((entry) => (
+                <li className="gamecrafter-page-meta-item" key={entry.destinationId}>
+                  <span>
+                    {entry.displayName} ({entry.kind})
+                  </span>
+                  <span>{entry.hasSecrets ? 'Credentials saved' : 'No credentials'}</span>
+                  <button
+                    type="button"
+                    onClick={() => this.editDestination(entry)}
+                    disabled={this.busy}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void this.testDestination(entry.destinationId)}
+                    disabled={this.busy}
+                  >
+                    Test
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void this.removeDestination(entry.destinationId)}
+                    disabled={this.busy}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           {destination?.kind === 'ftp' &&
             'secure' in destination.config &&
             destination.config.secure === false && (
@@ -261,8 +337,15 @@ export class BackupsWidget extends ControlRoomReactWidget {
             )}
         </section>
 
-        <section className="gamecrafter-backups-section">
+        <section
+          className="gamecrafter-backups-section gamecrafter-page-panel"
+          hidden={this.activeSection !== 'plans'}
+        >
           <h3>Plans</h3>
+          <p className="gamecrafter-page-section-intro">
+            Project plans follow the selected Project. Profile plans back up the PlayWeld profile
+            without a Project selection.
+          </p>
           <div className="gamecrafter-backups-form">
             <label>
               Scope
@@ -393,34 +476,49 @@ export class BackupsWidget extends ControlRoomReactWidget {
               Run now
             </button>
           </div>
-          <ul className="gamecrafter-backups-list">
-            {plans.map((plan) => (
-              <li key={plan.planId}>
-                <span>
-                  {plan.scope} · {plan.schedule.kind} · keep {plan.retention.keepLast}
-                </span>
-                <code>{plan.planId}</code>
-                <button
-                  type="button"
-                  onClick={() => void this.runPlan(plan.planId)}
-                  disabled={this.busy}
-                >
-                  Run now
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void this.removePlan(plan.planId)}
-                  disabled={this.busy}
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
+          {plans.length === 0 ? (
+            <p className="gamecrafter-page-empty">
+              No backup plans for this scope. Save one above after choosing an identity and
+              destination.
+            </p>
+          ) : (
+            <ul className="gamecrafter-backups-list">
+              {plans.map((plan) => (
+                <li className="gamecrafter-page-meta-item" key={plan.planId}>
+                  <span>
+                    {plan.scope} · {plan.schedule.kind} · keep {plan.retention.keepLast}
+                  </span>
+                  <code>{plan.planId}</code>
+                  <button
+                    type="button"
+                    onClick={() => void this.runPlan(plan.planId)}
+                    disabled={this.busy}
+                  >
+                    Run now
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void this.removePlan(plan.planId)}
+                    disabled={this.busy}
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
-        <section className="gamecrafter-backups-section">
+        <section
+          className="gamecrafter-backups-section gamecrafter-page-panel"
+          hidden={this.activeSection !== 'runs'}
+        >
           <h3>Runs</h3>
+          {this.runs.length === 0 && (
+            <p className="gamecrafter-page-empty">
+              No backup runs recorded. Run a plan to create and verify an archive.
+            </p>
+          )}
           <ul className="gamecrafter-backups-list gamecrafter-backups-runs">
             {this.runs.map((run) => (
               <li key={run.runId}>
@@ -452,8 +550,15 @@ export class BackupsWidget extends ControlRoomReactWidget {
           </ul>
         </section>
 
-        <section className="gamecrafter-backups-section">
+        <section
+          className="gamecrafter-backups-section gamecrafter-page-panel"
+          hidden={this.activeSection !== 'archives'}
+        >
           <h3>Archives</h3>
+          <p className="gamecrafter-page-section-intro">
+            List a destination's archives, inspect the manifest, verify it, and restore only to a
+            new location.
+          </p>
           <div className="gamecrafter-backups-form">
             <label>
               Destination
@@ -477,6 +582,11 @@ export class BackupsWidget extends ControlRoomReactWidget {
             >
               List archives
             </button>
+            {this.archives.length === 0 && (
+              <p className="gamecrafter-page-empty">
+                No archives listed yet. Choose a destination and list its available archives.
+              </p>
+            )}
             <label>
               Archive
               <select

@@ -1,6 +1,6 @@
 # PlayWeld developer guide
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-04
 
 **Audience:** Contributors changing the platform, Control Room, connectors or documentation. [Documentation index](README.md).
 
@@ -41,7 +41,7 @@ bash scripts/check-links.sh
 | `apps/control-room-browser/`               | Browser development and smoke target                    |
 | `.agents/skills/`                          | Project skills and bundled development skills           |
 | `packages/platform-service/roles/`         | Eleven builtin role packages                            |
-| `scripts/`                                 | Link/reference maintenance and live acceptance tooling  |
+| `scripts/`                                 | Capture, link/reference maintenance and live acceptance tooling |
 | `docs/`                                    | Guides, design authorities, status and sourced research |
 
 Read [AGENTS.md](../AGENTS.md) before editing. It specifies document roles, metadata conventions, dependency policy and verification requirements. Use repository skills when their scope applies.
@@ -130,6 +130,20 @@ npm run test:ui
 ```
 
 The smoke script creates disposable Projects under `.turbo/live-projects`, checks view navigation and captures evidence. Electron smoke requires an app launched with a local Chrome DevTools endpoint; use `node scripts/live-ui-smoke.cjs --electron` and `GAMECRAFTER_CDP_URL` when configuring it. A live remote-debug endpoint should remain local to the test host.
+
+### Refresh documentation screenshots
+
+The documentation runner uses the built development browser, creates an isolated service/profile and Lantern Workshop Project, configures a deterministic local chat/agent fixture, and stores captures plus a redacted `capture-report.json`. It does not need or validate a paid model, engine/editor, or installer. It stops the browser/backend/service/provider processes it owns. Review the report's browser/service version, source identity, checks and `rendererErrors` before publishing images; captures are not proof for a later build.
+
+```powershell
+$env:GAMECRAFTER_DOC_OUTPUT = Join-Path (Get-Location) 'docs\images\lantern-workshop'
+node scripts/capture-documentation.cjs --scenario overview
+
+$env:GAMECRAFTER_DOC_OUTPUT = Join-Path (Get-Location) 'docs\images\lantern-workflows-2026-10-04'
+node scripts/capture-documentation.cjs --scenario all
+```
+
+The runner selects rendered page sections and expands disclosures before operating their controls. Keep selectors tied to the visible widget: Theia can retain inactive widget DOM, and a hidden copy can otherwise make a capture appear to pass without changing the active page. Rebuild the browser only when its source changed; do not overwrite a concurrently running native application build during image capture.
 
 Do not infer accessibility completion from the visual smoke. Provider-backed chat, all asset interactions, physical desktop controls and broader accessibility acceptance have separate gaps.
 

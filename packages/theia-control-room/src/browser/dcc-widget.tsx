@@ -37,6 +37,8 @@ const operations: DccOperation[] = [
   'validate',
 ];
 
+type DccSection = 'capabilities' | 'installations' | 'bridge' | 'operation' | 'runs';
+
 @injectable()
 export class DccWidget extends ControlRoomReactWidget {
   static readonly ID = 'gamecrafter.dcc';
@@ -50,6 +52,7 @@ export class DccWidget extends ControlRoomReactWidget {
   private selectedRun?: DccRun;
   private readonly artifactContents = new Map<string, string>();
   private selectedOperation: DccOperation = 'discover';
+  private activeSection: DccSection = 'capabilities';
   private params: Record<string, string> = {};
   private installationPath = '';
   private installationKind: DccInstallationKind = 'gui';
@@ -100,9 +103,10 @@ export class DccWidget extends ControlRoomReactWidget {
     const availableConnections = this.connections.filter((entry) =>
       (entry.config.tags ?? []).includes(`live-bridge:${this.tool}`),
     );
+    const installations = this.installations.filter((entry) => entry.tool === this.tool);
     return (
       <div className="gamecrafter-dcc gamecrafter-surface">
-        <header className="gamecrafter-dcc-header">
+        <header className="gamecrafter-dcc-header gamecrafter-page-header">
           <div>
             <h1>DCC Tools</h1>
             <p>Headless DCC automation is distinct from live editor bridge readiness.</p>
@@ -126,52 +130,130 @@ export class DccWidget extends ControlRoomReactWidget {
             {this.resultMessage}
           </p>
         )}
-        <nav className="gamecrafter-dcc-tools" aria-label="DCC tools">
-          {tools.map((tool) => (
-            <button
-              key={tool}
-              type="button"
-              aria-pressed={this.tool === tool}
-              onClick={() => void this.selectTool(tool)}
+        <div className="gamecrafter-dcc-context gamecrafter-page-meta">
+          <label>
+            Project
+            <select
+              aria-label="DCC Project"
+              value={this.selectedProjectId}
+              onChange={(event) => {
+                this.markProjectSelection();
+                this.selectedProjectId = event.currentTarget.value;
+                void this.loadProject(true);
+              }}
             >
-              {tool}
-            </button>
-          ))}
-        </nav>
-        <label className="gamecrafter-dcc-project">
-          Project
-          <select
-            aria-label="DCC Project"
-            value={this.selectedProjectId}
-            onChange={(event) => {
-              this.markProjectSelection();
-              this.selectedProjectId = event.currentTarget.value;
-              void this.loadProject(true);
-            }}
-          >
-            <option value="">Select a Project</option>
-            {this.projects.map((project) => (
-              <option key={project.projectId} value={project.projectId}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-        </label>
+              <option value="">Select a Project</option>
+              {this.projects.map((project) => (
+                <option key={project.projectId} value={project.projectId}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            DCC tool
+            <select
+              aria-label="DCC tool"
+              value={this.tool}
+              onChange={(event) => void this.selectTool(event.currentTarget.value as DccTool)}
+            >
+              {tools.map((tool) => (
+                <option key={tool} value={tool}>
+                  {tool}
+                </option>
+              ))}
+            </select>
+          </label>
+          {this.selectedProjectId && (
+            <span className="gamecrafter-page-meta-item">
+              Tool installations <strong>{installations.length}</strong>
+            </span>
+          )}
+        </div>
         {!this.selectedProjectId ? (
-          <p>Select a Project to inspect DCC capabilities.</p>
+          <div className="gamecrafter-page-empty">
+            <h2>Select a Project</h2>
+            <p>Choose a Project and DCC tool to review capabilities, bridge readiness, and runs.</p>
+          </div>
         ) : (
           <>
-            {this.renderInstallations()}
-            {this.report && this.renderCapabilities(this.report)}
-            {this.renderLiveBridge(availableConnections)}
-            {this.renderOperationRunner()}
-            {this.renderRuns()}
-            {this.preview && (
-              <section className="gamecrafter-dcc-section">
-                <h2>Artifact preview</h2>
-                <pre>{JSON.stringify(this.preview, null, 2)}</pre>
-              </section>
-            )}
+            <section
+              className="gamecrafter-work-guidance gamecrafter-page-guidance"
+              aria-label="DCC next steps"
+            >
+              <div>
+                <strong>What to do next</strong>
+                <p>
+                  {installations.length === 0
+                    ? `Register a ${this.tool} executable before running headless operations.`
+                    : !this.report
+                      ? 'Wait for the capability report, then choose an available operation.'
+                      : 'Check operation availability and side effects before starting a DCC run.'}
+                </p>
+              </div>
+              {installations.length === 0 && (
+                <button type="button" onClick={() => this.activateSection('installations')}>
+                  Add installation
+                </button>
+              )}
+              {this.report && (
+                <button type="button" onClick={() => this.activateSection('operation')}>
+                  Choose operation
+                </button>
+              )}
+            </section>
+            <nav className="gamecrafter-section-nav" aria-label="DCC views">
+              {(
+                [
+                  ['capabilities', 'Capabilities', this.report?.operations.length ?? 0],
+                  ['installations', 'Installations', installations.length],
+                  ['bridge', 'Live bridge', availableConnections.length],
+                  ['operation', 'Run operation', 1],
+                  ['runs', 'Runs', this.runs.length],
+                ] as const
+              ).map(([section, label, count]) => (
+                <button
+                  key={section}
+                  type="button"
+                  aria-pressed={this.activeSection === section}
+                  onClick={() => this.activateSection(section)}
+                >
+                  {label} <span className="gamecrafter-count">{count}</span>
+                </button>
+              ))}
+            </nav>
+            <section
+              className="gamecrafter-dcc-section"
+              hidden={this.activeSection !== 'capabilities'}
+            >
+              {this.report ? (
+                this.renderCapabilities(this.report)
+              ) : (
+                <div className="gamecrafter-page-empty" role="status">
+                  <h2>Checking DCC capabilities</h2>
+                  <p>Headless and live-bridge support will appear here when the check completes.</p>
+                </div>
+              )}
+            </section>
+            <div hidden={this.activeSection !== 'installations'}>{this.renderInstallations()}</div>
+            <div hidden={this.activeSection !== 'bridge'}>
+              {this.renderLiveBridge(availableConnections)}
+            </div>
+            <div hidden={this.activeSection !== 'operation'}>{this.renderOperationRunner()}</div>
+            <div hidden={this.activeSection !== 'runs'}>
+              {this.renderRuns()}
+              {this.preview && (
+                <section className="gamecrafter-dcc-section gamecrafter-page-panel">
+                  <h2>Artifact preview</h2>
+                  <p className="gamecrafter-page-meta">
+                    <span className="gamecrafter-page-meta-item">
+                      Preview path <strong>{this.preview.sourcePath}</strong>
+                    </span>
+                  </p>
+                  <pre>{JSON.stringify(this.preview, null, 2)}</pre>
+                </section>
+              )}
+            </div>
           </>
         )}
       </div>
@@ -181,71 +263,103 @@ export class DccWidget extends ControlRoomReactWidget {
   private renderInstallations(): React.ReactNode {
     const installations = this.installations.filter((entry) => entry.tool === this.tool);
     return (
-      <section className="gamecrafter-dcc-section">
+      <section className="gamecrafter-dcc-section gamecrafter-page-panel">
         <h2>Installations</h2>
-        <ul className="gamecrafter-dcc-list">
-          {installations.map((installation) => (
-            <li key={installation.installationId}>
-              <span>
-                {installation.kind} · {installation.version ?? 'version unknown'} ·{' '}
-                {installation.source}
-              </span>
-              {installation.viaWslInterop && (
-                <span className="gamecrafter-dcc-badge">WSL interop</span>
-              )}
-              <code>{installation.executable}</code>
-              <button
-                type="button"
-                onClick={() => void this.removeInstallation(installation.installationId)}
-                disabled={this.busy}
+        {installations.length === 0 ? (
+          <p className="gamecrafter-page-empty">
+            No {this.tool} installation is registered. Add a local executable to enable compatible
+            headless operations.
+          </p>
+        ) : (
+          <p className="gamecrafter-page-meta">
+            <span className="gamecrafter-page-meta-item">
+              Registered <strong>{installations.length}</strong>
+            </span>
+            <span className="gamecrafter-page-meta-item">
+              Manual{' '}
+              <strong>{installations.filter((entry) => entry.source === 'manual').length}</strong>
+            </span>
+          </p>
+        )}
+        {installations.length > 0 && (
+          <ul className="gamecrafter-dcc-list">
+            {installations.map((installation) => (
+              <li key={installation.installationId}>
+                <span>
+                  {installation.kind} · {installation.version ?? 'version unknown'} ·{' '}
+                  {installation.source}
+                </span>
+                {installation.viaWslInterop && (
+                  <span className="gamecrafter-dcc-badge">WSL interop</span>
+                )}
+                <code>{installation.executable}</code>
+                <button
+                  type="button"
+                  onClick={() => void this.removeInstallation(installation.installationId)}
+                  disabled={this.busy}
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <details className="gamecrafter-page-advanced">
+          <summary>Register a manual installation</summary>
+          <div className="gamecrafter-dcc-form">
+            <label>
+              Manual executable
+              <input
+                aria-label="DCC executable"
+                value={this.installationPath}
+                onChange={(event) => this.setInstallationPath(event.currentTarget.value)}
+                placeholder="Absolute executable path"
+              />
+            </label>
+            <label>
+              Kind
+              <select
+                aria-label="DCC installation kind"
+                value={this.installationKind}
+                onChange={(event) => {
+                  this.installationKind = event.currentTarget.value as DccInstallationKind;
+                  this.update();
+                }}
               >
-                Remove
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div className="gamecrafter-dcc-form">
-          <label>
-            Manual executable
-            <input
-              aria-label="DCC executable"
-              value={this.installationPath}
-              onChange={(event) => this.setInstallationPath(event.currentTarget.value)}
-              placeholder="Absolute executable path"
-            />
-          </label>
-          <label>
-            Kind
-            <select
-              aria-label="DCC installation kind"
-              value={this.installationKind}
-              onChange={(event) => {
-                this.installationKind = event.currentTarget.value as DccInstallationKind;
-                this.update();
-              }}
+                <option value="gui">GUI</option>
+                <option value="python">Python</option>
+                <option value="batch">Batch</option>
+              </select>
+            </label>
+            <button
+              className="theia-button"
+              type="button"
+              onClick={() => void this.addInstallation()}
+              disabled={this.busy}
             >
-              <option value="gui">GUI</option>
-              <option value="python">Python</option>
-              <option value="batch">Batch</option>
-            </select>
-          </label>
-          <button
-            className="theia-button"
-            type="button"
-            onClick={() => void this.addInstallation()}
-            disabled={this.busy}
-          >
-            Add manual installation
-          </button>
-        </div>
+              Add manual installation
+            </button>
+          </div>
+        </details>
       </section>
     );
   }
 
   private renderCapabilities(report: DccCapabilityReport): React.ReactNode {
     return (
-      <section className="gamecrafter-dcc-section">
+      <section className="gamecrafter-dcc-section gamecrafter-page-panel">
         <h2>{report.tool} capability report</h2>
+        <div className="gamecrafter-page-meta" aria-label="DCC capability metadata">
+          <span className="gamecrafter-page-meta-item">
+            Operating system <strong>{report.osSupport.os}</strong>
+          </span>
+          <span className="gamecrafter-page-meta-item">
+            Headless support <strong>{report.osSupport.headless}</strong>
+          </span>
+          <span className="gamecrafter-page-meta-item">
+            Live bridge support <strong>{report.osSupport.liveBridge}</strong>
+          </span>
+        </div>
         <div className="gamecrafter-dcc-layer-list">
           {(['headless', 'live-bridge'] as const).map((layer) => (
             <div className="gamecrafter-dcc-layer" key={layer}>
@@ -260,39 +374,39 @@ export class DccWidget extends ControlRoomReactWidget {
             </div>
           ))}
         </div>
-        <p className="gamecrafter-dcc-os-support">
-          OS support: {report.osSupport.os} · headless {report.osSupport.headless} · live bridge{' '}
-          {report.osSupport.liveBridge}
-        </p>
-        <table className="gamecrafter-dcc-table">
-          <thead>
-            <tr>
-              <th>Operation</th>
-              <th>Layer</th>
-              <th>Status</th>
-              <th>Side effects</th>
-              <th>Reason</th>
-            </tr>
-          </thead>
-          <tbody>
-            {report.operations.map((entry) => (
-              <tr key={entry.operation}>
-                <td>{entry.operation}</td>
-                <td>{entry.layer}</td>
-                <td>{entry.available ? 'available' : 'unavailable'}</td>
-                <td>{entry.sideEffects}</td>
-                <td>{entry.reason ?? '—'}</td>
+        {report.operations.length === 0 ? (
+          <p className="gamecrafter-page-empty">No operations are reported for this DCC tool.</p>
+        ) : (
+          <table className="gamecrafter-dcc-table">
+            <thead>
+              <tr>
+                <th>Operation</th>
+                <th>Layer</th>
+                <th>Status</th>
+                <th>Side effects</th>
+                <th>Reason</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {report.operations.map((entry) => (
+                <tr key={entry.operation}>
+                  <td>{entry.operation}</td>
+                  <td>{entry.layer}</td>
+                  <td>{entry.available ? 'available' : 'unavailable'}</td>
+                  <td>{entry.sideEffects}</td>
+                  <td>{entry.reason ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </section>
     );
   }
 
   private renderLiveBridge(connections: McpConnectionListEntry[]): React.ReactNode {
     return (
-      <section className="gamecrafter-dcc-section">
+      <section className="gamecrafter-dcc-section gamecrafter-page-panel">
         <h2>Live bridge</h2>
         <p>
           Only MCP connections tagged <code>live-bridge:{this.tool}</code> are eligible. DCC
@@ -321,6 +435,23 @@ export class DccWidget extends ControlRoomReactWidget {
             Bind live bridge
           </button>
         </div>
+        <p className="gamecrafter-page-meta">
+          <span className="gamecrafter-page-meta-item">
+            Bound connection{' '}
+            <strong>
+              {connections.find((entry) => entry.config.connectionId === this.selectedBridgeId)
+                ?.config.name ?? 'None'}
+            </strong>
+          </span>
+          <span className="gamecrafter-page-meta-item">
+            Eligible connections <strong>{connections.length}</strong>
+          </span>
+        </p>
+        {connections.length === 0 && (
+          <p className="gamecrafter-page-empty">
+            No MCP connection is tagged for this tool's live bridge.
+          </p>
+        )}
       </section>
     );
   }
@@ -328,8 +459,12 @@ export class DccWidget extends ControlRoomReactWidget {
   private renderOperationRunner(): React.ReactNode {
     const fields = dccOperationFormFields(this.selectedOperation);
     return (
-      <section className="gamecrafter-dcc-section">
+      <section className="gamecrafter-dcc-section gamecrafter-page-panel">
         <h2>Run operation</h2>
+        <p>
+          Choose an operation, provide any Project-relative inputs, and review its side effects
+          first.
+        </p>
         <div className="gamecrafter-dcc-form">
           <label>
             Operation
@@ -347,7 +482,7 @@ export class DccWidget extends ControlRoomReactWidget {
           </label>
           {fields.map((field) => (
             <label className={field === 'script' ? 'gamecrafter-dcc-wide' : undefined} key={field}>
-              {field === 'script' ? 'Python code' : field}
+              {field === 'script' ? 'Python code' : humanizeField(field)}
               {field === 'script' ? (
                 <textarea
                   aria-label="DCC script"
@@ -389,24 +524,38 @@ export class DccWidget extends ControlRoomReactWidget {
 
   private renderRuns(): React.ReactNode {
     return (
-      <section className="gamecrafter-dcc-section">
+      <section className="gamecrafter-dcc-section gamecrafter-page-panel">
         <h2>Runs</h2>
-        <ul className="gamecrafter-dcc-list">
-          {this.runs.map((run) => (
-            <li key={run.runId}>
-              <span className={`gamecrafter-dcc-status gamecrafter-dcc-status-${run.status}`}>
-                {run.status}
-              </span>
-              <span>
-                {run.tool} · {run.operation} · exit {run.exitCode ?? '—'}
-              </span>
-              <code>{run.summary}</code>
-              <button type="button" onClick={() => void this.loadRun(run.runId)}>
-                Artifacts
-              </button>
-            </li>
-          ))}
-        </ul>
+        <p className="gamecrafter-page-meta">
+          <span className="gamecrafter-page-meta-item">
+            Recent runs <strong>{this.runs.length}</strong>
+          </span>
+          <span className="gamecrafter-page-meta-item">
+            Selected run <strong>{this.selectedRun?.status ?? 'None'}</strong>
+          </span>
+        </p>
+        {this.runs.length === 0 ? (
+          <p className="gamecrafter-page-empty">
+            No DCC runs yet. Choose an operation to start one.
+          </p>
+        ) : (
+          <ul className="gamecrafter-dcc-list">
+            {this.runs.map((run) => (
+              <li key={run.runId}>
+                <span className={`gamecrafter-dcc-status gamecrafter-dcc-status-${run.status}`}>
+                  {run.status}
+                </span>
+                <span>
+                  {run.tool} · {run.operation} · exit {run.exitCode ?? '—'}
+                </span>
+                <code>{run.summary}</code>
+                <button type="button" onClick={() => void this.loadRun(run.runId)}>
+                  Artifacts
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
         {this.selectedRun && (
           <div className="gamecrafter-dcc-run-details">
             <h3>
@@ -495,6 +644,11 @@ export class DccWidget extends ControlRoomReactWidget {
     await this.refresh(true);
   }
 
+  private activateSection(section: DccSection): void {
+    this.activeSection = section;
+    this.update();
+  }
+
   private async loadProject(refreshCapabilities = false): Promise<void> {
     if (!this.selectedProjectId) return;
     const [report, runs, connections] = await Promise.all([
@@ -567,6 +721,7 @@ export class DccWidget extends ControlRoomReactWidget {
       this.runs = [run, ...this.runs.filter((entry) => entry.runId !== run.runId)].slice(0, 200);
       this.selectedRun = run;
       this.artifactContents.clear();
+      this.activeSection = 'runs';
       this.setMessage(`${this.tool} ${this.selectedOperation} started.`);
     });
   }
@@ -623,6 +778,13 @@ export class DccWidget extends ControlRoomReactWidget {
     this.errorMessage = message;
     this.update();
   }
+}
+
+function humanizeField(value: string): string {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[-_]/g, ' ')
+    .replace(/^./, (character) => character.toUpperCase());
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

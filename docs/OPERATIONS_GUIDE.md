@@ -1,6 +1,6 @@
 # PlayWeld operations and recovery guide
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-04
 
 **Audience:** Local administrators and maintainers. [Documentation index](README.md).
 
@@ -129,6 +129,7 @@ Use [GitHub Dependabot alerts](https://github.com/scarecr0w12/GameCrafter/securi
 
 | Symptom                                      | Inspect                                                                           | Recovery or next check                                                                        |
 | -------------------------------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Control Room view or input seems unavailable | PlayWeld menu group, active page section, selected Project, and collapsed disclosure | Open the surface from the grouped PlayWeld menu, choose its section, verify the Project selector, and expand advanced inputs before diagnosing a missing capability |
 | Control Room cannot connect                  | Profile environment, CLI status, lock owner, endpoint and token paths             | Launch with the same profile; inspect startup failure before removing any lifecycle file      |
 | CLI status says not running                  | PID liveness and selected profile                                                 | Start that profile; do not assume another profile's daemon is the target                      |
 | Authentication/protocol failure              | Client discovery path and service/client versions                                 | Use the matching profile and built client; never copy a token into logs                       |

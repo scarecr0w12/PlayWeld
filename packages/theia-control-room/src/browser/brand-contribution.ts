@@ -5,6 +5,7 @@ import { PLAYWELD_FAVICON } from './brand-geometry';
 @injectable()
 export class PlayWeldBrandContribution implements FrontendApplicationContribution {
   onStart(): void {
+    document.body.classList.add('playweld-workbench');
     let icon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (!icon) {
       icon = document.createElement('link');

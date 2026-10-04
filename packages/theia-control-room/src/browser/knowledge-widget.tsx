@@ -46,6 +46,7 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
 
   private projects: ProjectSummary[] = [];
   private projectId = '';
+  private activeSection: 'status' | 'search' | 'records' | 'settings' = 'search';
   private records: CanonRecord[] = [];
   private selectedRecordId = '';
   private recordDetail?: KnowledgeRecordResult;
@@ -131,7 +132,7 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
   protected render(): React.ReactNode {
     return (
       <div className="gamecrafter-knowledge gamecrafter-surface">
-        <header className="gamecrafter-knowledge-header">
+        <header className="gamecrafter-knowledge-header gamecrafter-page-header">
           <div>
             <h1>Knowledge</h1>
             <p>
@@ -169,6 +170,45 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
             Refresh
           </button>
         </header>
+        {this.projectId && (
+          <nav className="gamecrafter-section-nav" aria-label="Knowledge sections">
+            {(['status', 'search', 'records', 'settings'] as const).map((section) => (
+              <button
+                key={section}
+                type="button"
+                aria-controls={`gamecrafter-knowledge-${section}-view`}
+                aria-pressed={this.activeSection === section}
+                onClick={() => {
+                  this.activeSection = section;
+                  this.update();
+                }}
+              >
+                {
+                  {
+                    status: 'Index status',
+                    search: 'Search',
+                    records: 'Canon records',
+                    settings: 'Settings',
+                  }[section]
+                }
+              </button>
+            ))}
+          </nav>
+        )}
+        <section className="gamecrafter-page-guidance gamecrafter-work-guidance">
+          <div>
+            <strong>
+              {this.projectId
+                ? 'Search sources or inspect indexed canon'
+                : 'Choose a Project to begin'}
+            </strong>
+            <p>
+              {this.projectId
+                ? 'Start with a query; use records for canon details and settings to configure indexing.'
+                : 'Knowledge search, canon records, and index status are scoped to a Project.'}
+            </p>
+          </div>
+        </section>
 
         {this.errorMessage && (
           <p className="gamecrafter-knowledge-error" role="alert">
@@ -181,20 +221,40 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
           </p>
         )}
         {!this.projectId ? (
-          <p>Select a Project to inspect its knowledge index.</p>
+          <p className="gamecrafter-page-empty">Select a Project to inspect its knowledge index.</p>
         ) : (
           <>
-            {this.renderIndexStatus()}
-            {this.renderVectorSettings()}
-            {this.renderSearch()}
-            <div className="gamecrafter-knowledge-layout">
-              {this.renderRecords()}
-              <div className="gamecrafter-knowledge-detail-column">
-                {this.renderSearchResults()}
-                {this.renderRecordDetail()}
-                {this.renderGraph()}
+            <section
+              id="gamecrafter-knowledge-status-view"
+              hidden={this.activeSection !== 'status'}
+            >
+              {this.renderIndexStatus()}
+            </section>
+            <section
+              id="gamecrafter-knowledge-settings-view"
+              hidden={this.activeSection !== 'settings'}
+            >
+              {this.renderVectorSettings()}
+            </section>
+            <section
+              id="gamecrafter-knowledge-search-view"
+              hidden={this.activeSection !== 'search'}
+            >
+              {this.renderSearch()}
+              {this.renderSearchResults()}
+            </section>
+            <section
+              id="gamecrafter-knowledge-records-view"
+              hidden={this.activeSection !== 'records'}
+            >
+              <div className="gamecrafter-knowledge-layout">
+                {this.renderRecords()}
+                <div className="gamecrafter-knowledge-detail-column">
+                  {this.renderRecordDetail()}
+                  {this.renderGraph()}
+                </div>
               </div>
-            </div>
+            </section>
           </>
         )}
       </div>
@@ -204,15 +264,17 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
   private renderIndexStatus(): React.ReactNode {
     const status = this.indexStatus;
     return (
-      <section className="gamecrafter-knowledge-section">
+      <section className="gamecrafter-knowledge-section gamecrafter-page-panel">
         <div className="gamecrafter-knowledge-section-header">
           <div>
             <h2>Index status</h2>
             {status ? (
-              <p>
-                {status.records} records · {status.chunks} chunks · {status.vectors ?? 0} vectors ·{' '}
-                {status.pending} pending
-              </p>
+              <div className="gamecrafter-page-meta" aria-label="Index totals">
+                <span className="gamecrafter-page-meta-item">{status.records} records</span>
+                <span className="gamecrafter-page-meta-item">{status.chunks} chunks</span>
+                <span className="gamecrafter-page-meta-item">{status.vectors ?? 0} vectors</span>
+                <span className="gamecrafter-page-meta-item">{status.pending} pending</span>
+              </div>
             ) : (
               <p>Loading index status…</p>
             )}
@@ -230,7 +292,7 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
           </div>
         </div>
         {status && (
-          <div className="gamecrafter-knowledge-status-grid">
+          <div className="gamecrafter-knowledge-status-grid gamecrafter-page-meta">
             <span>Last full reconcile: {formatTime(status.lastFullReconcileAt)}</span>
             <span>Last incremental index: {formatTime(status.lastIncrementalAt)}</span>
             <span>
@@ -265,7 +327,7 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
     const isRemoteDeployment =
       this.vectorDeployment === 'remote' || this.vectorDeployment === 'external';
     return (
-      <details className="gamecrafter-knowledge-section">
+      <details className="gamecrafter-knowledge-section gamecrafter-page-panel gamecrafter-page-advanced">
         <summary>Vector store and embedding profile</summary>
         <div className="gamecrafter-knowledge-form">
           <label>
@@ -455,7 +517,7 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
 
   private renderSearch(): React.ReactNode {
     return (
-      <section className="gamecrafter-knowledge-section">
+      <section className="gamecrafter-knowledge-section gamecrafter-page-panel">
         <h2>Search</h2>
         <form
           className="gamecrafter-knowledge-form"
@@ -476,78 +538,81 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
               placeholder="Search canon and Project sources"
             />
           </label>
-          <label>
-            Mode
-            <select
-              aria-label="Knowledge search mode"
-              value={this.mode}
-              onChange={(event) => {
-                this.mode = event.currentTarget.value as SearchMode;
-                this.update();
-              }}
-            >
-              <option value="hybrid">Hybrid</option>
-              <option value="lexical">Lexical</option>
-              <option value="semantic">Semantic</option>
-            </select>
-          </label>
-          <label>
-            Source
-            <select
-              aria-label="Knowledge search source"
-              value={this.source}
-              onChange={(event) => {
-                this.source = event.currentTarget.value as IndexSource | 'all';
-                this.update();
-              }}
-            >
-              {sourceFilters.map((source) => (
-                <option key={source} value={source}>
-                  {source === 'all' ? 'All sources' : source}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Status
-            <select
-              aria-label="Knowledge record status"
-              value={this.status}
-              onChange={(event) => {
-                this.status = event.currentTarget.value as CanonStatus | 'all';
-                this.update();
-              }}
-            >
-              {statuses.map((status) => (
-                <option key={status} value={status}>
-                  {status === 'all' ? 'All statuses' : status}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Record type
-            <input
-              aria-label="Knowledge record type"
-              value={this.recordType}
-              onChange={(event) => {
-                this.recordType = event.currentTarget.value;
-                this.update();
-              }}
-              placeholder="e.g. character"
-            />
-          </label>
-          <label className="gamecrafter-knowledge-checkbox">
-            <input
-              type="checkbox"
-              checked={this.includeInactive}
-              onChange={(event) => {
-                this.includeInactive = event.currentTarget.checked;
-                this.update();
-              }}
-            />
-            Include inactive
-          </label>
+          <details className="gamecrafter-page-advanced">
+            <summary>Search mode and filters</summary>
+            <label>
+              Mode
+              <select
+                aria-label="Knowledge search mode"
+                value={this.mode}
+                onChange={(event) => {
+                  this.mode = event.currentTarget.value as SearchMode;
+                  this.update();
+                }}
+              >
+                <option value="hybrid">Hybrid</option>
+                <option value="lexical">Lexical</option>
+                <option value="semantic">Semantic</option>
+              </select>
+            </label>
+            <label>
+              Source
+              <select
+                aria-label="Knowledge search source"
+                value={this.source}
+                onChange={(event) => {
+                  this.source = event.currentTarget.value as IndexSource | 'all';
+                  this.update();
+                }}
+              >
+                {sourceFilters.map((source) => (
+                  <option key={source} value={source}>
+                    {source === 'all' ? 'All sources' : source}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Status
+              <select
+                aria-label="Knowledge record status"
+                value={this.status}
+                onChange={(event) => {
+                  this.status = event.currentTarget.value as CanonStatus | 'all';
+                  this.update();
+                }}
+              >
+                {statuses.map((status) => (
+                  <option key={status} value={status}>
+                    {status === 'all' ? 'All statuses' : status}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Record type
+              <input
+                aria-label="Knowledge record type"
+                value={this.recordType}
+                onChange={(event) => {
+                  this.recordType = event.currentTarget.value;
+                  this.update();
+                }}
+                placeholder="e.g. character"
+              />
+            </label>
+            <label className="gamecrafter-knowledge-checkbox">
+              <input
+                type="checkbox"
+                checked={this.includeInactive}
+                onChange={(event) => {
+                  this.includeInactive = event.currentTarget.checked;
+                  this.update();
+                }}
+              />
+              Include inactive
+            </label>
+          </details>
           <button className="theia-button" type="submit" disabled={this.busy || !this.query.trim()}>
             Search
           </button>
@@ -559,13 +624,15 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
   private renderSearchResults(): React.ReactNode {
     const result = this.searchResult;
     return (
-      <section className="gamecrafter-knowledge-section">
+      <section className="gamecrafter-knowledge-section gamecrafter-page-panel">
         <h2>Search results</h2>
         {result?.degraded && <p className="gamecrafter-knowledge-warning">{result.degraded}</p>}
         {!result ? (
-          <p>Enter a query to search this Project.</p>
+          <p className="gamecrafter-page-empty">Enter a query to search indexed Project sources.</p>
         ) : result.hits.length === 0 ? (
-          <p>No matching chunks.</p>
+          <p className="gamecrafter-page-empty">
+            No matching chunks. Try a broader query or change the filters.
+          </p>
         ) : (
           <ol className="gamecrafter-knowledge-hits">
             {result.hits.map((hit) => (
@@ -577,7 +644,7 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
                 >
                   <strong>{hit.recordTitle ?? hit.path}</strong>
                   <span className="gamecrafter-knowledge-hit-meta">
-                    {hit.source} · {hit.recordStatus ?? 'document'} · score {hit.score.toFixed(4)}
+                    {hit.source} · {hit.recordStatus ?? 'document'} · score {hit.score.toFixed(2)}
                   </span>
                   <blockquote>{hit.quote.text}</blockquote>
                   <code>{hit.citation}</code>
@@ -592,7 +659,7 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
 
   private renderRecords(): React.ReactNode {
     return (
-      <section className="gamecrafter-knowledge-section gamecrafter-knowledge-record-list">
+      <section className="gamecrafter-knowledge-section gamecrafter-knowledge-record-list gamecrafter-page-panel">
         <div className="gamecrafter-knowledge-section-header">
           <h2>Canon records</h2>
           <button type="button" disabled={this.busy} onClick={() => void this.refreshRecords()}>
@@ -600,7 +667,9 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
           </button>
         </div>
         {this.records.length === 0 ? (
-          <p>No canon records are indexed.</p>
+          <p className="gamecrafter-page-empty">
+            No matching canon records. Refresh the list or adjust the search filters.
+          </p>
         ) : (
           <ul>
             {this.records.map((record) => (
@@ -608,6 +677,7 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
                 <button
                   type="button"
                   className={record.id === this.selectedRecordId ? 'is-active' : ''}
+                  aria-current={record.id === this.selectedRecordId ? 'true' : undefined}
                   onClick={() => void this.openRecord(record.id)}
                 >
                   <strong>{record.title}</strong>
@@ -629,7 +699,7 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
     const detail = this.recordDetail;
     if (!detail) return null;
     return (
-      <section className="gamecrafter-knowledge-section">
+      <section className="gamecrafter-knowledge-section gamecrafter-page-panel">
         <div className="gamecrafter-knowledge-section-header">
           <h2>{detail.record.title}</h2>
           <button type="button" onClick={() => void this.loadGraph(detail.record.id)}>
@@ -681,18 +751,22 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
   private renderGraph(): React.ReactNode {
     if (!this.graph) return null;
     return (
-      <section className="gamecrafter-knowledge-section">
+      <section className="gamecrafter-knowledge-section gamecrafter-page-panel">
         <h2>Reference graph</h2>
         <p>
           {this.graph.nodes.length} records · {this.graph.edges.length} edges
         </p>
-        <ul>
-          {this.graph.edges.map((edge, index) => (
-            <li key={`${edge.source}:${edge.rel}:${edge.target}:${index}`}>
-              {edge.source} —{edge.rel}→ {edge.target} ({edge.confidence})
-            </li>
-          ))}
-        </ul>
+        {this.graph.edges.length === 0 ? (
+          <p className="gamecrafter-page-empty">No references were found at this depth.</p>
+        ) : (
+          <ul>
+            {this.graph.edges.map((edge, index) => (
+              <li key={`${edge.source}:${edge.rel}:${edge.target}:${index}`}>
+                {edge.source} —{edge.rel}→ {edge.target} ({edge.confidence})
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     );
   }
@@ -812,6 +886,7 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
 
   private async openRecord(recordId: string): Promise<void> {
     if (!this.projectId) return;
+    this.activeSection = 'records';
     await this.withBusy(async () => {
       this.selectedRecordId = recordId;
       this.recordDetail = await this.service.getKnowledgeRecord({

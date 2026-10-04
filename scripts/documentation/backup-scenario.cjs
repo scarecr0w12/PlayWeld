@@ -4,7 +4,19 @@ const assert = require('node:assert/strict');
 const { randomBytes } = require('node:crypto');
 const { setTimeout: delay } = require('node:timers/promises');
 
-async function backupScenario({ client, page, project, run, checks, open, click, capture, wait }) {
+async function backupScenario({
+  client,
+  page,
+  project,
+  run,
+  checks,
+  open,
+  click,
+  selectSection,
+  selectProject,
+  capture,
+  wait,
+}) {
   await open('Backups', 'backups');
   await wait(
     () => document.querySelector('.gamecrafter-backups-section h3')?.textContent === 'Identities',
@@ -30,6 +42,14 @@ async function backupScenario({ client, page, project, run, checks, open, click,
     await (await control(section, label)).asLocator().fill(value);
   }
   async function sectionCapture(name, section) {
+    const sectionLabel = {
+      Identities: 'Identities',
+      Destinations: 'Destinations',
+      Plans: 'Plans',
+      Runs: 'Runs',
+      Archives: 'Archives and restore',
+    }[section];
+    await selectSection('Backup sections', sectionLabel);
     if (/wrong-secret|restored|nonempty/.test(name)) {
       await page.evaluate(() => {
         document.querySelector('.gamecrafter-backups').scrollTop = 0;
@@ -56,6 +76,7 @@ async function backupScenario({ client, page, project, run, checks, open, click,
       .querySelector('.gamecrafter-backups-message')
       ?.textContent.includes('Recovery identity created'),
   );
+  await selectSection('Backup sections', 'Destinations');
   await fill('Destinations', 'Display name', 'Disposable local tutorial archives');
   await fill(
     'Destinations',
@@ -68,6 +89,8 @@ async function backupScenario({ client, page, project, run, checks, open, click,
       .querySelector('.gamecrafter-backups-message')
       ?.textContent.includes('Destination added'),
   );
+  await selectSection('Backup sections', 'Plans');
+  await selectProject('[aria-label="Backups Project"]', project.projectId);
   await sectionCapture('backup-configuration', 'Plans');
   await click('.gamecrafter-backups button', 'Run now');
   let backup;
@@ -80,6 +103,7 @@ async function backupScenario({ client, page, project, run, checks, open, click,
   }
   await click('.gamecrafter-backups header button', 'Refresh');
   await sectionCapture('backup-verified', 'Runs');
+  await selectSection('Backup sections', 'Archives and restore');
   await click('.gamecrafter-backups button', 'List archives');
   await wait(
     (archiveName) =>

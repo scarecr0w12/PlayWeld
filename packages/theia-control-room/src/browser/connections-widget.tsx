@@ -22,6 +22,7 @@ import { ControlRoomClientEvents } from './control-room-client';
 type McpMode = 'command' | 'endpoint' | 'docker';
 type EndpointTransport = 'streamable-http' | 'legacy-sse';
 type DockerTransport = 'stdio' | 'streamable-http';
+type ConnectionsSection = 'servers' | 'add' | 'tools' | 'logs';
 type ConnectionFormField =
   | 'connectionName'
   | 'scope'
@@ -54,6 +55,7 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
   private tools = new Map<string, ToolDefinition[]>();
   private logs = new Map<string, McpConnectionLogEntry[]>();
   private logConnectionId?: string;
+  private activeSection: ConnectionsSection = 'servers';
   private errorMessage?: string;
   private resultMessage?: string;
   private connectionName = '';
@@ -116,12 +118,28 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
   }
 
   protected render(): React.ReactNode {
+    const connectedCount = this.connections.filter(
+      (entry) => entry.state.status === 'connected',
+    ).length;
+    const disconnectedCount = this.connections.length - connectedCount;
     return (
       <div className="gamecrafter-connections gamecrafter-surface">
-        <header className="gamecrafter-connections-header">
-          <h1>Connections</h1>
+        <header className="gamecrafter-connections-header gamecrafter-page-header">
+          <div>
+            <h1>Connections</h1>
+            <p>
+              Manage server access, inspect discovered tools, and review their safety
+              classifications.
+            </p>
+          </div>
+          <button type="button" disabled={this.busy} onClick={() => void this.refresh()}>
+            Refresh
+          </button>
+        </header>
+
+        <div className="gamecrafter-connections-context gamecrafter-page-meta">
           <label>
-            Project
+            Scope
             <select
               aria-label="Connections Project"
               value={this.selectedProjectId ?? ''}
@@ -140,10 +158,19 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
               ))}
             </select>
           </label>
-          <button type="button" onClick={() => void this.refresh()}>
-            Refresh
-          </button>
-        </header>
+          <span className="gamecrafter-page-meta-item">
+            Connection scope <strong>{this.selectedProjectId ? 'Project' : 'Platform'}</strong>
+          </span>
+          <span className="gamecrafter-page-meta-item">
+            Servers <strong>{this.connections.length}</strong>
+          </span>
+          <span className="gamecrafter-page-meta-item">
+            Connected <strong>{connectedCount}</strong>
+          </span>
+          <span className="gamecrafter-page-meta-item">
+            Needs connection <strong>{disconnectedCount}</strong>
+          </span>
+        </div>
 
         {this.errorMessage && (
           <p className="gamecrafter-connections-error" role="alert">
@@ -156,10 +183,74 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
           </p>
         )}
 
-        <section className="gamecrafter-connections-section">
+        <section
+          className="gamecrafter-work-guidance gamecrafter-page-guidance"
+          aria-label="Connections next steps"
+        >
+          <div>
+            <strong>What to do next</strong>
+            <p>
+              {this.connections.length === 0
+                ? 'Add a trusted MCP server to discover tools for this scope.'
+                : connectedCount === 0
+                  ? 'Connect a configured server to discover its tools and inspect their safety metadata.'
+                  : 'Review each discovered tool’s side effects and execution mode before relying on it.'}
+            </p>
+          </div>
+          {this.connections.length === 0 ? (
+            <button type="button" onClick={() => this.activateSection('add')}>
+              Add connection
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => this.activateSection(connectedCount ? 'tools' : 'servers')}
+            >
+              {connectedCount ? 'Review tool safety' : 'Connect a server'}
+            </button>
+          )}
+        </section>
+
+        <nav className="gamecrafter-section-nav" aria-label="Connection views">
+          {(
+            [
+              ['servers', 'Servers', this.connections.length],
+              ['add', 'Add connection', 0],
+              [
+                'tools',
+                'Tool safety',
+                Array.from(this.tools.values()).reduce((sum, tools) => sum + tools.length, 0),
+              ],
+              [
+                'logs',
+                'Logs',
+                this.logConnectionId ? (this.logs.get(this.logConnectionId)?.length ?? 0) : 0,
+              ],
+            ] as const
+          ).map(([section, label, count]) => (
+            <button
+              key={section}
+              type="button"
+              aria-pressed={this.activeSection === section}
+              onClick={() => this.activateSection(section)}
+            >
+              {label} <span className="gamecrafter-count">{count}</span>
+            </button>
+          ))}
+        </nav>
+
+        <section
+          className="gamecrafter-connections-section gamecrafter-page-panel"
+          hidden={this.activeSection !== 'servers'}
+        >
           <h2>Configured servers</h2>
           {this.connections.length === 0 ? (
-            <p>No MCP connections are configured for this scope.</p>
+            <div className="gamecrafter-page-empty">
+              <p>No MCP connections are configured for this scope.</p>
+              <button type="button" onClick={() => this.activateSection('add')}>
+                Configure a connection
+              </button>
+            </div>
           ) : (
             <div className="gamecrafter-connections-table-scroll">
               <table className="gamecrafter-connections-table">
@@ -167,12 +258,9 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
                   <tr>
                     <th>Name</th>
                     <th>Scope / Mode</th>
-                    <th>Docker network / mounts</th>
+                    <th>Connection metadata</th>
                     <th>Status</th>
-                    <th>Revision</th>
-                    <th>Legacy</th>
                     <th>Tools</th>
-                    <th>Container</th>
                     <th>Last error</th>
                     <th>Actions</th>
                   </tr>
@@ -185,9 +273,18 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
                         {config.scope} / {config.mode}
                       </td>
                       <td>
-                        {config.mode === 'docker'
-                          ? `${config.docker.network} / ${config.docker.mounts.length} mounts`
-                          : '—'}
+                        <span className="gamecrafter-page-meta-item">
+                          Revision {state.negotiatedRevision ?? '—'}
+                        </span>
+                        {state.legacy && (
+                          <span className="gamecrafter-page-meta-item">Legacy protocol</span>
+                        )}
+                        {config.mode === 'docker' && (
+                          <span className="gamecrafter-page-meta-item">
+                            Network {config.docker.network} · {config.docker.mounts.length} mounts
+                          </span>
+                        )}
+                        {state.containerId && <code>{state.containerId}</code>}
                       </td>
                       <td>
                         <span
@@ -196,10 +293,7 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
                           {state.status}
                         </span>
                       </td>
-                      <td>{state.negotiatedRevision ?? '—'}</td>
-                      <td>{state.legacy ? 'Yes' : 'No'}</td>
                       <td>{state.toolCount}</td>
-                      <td>{state.containerId ?? '—'}</td>
                       <td>{state.lastError ?? '—'}</td>
                       <td className="gamecrafter-connection-actions">
                         {state.status === 'connected' ? (
@@ -247,11 +341,35 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
               </table>
             </div>
           )}
-          {this.renderToolTables()}
         </section>
 
-        <section className="gamecrafter-connections-section">
+        <section
+          className="gamecrafter-connections-section gamecrafter-page-panel"
+          hidden={this.activeSection !== 'tools'}
+        >
+          <h2>Tool safety</h2>
+          <p>
+            Classify each discovered tool’s side effects and execution mode before agents or
+            workflows use it.
+          </p>
+          {Array.from(this.tools.values()).every((entries) => entries.length === 0) ? (
+            <p className="gamecrafter-page-empty">
+              No tools have been discovered. Connect a server, then refresh its tools.
+            </p>
+          ) : (
+            this.renderToolTables()
+          )}
+        </section>
+
+        <section
+          className="gamecrafter-connections-section gamecrafter-page-panel"
+          hidden={this.activeSection !== 'add'}
+        >
           <h2>Add connection</h2>
+          <p>
+            Choose a transport and enter the minimum connection details. Optional environment,
+            credential, and container settings are below.
+          </p>
           <form
             className="gamecrafter-connections-form"
             onSubmit={(event) => {
@@ -333,14 +451,21 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
               />
               Allow server-initiated model calls
             </label>
-            <label className="gamecrafter-connections-wide">
-              Credentials (JSON key/value pairs; encrypted by the platform service)
-              <textarea
-                aria-label="Connection credentials"
-                value={this.credentialsJson}
-                onChange={(event) => this.setField('credentialsJson', event.currentTarget.value)}
-              />
-            </label>
+            <p className="gamecrafter-connections-warning">
+              Server-initiated model calls may trigger model requests from the server. Keep this
+              disabled unless required.
+            </p>
+            <details className="gamecrafter-page-advanced gamecrafter-connections-wide">
+              <summary>Advanced metadata and credentials</summary>
+              <label>
+                Credentials (JSON key/value pairs; encrypted by the platform service)
+                <textarea
+                  aria-label="Connection credentials"
+                  value={this.credentialsJson}
+                  onChange={(event) => this.setField('credentialsJson', event.currentTarget.value)}
+                />
+              </label>
+            </details>
             <button
               type="submit"
               disabled={
@@ -354,19 +479,34 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
           </form>
         </section>
 
-        {this.logConnectionId && (
-          <section className="gamecrafter-connections-section">
-            <h2>Connection log: {this.connectionNameFor(this.logConnectionId)}</h2>
-            <button type="button" onClick={() => void this.loadLogs(this.logConnectionId!)}>
-              Refresh log
-            </button>
-            <pre className="gamecrafter-connections-log">
-              {(this.logs.get(this.logConnectionId) ?? [])
-                .map((entry) => `${entry.at} [${entry.level}] ${entry.message}`)
-                .join('\n') || 'No log entries.'}
-            </pre>
-          </section>
-        )}
+        <section
+          className="gamecrafter-connections-section gamecrafter-page-panel"
+          hidden={this.activeSection !== 'logs'}
+        >
+          {this.logConnectionId ? (
+            <>
+              <h2>Connection log: {this.connectionNameFor(this.logConnectionId)}</h2>
+              <p className="gamecrafter-page-meta">
+                <span className="gamecrafter-page-meta-item">
+                  Entries <strong>{this.logs.get(this.logConnectionId)?.length ?? 0}</strong>
+                </span>
+              </p>
+              <button type="button" onClick={() => void this.loadLogs(this.logConnectionId!)}>
+                Refresh log
+              </button>
+              <pre className="gamecrafter-connections-log">
+                {(this.logs.get(this.logConnectionId) ?? [])
+                  .map((entry) => `${entry.at} [${entry.level}] ${entry.message}`)
+                  .join('\n') || 'No log entries.'}
+              </pre>
+            </>
+          ) : (
+            <div className="gamecrafter-page-empty">
+              <h2>No connection selected</h2>
+              <p>Choose Logs on a configured server to inspect its recent connection events.</p>
+            </div>
+          )}
+        </section>
       </div>
     );
   }
@@ -382,22 +522,25 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
             onChange={(event) => this.setField('command', event.currentTarget.value)}
           />
         </label>
-        <label>
-          Arguments (comma-separated)
-          <input
-            aria-label="Connection command arguments"
-            value={this.commandArgs}
-            onChange={(event) => this.setField('commandArgs', event.currentTarget.value)}
-          />
-        </label>
-        <label className="gamecrafter-connections-wide">
-          Environment (JSON key/value pairs)
-          <textarea
-            aria-label="Connection environment"
-            value={this.commandEnv}
-            onChange={(event) => this.setField('commandEnv', event.currentTarget.value)}
-          />
-        </label>
+        <details className="gamecrafter-page-advanced gamecrafter-connections-wide">
+          <summary>Command arguments and environment</summary>
+          <label>
+            Arguments (comma-separated)
+            <input
+              aria-label="Connection command arguments"
+              value={this.commandArgs}
+              onChange={(event) => this.setField('commandArgs', event.currentTarget.value)}
+            />
+          </label>
+          <label>
+            Environment (JSON key/value pairs)
+            <textarea
+              aria-label="Connection environment"
+              value={this.commandEnv}
+              onChange={(event) => this.setField('commandEnv', event.currentTarget.value)}
+            />
+          </label>
+        </details>
       </>
     );
   }
@@ -426,14 +569,17 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
             <option value="legacy-sse">Legacy SSE</option>
           </select>
         </label>
-        <label className="gamecrafter-connections-wide">
-          Headers (JSON key/value pairs)
-          <textarea
-            aria-label="Connection headers"
-            value={this.endpointHeaders}
-            onChange={(event) => this.setField('endpointHeaders', event.currentTarget.value)}
-          />
-        </label>
+        <details className="gamecrafter-page-advanced gamecrafter-connections-wide">
+          <summary>Custom request headers</summary>
+          <label>
+            Headers (JSON key/value pairs)
+            <textarea
+              aria-label="Connection headers"
+              value={this.endpointHeaders}
+              onChange={(event) => this.setField('endpointHeaders', event.currentTarget.value)}
+            />
+          </label>
+        </details>
       </>
     );
   }
@@ -447,14 +593,6 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
             aria-label="Docker image"
             value={this.dockerImage}
             onChange={(event) => this.setField('dockerImage', event.currentTarget.value)}
-          />
-        </label>
-        <label>
-          Command (comma-separated)
-          <input
-            aria-label="Docker command"
-            value={this.dockerCommand}
-            onChange={(event) => this.setField('dockerCommand', event.currentTarget.value)}
           />
         </label>
         <label>
@@ -483,56 +621,70 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
             />
           </label>
         )}
-        <label>
-          Network
-          <select
-            aria-label="Docker network"
-            value={this.dockerNetwork}
-            onChange={(event) =>
-              this.setField(
-                'dockerNetwork',
-                event.currentTarget.value as 'none' | 'bridge' | 'host',
-              )
-            }
-          >
-            <option value="none">none</option>
-            <option value="bridge">bridge</option>
-            <option value="host">host</option>
-          </select>
-        </label>
-        <label>
-          Pull policy
-          <select
-            aria-label="Docker pull policy"
-            value={this.dockerPullPolicy}
-            onChange={(event) =>
-              this.setField(
-                'dockerPullPolicy',
-                event.currentTarget.value as 'if-missing' | 'always' | 'never',
-              )
-            }
-          >
-            <option value="if-missing">if-missing</option>
-            <option value="always">always</option>
-            <option value="never">never</option>
-          </select>
-        </label>
-        <label className="gamecrafter-connections-wide">
-          Mounts (JSON array: source, target, readOnly)
-          <textarea
-            aria-label="Docker mounts"
-            value={this.dockerMounts}
-            onChange={(event) => this.setField('dockerMounts', event.currentTarget.value)}
-          />
-        </label>
-        <label className="gamecrafter-connections-wide">
-          Environment (JSON key/value pairs)
-          <textarea
-            aria-label="Docker environment"
-            value={this.dockerEnv}
-            onChange={(event) => this.setField('dockerEnv', event.currentTarget.value)}
-          />
-        </label>
+        <p className="gamecrafter-connections-note">
+          Default Docker network is none; the container stops when the connection disconnects.
+        </p>
+        <details className="gamecrafter-page-advanced gamecrafter-connections-wide">
+          <summary>Advanced Docker settings (command, mounts, network, and pull policy)</summary>
+          <label>
+            Command (comma-separated)
+            <input
+              aria-label="Docker command"
+              value={this.dockerCommand}
+              onChange={(event) => this.setField('dockerCommand', event.currentTarget.value)}
+            />
+          </label>
+          <label>
+            Network
+            <select
+              aria-label="Docker network"
+              value={this.dockerNetwork}
+              onChange={(event) =>
+                this.setField(
+                  'dockerNetwork',
+                  event.currentTarget.value as 'none' | 'bridge' | 'host',
+                )
+              }
+            >
+              <option value="none">none</option>
+              <option value="bridge">bridge</option>
+              <option value="host">host</option>
+            </select>
+          </label>
+          <label>
+            Pull policy
+            <select
+              aria-label="Docker pull policy"
+              value={this.dockerPullPolicy}
+              onChange={(event) =>
+                this.setField(
+                  'dockerPullPolicy',
+                  event.currentTarget.value as 'if-missing' | 'always' | 'never',
+                )
+              }
+            >
+              <option value="if-missing">if-missing</option>
+              <option value="always">always</option>
+              <option value="never">never</option>
+            </select>
+          </label>
+          <label>
+            Mounts (JSON array: source, target, readOnly)
+            <textarea
+              aria-label="Docker mounts"
+              value={this.dockerMounts}
+              onChange={(event) => this.setField('dockerMounts', event.currentTarget.value)}
+            />
+          </label>
+          <label>
+            Environment (JSON key/value pairs)
+            <textarea
+              aria-label="Docker environment"
+              value={this.dockerEnv}
+              onChange={(event) => this.setField('dockerEnv', event.currentTarget.value)}
+            />
+          </label>
+        </details>
       </>
     );
   }
@@ -745,6 +897,7 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
 
   private async loadLogs(connectionId: string): Promise<void> {
     this.logConnectionId = connectionId;
+    this.activeSection = 'logs';
     try {
       this.logs.set(connectionId, await this.service.listMcpLogs(connectionId, 200));
       this.errorMessage = undefined;
@@ -822,6 +975,11 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
       this.connections.find((entry) => entry.config.connectionId === connectionId)?.config.name ??
       connectionId
     );
+  }
+
+  private activateSection(section: ConnectionsSection): void {
+    this.activeSection = section;
+    this.update();
   }
 
   private async withBusy(action: () => Promise<void>): Promise<void> {

@@ -1,6 +1,11 @@
 {
   "capturedAt": "2026-10-03T02:02:04.315Z",
   "platformVersion": "0.4.0",
+  "superseded": {
+    "at": "2026-10-04",
+    "reason": "Historical 0.4.0 capture. Its images were restored after a failed refresh; use the complete dated capture report for the current interface.",
+    "report": "../lantern-workflows-2026-10-04/capture-report.json"
+  },
   "source": {
     "commit": "4e1342070f56926807a5d1bb04d43b1a54f2ed40",
     "workingTree": "pending changes",

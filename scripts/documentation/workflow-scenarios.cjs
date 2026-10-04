@@ -9,8 +9,21 @@ const { connectionScenario } = require('./connection-scenario.cjs');
 const { assetScenario } = require('./asset-scenario.cjs');
 
 async function runScenarios(context) {
-  const { selectedScenarios, client, page, project, run, checks, open, click, capture, wait } =
-    context;
+  const {
+    selectedScenarios,
+    client,
+    page,
+    project,
+    run,
+    checks,
+    open,
+    click,
+    selectSection,
+    ensureDisclosure,
+    selectProject,
+    capture,
+    wait,
+  } = context;
   if (selectedScenarios.includes('agent')) {
     const roleRoot = path.join(project.path, '.gamecrafter/roles/lantern-writer');
     fs.mkdirSync(roleRoot, { recursive: true });
@@ -51,6 +64,9 @@ async function runScenarios(context) {
       value: 'never',
     });
     await open('Swarm', 'swarm');
+    await selectProject('[aria-label="Swarm Project"]', project.projectId);
+    await selectSection('Swarm views', 'Agents');
+    await ensureDisclosure('.gamecrafter-swarm-request-composer summary', 'New request');
     await page.click('[aria-label="Change request"]');
     await page.keyboard.down('Control');
     await page.keyboard.press('A');
@@ -84,6 +100,7 @@ async function runScenarios(context) {
       await delay(500);
     }
     await click('.gamecrafter-swarm header button', 'Refresh');
+    await selectSection('Swarm views', 'Integrations');
     await page.evaluate(() =>
       [...document.querySelectorAll('.gamecrafter-swarm-panel')]
         .find((node) => node.querySelector('h2')?.textContent === 'Integrations')
@@ -139,6 +156,7 @@ async function runScenarios(context) {
       await delay(500);
     }
     await click('.gamecrafter-swarm header button', 'Refresh');
+    await selectSection('Swarm views', 'Integrations');
     await page.evaluate(() =>
       [...document.querySelectorAll('.gamecrafter-swarm-panel')]
         .find((node) => node.querySelector('h2')?.textContent === 'Integrations')
@@ -160,6 +178,7 @@ async function runScenarios(context) {
       (error) => ({ error }),
     );
     await click('.gamecrafter-swarm header button', 'Refresh');
+    await selectSection('Swarm views', 'Approvals');
     await wait(() =>
       [...document.querySelectorAll('[aria-label="Pending approvals"] button')].some(
         (node) => node.textContent.trim() === 'Approve',
@@ -183,6 +202,7 @@ async function runScenarios(context) {
   }
   if (selectedScenarios.includes('settings')) {
     await open('Settings', 'settings');
+    await ensureDisclosure('.gamecrafter-settings details summary', 'Import and export');
     await page.locator('.gamecrafter-settings-search input').fill('access.mode');
     await page.waitForSelector('select[aria-label="Access mode"]');
     await page.select('select[aria-label="Access mode"]', 'restricted');
@@ -224,7 +244,7 @@ async function runScenarios(context) {
         return original(blob);
       };
     });
-    await click('.gamecrafter-settings-toolbar button', 'Export redacted settings');
+    await click('.gamecrafter-settings button', 'Export redacted settings');
     await wait(() => window.__documentationDownloads?.length > 0);
     const uiExport = await page.evaluate(async () =>
       JSON.parse(await window.__documentationDownloads.at(-1).text()),
@@ -251,6 +271,8 @@ async function runScenarios(context) {
       value: 'restricted',
     });
     await open('Discussion Board', 'board');
+    await selectProject('[aria-label="Board Project"]', project.projectId);
+    await ensureDisclosure('.gamecrafter-board details summary', 'New thread');
     await page.locator('[aria-label="New thread title"]').fill('Tutorial reset acceptance');
     await page.type(
       '[aria-label="New thread message"]',
@@ -303,6 +325,8 @@ async function runScenarios(context) {
       `\nTutorial index change marker: ${marker}.\n`,
     );
     await open('Knowledge', 'knowledge');
+    await selectProject('[aria-label="Knowledge Project"]', project.projectId);
+    await selectSection('Knowledge sections', 'Index status');
     await click('.gamecrafter-knowledge-actions button', 'Reconcile');
     let result;
     for (let attempt = 0; attempt < 90; attempt++) {
@@ -320,6 +344,8 @@ async function runScenarios(context) {
       if (attempt === 89) throw new Error('Changed document did not become searchable');
       await delay(500);
     }
+    await selectSection('Knowledge sections', 'Search');
+    await ensureDisclosure('.gamecrafter-knowledge details summary', 'Search mode and filters');
     await page.select('[aria-label="Knowledge search mode"]', 'lexical');
     await page.select('[aria-label="Knowledge search source"]', 'docs');
     await page.locator('[aria-label="Knowledge search query"]').fill(marker);

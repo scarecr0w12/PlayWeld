@@ -1,6 +1,6 @@
 # PlayWeld documentation
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-04
 
 PlayWeld is a local game-development workspace with a Theia desktop Control Room, a persistent platform service, model-assisted agents, and engine/DCC integrations. These guides explain the current repository. Design documents describe the complete target system; verification records identify which capabilities have actual live evidence.
 
@@ -10,7 +10,7 @@ PlayWeld is a local game-development workspace with a Theia desktop Control Room
 
 Start with [Lantern Workshop: worked tutorial](WORKED_TUTORIAL.md) for project creation, reusable native/design files, a discussion, model/chat configuration, and cited Knowledge search. The [Control Room handbook](CONTROL_ROOM_HANDBOOK.md) explains every surface with screenshots, practical examples, and evidence to inspect. The [service recipes](SERVICE_RECIPES.md) connect these workflows to the local typed API and component boundaries. The [documentation coverage record](DOCUMENTATION_COVERAGE.md) lists checks, repaired documentation/fixture problems, and unverified operations.
 
-The [reusable fixture](examples/lantern-workshop/README.md) and [capture script](../scripts/capture-documentation.cjs) keep the walkthrough reproducible. Images show the development browser UI with a real isolated service; the chat endpoint is an explicitly labeled local fixture. They do not establish paid-provider, native-gameplay, installer, or live-editor acceptance.
+The [reusable fixture](examples/lantern-workshop/README.md) and [capture script](../scripts/capture-documentation.cjs) keep the walkthrough reproducible. Current screenshots show the grouped PlayWeld navigation, sectioned Control Room pages, and compact Chat layout in the built development browser with a real isolated service. The chat endpoint is an explicitly labeled local fixture. The dated [workflow image set and capture report](images/lantern-workflows-2026-10-04/capture-report.json) record the 2026-10-04 browser/service 0.6.0 run and its boundaries. These captures do not establish paid-provider, native-gameplay, installer, or live-editor acceptance.
 
 ## Guides by audience
 

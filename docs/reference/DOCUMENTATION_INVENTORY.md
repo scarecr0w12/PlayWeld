@@ -2,7 +2,7 @@
 
 Generated from built contracts, built setting definitions, and service source paths. Regenerate with `node scripts/generate-documentation-inventory.cjs`; check freshness with `--check`. Counts do not establish acceptance. The [coverage record](../DOCUMENTATION_COVERAGE.md) owns gaps and observed results.
 
-Request methods: **186**; notifications: **28**; settings: **75**; setting groups: **17**. Full names and test paths are in [the JSON inventory](documentation-inventory.json).
+Request methods: **186**; notifications: **28**; settings: **77**; setting groups: **17**. Full names and test paths are in [the JSON inventory](documentation-inventory.json).
 
 ## RPC families
 
@@ -49,7 +49,7 @@ Request methods: **186**; notifications: **28**; settings: **75**; setting group
 | storage: Storage, search & backup | 2 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
 | logs: Logs & audit | 1 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
 | engine: Engine connectors | 3 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
-| knowledge: Knowledge & search | 10 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
+| knowledge: Knowledge & search | 12 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
 | assets: Assets | 6 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
 | backup: Backups | 7 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
 | dcc: DCC tools | 5 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
@@ -60,7 +60,7 @@ Request methods: **186**; notifications: **28**; settings: **75**; setting group
 
 | Area | Explanation | Source | Test files |
 | --- | --- | --- | --- |
-| agents | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/agents/) | 2 |
+| agents | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/agents/) | 3 |
 | assets | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/assets/) | 5 |
 | backup | [Guide](../OPERATIONS_GUIDE.md) | [Source](../../packages/platform-service/src/backup/) | 9 |
 | board | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/board/) | 4 |
@@ -70,9 +70,9 @@ Request methods: **186**; notifications: **28**; settings: **75**; setting group
 | dcc | [Guide](../INTEGRATION_GUIDE.md) | [Source](../../packages/platform-service/src/dcc/) | 5 |
 | engines | [Guide](../INTEGRATION_GUIDE.md) | [Source](../../packages/platform-service/src/engines/) | 4 |
 | ipc | [Guide](../SERVICE_RECIPES.md) | [Source](../../packages/platform-service/src/ipc/) | 3 |
-| knowledge | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/knowledge/) | 7 |
+| knowledge | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/knowledge/) | 11 |
 | mcp | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/mcp/) | 13 |
-| models | [Guide](../USER_GUIDE.md) | [Source](../../packages/platform-service/src/models/) | 5 |
+| models | [Guide](../USER_GUIDE.md) | [Source](../../packages/platform-service/src/models/) | 6 |
 | plugins | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/plugins/) | 4 |
 | processes | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/processes/) | 1 |
 | profile | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/profile/) | 2 |

@@ -43,7 +43,7 @@ const navigation = fs.readFileSync(
   'packages/theia-control-room/src/browser/project-home-widget.tsx',
   'utf8',
 );
-const labels = [...navigation.matchAll(/\{ label: '([^']+)', command:/g)].map((match) => match[1]);
+const labels = [...navigation.matchAll(/\blabel:\s*'([^']+)',\s*command:/g)].map((match) => match[1]);
 const normalize = (text) => text.toLowerCase().replaceAll('&', 'and').replace(/\s+/g, ' ').trim();
 const headings = [
   ...fs.readFileSync('docs/CONTROL_ROOM_HANDBOOK.md', 'utf8').matchAll(/^## (.+)$/gm),
@@ -57,6 +57,7 @@ for (const label of labels)
   );
 let reports = 0,
   screenshots = 0;
+let combined;
 for (const folder of fs.readdirSync('docs/images', { withFileTypes: true })) {
   if (!folder.isDirectory()) continue;
   const directory = path.join('docs/images', folder.name);
@@ -66,6 +67,7 @@ for (const folder of fs.readdirSync('docs/images', { withFileTypes: true })) {
   assert.deepEqual(report.rendererErrors, [], `${reportFile}: renderer failure`);
   assert(report.checks.length > 0 && report.screenshots.length > 0);
   assert(report.platformVersion && Number.isFinite(Date.parse(report.capturedAt)));
+  if (report.selectedScenarios?.length === scenarioNames.length && (!combined || Date.parse(report.capturedAt) > Date.parse(combined.capturedAt))) combined = report;
   assert.equal(new Set(report.screenshots).size, report.screenshots.length);
   for (const scenario of report.selectedScenarios ?? ['overview'])
     assert(scenarioNames.includes(scenario));
@@ -82,9 +84,7 @@ for (const folder of fs.readdirSync('docs/images', { withFileTypes: true })) {
   }
   reports++;
 }
-const combined = JSON.parse(
-  fs.readFileSync('docs/images/lantern-workflows/capture-report.json', 'utf8'),
-);
+assert(combined, 'A complete combined workflow capture report is required');
 assert.deepEqual(
   sorted(combined.selectedScenarios),
   sorted(scenarioNames),

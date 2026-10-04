@@ -4,6 +4,10 @@ Generated from permanent [work records](docs/changes/README.md). Run `npm run ch
 
 ## Unreleased
 
+No pending work records.
+
+## 0.7.0
+
 ### Added
 
 - **Selectable embedded and managed vector storage** (minor): Add embedded LanceDB and SQLite exact vector storage, managed native Qdrant, and explicit existing-local/remote Qdrant configurations behind a backend-neutral storage boundary. [Full details and validation](docs/changes/2026-10-04-vector-storage-backends.md).
@@ -11,11 +15,18 @@ Generated from permanent [work records](docs/changes/README.md). Run `npm run ch
 ### Changed
 
 - **Streamlined navigation, discussion browsing, and Swarm hierarchy** (minor): Refined the Control Room's Project Home, Discussion Board, and Swarm layouts to make destinations, next actions, and delegated agent work easier to identify without reading every task's full details. [Full details and validation](docs/changes/2026-10-04-navigation-and-swarm-layout.md).
+- **Overhaul remaining workspace pages and Theia shell surfaces** (minor): Extend the clear navigation and compact layouts from Project Home, Discussion Board, and Swarm across the remaining Control Room pages and shared built-in Theia surfaces, preserving existing operations and safety boundaries. [Full details and validation](docs/changes/2026-10-04-workspace-interface-overhaul.md).
+
+### Documentation
+
+- **Interface Documentation and Screenshots** (none): Updated the user/developer/operations guidance and screenshot references for the grouped PlayWeld menu, purpose-grouped Project Home, sectioned pages and expandable controls. Refreshed the overview and complete workflow screenshots from the built 0.6.0 development browser with an isolated service and deterministic local fixtures. [Full details and validation](docs/changes/2026-10-04-interface-docs-and-images.md).
 
 ### Maintenance
 
 - **Build and deploy PlayWeld 0.6.0 locally** (none): Build, stage and install PlayWeld 0.6.0 over the existing local 0.5.0 installation, then verify the running desktop/service and preserved configuration. This post-commit evidence does not rewrite the committed release records or require rebuilding the completed installer. [Full details and validation](docs/changes/2026-10-03-local-0.6.0-deployment.md).
+- **Prepare version 0.7.0** (none): Prepare version 0.7.0 from 0.6.0, retaining all pending work records in the changelog and detailed release notes. [Full details and validation](docs/changes/2026-10-03-release-0.7.0.md).
 - **Align Kilo workspace tooling with PlayWeld development** (none): Add a shareable Kilo workspace baseline, project-specific agent adapters, and scoped review commands without changing application code or active Agent Manager assignments. [Full details and validation](docs/changes/2026-10-04-kilo-workspace-tooling.md).
+- **Prepare and deploy the interface refresh locally** (none): Prepare, stage and install PlayWeld 0.7.0 locally with the interface/documentation refresh, verifying the bundled desktop, installed runtime and retained profile configuration before the authorized source commit and push. [Full details and validation](docs/changes/2026-10-04-local-0.7.0-deployment.md).
 
 ## 0.6.0
 

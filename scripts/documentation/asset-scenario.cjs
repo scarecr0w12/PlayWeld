@@ -24,7 +24,18 @@ function fixtureGlb() {
   json.copy(bytes, 20);
   return bytes;
 }
-async function assetScenario({ client, page, project, checks, open, click, capture, wait }) {
+async function assetScenario({
+  client,
+  page,
+  project,
+  checks,
+  open,
+  click,
+  selectSection,
+  selectProject,
+  capture,
+  wait,
+}) {
   const bytes = fixtureGlb();
   let url;
   const provider = createServer(async (request, response) => {
@@ -68,7 +79,8 @@ async function assetScenario({ client, page, project, checks, open, click, captu
       value: 2,
     });
     await open('Assets', 'assets');
-    await page.select('[aria-label="Assets Project"]', project.projectId);
+    await selectProject('[aria-label="Assets Project"]', project.projectId);
+    await selectSection('Asset workspace sections', 'Generate');
     await click('.gamecrafter-assets button', 'Refresh');
     await wait(
       (id) =>
@@ -93,6 +105,7 @@ async function assetScenario({ client, page, project, checks, open, click, captu
     }
     assert.equal(job?.status, 'review');
     await click('.gamecrafter-assets button', 'Refresh');
+    await selectSection('Asset workspace sections', 'Jobs');
     await wait(() => document.querySelector('.gamecrafter-assets-review'));
     await page.evaluate(() => document.querySelector('.gamecrafter-assets-job').scrollIntoView());
     await capture('asset-awaiting-review', '.gamecrafter-assets');

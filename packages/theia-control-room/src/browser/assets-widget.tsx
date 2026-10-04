@@ -43,6 +43,7 @@ export class AssetsWidget extends ControlRoomReactWidget {
 
   private projects: ProjectSummary[] = [];
   private selectedProjectId = '';
+  private activeSection: 'library' | 'preview' | 'generate' | 'jobs' = 'library';
   private providers: AssetProviderCapabilities[] = [];
   private accounts: AssetProviderAccount[] = [];
   private jobs: AssetJob[] = [];
@@ -108,11 +109,12 @@ export class AssetsWidget extends ControlRoomReactWidget {
     const formats = availableAssetOutputFormats(selectedProvider);
     return (
       <div className="gamecrafter-assets gamecrafter-surface">
-        <header className="gamecrafter-assets-header">
+        <header className="gamecrafter-assets-header gamecrafter-page-header">
           <div>
             <h1>Assets</h1>
             <p>
-              Inspect Project assets, generate provider jobs, and review provenance before import.
+              Browse project files, preview models and images, then generate or review provider
+              jobs.
             </p>
           </div>
           <button
@@ -145,6 +147,30 @@ export class AssetsWidget extends ControlRoomReactWidget {
             ))}
           </select>
         </label>
+        {this.selectedProjectId && (
+          <nav className="gamecrafter-section-nav" aria-label="Asset workspace sections">
+            {(['library', 'preview', 'generate', 'jobs'] as const).map((section) => (
+              <button
+                key={section}
+                type="button"
+                aria-controls={`gamecrafter-assets-${
+                  section === 'generate' ? 'generation' : section === 'preview' ? 'viewer' : section
+                }`}
+                aria-pressed={this.activeSection === section}
+                onClick={() => {
+                  this.activeSection = section;
+                  this.update();
+                }}
+              >
+                {
+                  { library: 'Library', preview: 'Preview', generate: 'Generate', jobs: 'Jobs' }[
+                    section
+                  ]
+                }
+              </button>
+            ))}
+          </nav>
+        )}
         {this.errorMessage && (
           <p className="gamecrafter-assets-error" role="alert">
             {this.errorMessage}
@@ -155,16 +181,34 @@ export class AssetsWidget extends ControlRoomReactWidget {
             {this.resultMessage}
           </p>
         )}
+        <section
+          className="gamecrafter-page-guidance gamecrafter-work-guidance"
+          aria-label="Assets next steps"
+        >
+          <div>
+            <strong>
+              {this.selectedProjectId
+                ? 'Browse files or start a generation job'
+                : 'Choose a Project to begin'}
+            </strong>
+            <p>
+              {this.selectedProjectId
+                ? 'Select a library file to preview it, or use Generate to create a new asset.'
+                : 'Its game/assets folder, previews, and generated-file provenance appear here.'}
+            </p>
+          </div>
+        </section>
         {!this.selectedProjectId ? (
-          <p>Select a Project to browse its asset library.</p>
+          <p className="gamecrafter-page-empty">Select a Project to browse its asset library.</p>
         ) : (
           <div className="gamecrafter-assets-columns">
-            <section className="gamecrafter-assets-library">
+            <section
+              className="gamecrafter-assets-library gamecrafter-page-panel"
+              id="gamecrafter-assets-library"
+              hidden={this.activeSection !== 'library'}
+            >
               <div className="gamecrafter-assets-section-title">
                 <h2>Library</h2>
-                <button type="button" onClick={() => void this.refreshProject()}>
-                  Refresh
-                </button>
               </div>
               {this.files.length ? (
                 <ul className="gamecrafter-assets-file-list">
@@ -173,6 +217,7 @@ export class AssetsWidget extends ControlRoomReactWidget {
                       <button
                         type="button"
                         className={this.selectedPath === file.path ? 'selected' : ''}
+                        aria-current={this.selectedPath === file.path ? 'true' : undefined}
                         onClick={() => void this.loadPreview(file.path)}
                       >
                         <span>{file.path}</span>
@@ -187,15 +232,30 @@ export class AssetsWidget extends ControlRoomReactWidget {
                   ))}
                 </ul>
               ) : (
-                <p>No files under game/assets yet.</p>
+                <p className="gamecrafter-page-empty">
+                  No files under <code>game/assets</code> yet. Add or generate an asset to start
+                  building this library.
+                </p>
               )}
             </section>
-            <section className="gamecrafter-assets-viewer">
+            <section
+              className="gamecrafter-assets-viewer gamecrafter-page-panel"
+              id="gamecrafter-assets-viewer"
+              hidden={this.activeSection !== 'preview'}
+            >
               <h2>Viewer</h2>
               {this.renderPreview()}
             </section>
-            <section className="gamecrafter-assets-generation">
-              <h2>Generate &amp; Jobs</h2>
+            <section
+              className="gamecrafter-assets-generation gamecrafter-page-panel"
+              id="gamecrafter-assets-generation"
+              hidden={this.activeSection !== 'generate'}
+            >
+              <h2>Generate an asset</h2>
+              <p>
+                Choose a configured provider account, then submit a job. Review and import its
+                output below.
+              </p>
               {this.renderAccountForm()}
               <label>
                 Provider account
@@ -272,18 +332,6 @@ export class AssetsWidget extends ControlRoomReactWidget {
                   />
                 </label>
               )}
-              {(this.form.kind === 'text-to-3d' || this.form.kind === 'image-to-3d') && (
-                <label>
-                  Negative prompt
-                  <textarea
-                    value={this.form.negativePrompt}
-                    maxLength={4000}
-                    onChange={(event) =>
-                      this.updateForm({ negativePrompt: event.currentTarget.value })
-                    }
-                  />
-                </label>
-              )}
               {this.form.kind === 'image-to-3d' && (
                 <label>
                   Project-relative image path
@@ -318,24 +366,39 @@ export class AssetsWidget extends ControlRoomReactWidget {
                   </select>
                 </label>
               )}
-              <label>
-                Output format
-                <select
-                  value={this.form.outputFormat}
-                  disabled={!formats.length}
-                  onChange={(event) =>
-                    this.updateForm({
-                      outputFormat: event.currentTarget.value as AssetOutputFormat,
-                    })
-                  }
-                >
-                  {formats.map((format) => (
-                    <option key={format} value={format}>
-                      {format.toUpperCase()}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <details className="gamecrafter-page-advanced">
+                <summary>Advanced generation options</summary>
+                {(this.form.kind === 'text-to-3d' || this.form.kind === 'image-to-3d') && (
+                  <label>
+                    Negative prompt
+                    <textarea
+                      value={this.form.negativePrompt}
+                      maxLength={4000}
+                      onChange={(event) =>
+                        this.updateForm({ negativePrompt: event.currentTarget.value })
+                      }
+                    />
+                  </label>
+                )}
+                <label>
+                  Output format
+                  <select
+                    value={this.form.outputFormat}
+                    disabled={!formats.length}
+                    onChange={(event) =>
+                      this.updateForm({
+                        outputFormat: event.currentTarget.value as AssetOutputFormat,
+                      })
+                    }
+                  >
+                    {formats.map((format) => (
+                      <option key={format} value={format}>
+                        {format.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </details>
               <button
                 className="theia-button"
                 type="button"
@@ -344,14 +407,26 @@ export class AssetsWidget extends ControlRoomReactWidget {
               >
                 Generate asset
               </button>
-              <div className="gamecrafter-assets-jobs">
-                <h3>Jobs</h3>
-                {this.jobs.length ? (
-                  this.jobs.map((job) => this.renderJob(job))
-                ) : (
-                  <p>No asset jobs yet.</p>
-                )}
-              </div>
+              {!this.accounts.some((account) => account.enabled && account.hasApiKey) && (
+                <p className="gamecrafter-page-empty">
+                  No ready provider account. Add an account above and choose it to enable
+                  generation.
+                </p>
+              )}
+            </section>
+            <section
+              className="gamecrafter-assets-jobs gamecrafter-page-panel"
+              id="gamecrafter-assets-jobs"
+              hidden={this.activeSection !== 'jobs'}
+            >
+              <h2>Generation jobs</h2>
+              {this.jobs.length ? (
+                this.jobs.map((job) => this.renderJob(job))
+              ) : (
+                <p className="gamecrafter-page-empty">
+                  No jobs for this Project yet. Start with a text-to-3D or image-to-3D request.
+                </p>
+              )}
             </section>
           </div>
         )}
@@ -451,8 +526,10 @@ export class AssetsWidget extends ControlRoomReactWidget {
         <progress max={100} value={job.progress}>
           {job.progress}%
         </progress>
-        <small>
-          {job.providerKind} · {job.provenance.request.kind} · {job.progress}%
+        <small className="gamecrafter-page-meta">
+          <span className="gamecrafter-page-meta-item">{job.providerKind}</span>
+          <span className="gamecrafter-page-meta-item">{job.provenance.request.kind}</span>
+          <span className="gamecrafter-page-meta-item">{job.progress}%</span>
         </small>
         {job.error && <p className="gamecrafter-assets-error">{job.error}</p>}
         {job.artifacts.map((artifact) => (
@@ -498,15 +575,18 @@ export class AssetsWidget extends ControlRoomReactWidget {
         )}
         {actions.canImport && (
           <div className="gamecrafter-assets-import">
-            <input
-              aria-label={`Import directory ${job.jobId}`}
-              value={this.destinationDir}
-              onChange={(event) => {
-                this.destinationDir = event.currentTarget.value;
-                this.update();
-              }}
-              placeholder="game/assets/generated"
-            />
+            <label>
+              Import destination
+              <input
+                aria-label={`Import directory ${job.jobId}`}
+                value={this.destinationDir}
+                onChange={(event) => {
+                  this.destinationDir = event.currentTarget.value;
+                  this.update();
+                }}
+                placeholder="game/assets/generated"
+              />
+            </label>
             <button type="button" onClick={() => void this.importJob(job)}>
               Import
             </button>
@@ -683,6 +763,7 @@ export class AssetsWidget extends ControlRoomReactWidget {
       });
       this.jobs = [job, ...this.jobs.filter((entry) => entry.jobId !== job.jobId)];
       this.resultMessage = `Asset job ${job.jobId.slice(0, 8)} queued.`;
+      this.activeSection = 'jobs';
       await this.refreshProject();
     } catch (error) {
       this.showError(error);
@@ -755,6 +836,7 @@ export class AssetsWidget extends ControlRoomReactWidget {
         projectId: this.selectedProjectId,
         path: sourcePath,
       });
+      this.activeSection = 'preview';
     } catch (error) {
       this.showError(error);
     } finally {

@@ -1,6 +1,6 @@
 # Align Kilo workspace tooling with PlayWeld development
 
-**Release:** Unreleased
+**Release:** 0.7.0
 
 **Impact:** none
 

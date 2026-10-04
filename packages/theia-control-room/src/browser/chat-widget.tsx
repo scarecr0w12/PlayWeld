@@ -40,6 +40,7 @@ export class ChatWidget extends ControlRoomReactWidget {
   private conversationId = '';
   private selectedModelId = '';
   private draft = '';
+  private conversationSearch = '';
   private mode: 'chat' | 'agent' = 'chat';
   private attachEditor = false;
   private busy = false;
@@ -83,13 +84,16 @@ export class ChatWidget extends ControlRoomReactWidget {
     );
     const activeEditor = this.editorManager.currentEditor;
     const editorName = activeEditor?.getResourceUri()?.path.base ?? 'No file open';
+    const conversations = this.conversations.filter((conversation) =>
+      conversation.title.toLocaleLowerCase().includes(this.conversationSearch.toLocaleLowerCase()),
+    );
     return (
       <div className="gamecrafter-chat gamecrafter-surface">
         <aside className="gamecrafter-chat-sidebar">
           <header>
             <strong>Conversations</strong>
             <button type="button" aria-label="New chat" onClick={() => void this.newConversation()}>
-              +
+              New
             </button>
             {this.conversationId && (
               <button
@@ -120,35 +124,71 @@ export class ChatWidget extends ControlRoomReactWidget {
               ))}
             </select>
           </label>
-          <select
-            className="gamecrafter-chat-conversation-select"
-            aria-label="Chat conversation"
-            value={this.conversationId}
-            onChange={(event) => {
-              const id = event.currentTarget.value;
-              if (id) void this.openConversation(id);
-              else this.newConversation();
-            }}
-          >
-            <option value="">New conversation</option>
-            {this.conversations.map((conversation) => (
-              <option key={conversation.conversationId} value={conversation.conversationId}>
-                {conversation.title}
-              </option>
-            ))}
-          </select>
+          <label className="gamecrafter-chat-conversation-search">
+            Find a conversation
+            <input
+              type="search"
+              value={this.conversationSearch}
+              onChange={(event) => {
+                this.conversationSearch = event.currentTarget.value;
+                this.update();
+              }}
+            />
+          </label>
+          {this.conversationSearch && conversations.length === 0 && (
+            <p className="gamecrafter-chat-search-status" role="status">
+              No conversations match this search.
+            </p>
+          )}
+          <label className="gamecrafter-chat-conversation-picker">
+            Conversation
+            <select
+              className="gamecrafter-chat-conversation-select"
+              aria-label="Chat conversation"
+              value={this.conversationId}
+              onChange={(event) => {
+                const id = event.currentTarget.value;
+                if (id) void this.openConversation(id);
+                else this.newConversation();
+              }}
+            >
+              <option value="">New conversation</option>
+              {currentConversation &&
+                !conversations.some(
+                  (conversation) =>
+                    conversation.conversationId === currentConversation.conversationId,
+                ) && (
+                  <option value={currentConversation.conversationId}>
+                    Current: {currentConversation.title}
+                  </option>
+                )}
+              {conversations.map((conversation) => (
+                <option key={conversation.conversationId} value={conversation.conversationId}>
+                  {conversation.title}
+                </option>
+              ))}
+            </select>
+          </label>
           <nav aria-label="Chat conversations">
-            {this.conversations.map((conversation) => (
+            {conversations.map((conversation) => (
               <button
                 className={conversation.conversationId === this.conversationId ? 'is-active' : ''}
                 key={conversation.conversationId}
                 type="button"
+                aria-current={
+                  conversation.conversationId === this.conversationId ? 'page' : undefined
+                }
                 onClick={() => void this.openConversation(conversation.conversationId)}
               >
                 <span>{conversation.title}</span>
                 <small>{new Date(conversation.updatedAt).toLocaleDateString()}</small>
               </button>
             ))}
+            {this.conversations.length === 0 && !this.conversationSearch && (
+              <p className="gamecrafter-page-empty">
+                Start a new chat to keep questions and decisions together.
+              </p>
+            )}
           </nav>
         </aside>
         <main className="gamecrafter-chat-main">
@@ -214,6 +254,28 @@ export class ChatWidget extends ControlRoomReactWidget {
                 <p>
                   Ask about your game, code, design canon, or the tools available in this Project.
                 </p>
+                <div className="gamecrafter-chat-starters" aria-label="Conversation starters">
+                  {[
+                    'Help me plan a gameplay change.',
+                    'Explain the tools available in this Project.',
+                    'What should I validate before integrating a change?',
+                  ].map((prompt) => (
+                    <button
+                      type="button"
+                      key={prompt}
+                      disabled={this.busy}
+                      onClick={() => {
+                        this.draft = prompt;
+                        this.update();
+                        this.node
+                          .querySelector<HTMLTextAreaElement>('textarea[aria-label="Message"]')
+                          ?.focus();
+                      }}
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
               this.messages.map((entry) => (
@@ -304,7 +366,17 @@ export class ChatWidget extends ControlRoomReactWidget {
                 Attach active file <small>{editorName}</small>
               </label>
             </div>
+            <p className="gamecrafter-chat-mode-guidance" id={`${this.id}-mode-guidance`}>
+              {this.mode === 'agent'
+                ? 'Agent creates a tracked change request. Review progress and approvals in Swarm.'
+                : 'Chat answers questions. Delegate to Swarm when you are ready for tool-using work.'}
+            </p>
+            <label className="gamecrafter-chat-message-label" htmlFor={`${this.id}-message`}>
+              Message
+            </label>
             <textarea
+              id={`${this.id}-message`}
+              aria-describedby={`${this.id}-mode-guidance`}
               aria-label="Message"
               placeholder={
                 this.mode === 'agent' ? 'Describe work for the Project swarm…' : 'Ask PlayWeld…'
