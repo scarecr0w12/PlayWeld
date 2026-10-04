@@ -4,9 +4,23 @@ Generated from permanent [work records](docs/changes/README.md). Run `npm run ch
 
 ## Unreleased
 
+No pending work records.
+
+## 0.6.0
+
+### Changed
+
+- **Use selected-model capacity for agent context and output** (minor): Replace automatic fixed agent context/output token limits and Swarm's implicit cumulative token budget with selected-model capacity and explicit user controls. [Full details and validation](docs/changes/2026-10-03-model-aware-agent-capacity.md).
+
+### Fixed
+
+- **Explain agent token and cost budget failures** (patch): Show the exhausted token or dollar budget and actual/limit values in agent failures, and expose task budgets in the read-only diagnostic command. [Full details and validation](docs/changes/2026-10-03-agent-budget-failure-diagnostics.md).
+- **Diagnose canon delegation and persist agent diagnostics** (minor): Repair discussion-board tool availability in Ask always Projects, prevent delegation blocked by the parent's locks, and add persistent service logging and read-only task diagnostics. [Full details and validation](docs/changes/2026-10-03-agent-tool-lock-diagnostics.md).
+
 ### Maintenance
 
 - **Stage and launch the PlayWeld 0.5.0 Windows installer** (none): Stage the verified PlayWeld 0.5.0 installer with committed-source provenance and launch the interactive setup wizard at the user's request. This records post-commit handoff evidence without rewriting the committed release records. [Full details and validation](docs/changes/2026-10-03-installer-0.5.0-handoff.md).
+- **Prepare version 0.6.0** (none): Prepare version 0.6.0 from 0.5.0, retaining all pending work records in the changelog and detailed release notes. [Full details and validation](docs/changes/2026-10-03-release-0.6.0.md).
 
 ## 0.5.0
 

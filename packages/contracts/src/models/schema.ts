@@ -33,6 +33,7 @@ export const ModelCapabilitiesSchema = Type.Object(
     streaming: Type.Boolean(),
     embeddings: Type.Boolean(),
     contextWindow: Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]),
+    maxInputTokens: Type.Optional(Type.Union([Type.Integer({ minimum: 0 }), Type.Null()])),
     maxOutputTokens: Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]),
   },
   { additionalProperties: false },

@@ -1027,15 +1027,14 @@
     },
     {
       "key": "coordination.maxTranscriptTokens",
-      "title": "Agent transcript token limit",
-      "description": "Estimated agent input limit including messages, tool-call arguments and tool schemas. Compact older turns; reject oversized remaining context before sending it to a provider.",
+      "title": "Optional agent context ceiling",
+      "description": "Zero uses selected-model capacity automatically. A positive value explicitly lowers the estimated input allowance, including messages and tool schemas; it cannot raise the model limit.",
       "group": "coordination",
       "schema": {
         "type": "integer",
-        "minimum": 1000,
-        "maximum": 1000000
+        "minimum": 0
       },
-      "default": 60000,
+      "default": 0,
       "scopes": ["platform", "project"],
       "source": "builtin"
     },

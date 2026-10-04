@@ -37,9 +37,13 @@ export class AnthropicProvider implements ModelProvider {
       .map((entry) => ({
         providerModelId: String(entry.id),
         ...(typeof entry.display_name === 'string' ? { displayName: entry.display_name } : {}),
-        ...(objectValue(entry.capabilities)
-          ? { capabilities: pickCapabilities(entry.capabilities as Record<string, unknown>) }
-          : {}),
+        capabilities: {
+          ...pickCapabilities(objectValue(entry.capabilities) ? entry.capabilities : {}),
+          ...(typeof entry.max_input_tokens === 'number'
+            ? { maxInputTokens: entry.max_input_tokens }
+            : {}),
+          ...(typeof entry.max_tokens === 'number' ? { maxOutputTokens: entry.max_tokens } : {}),
+        },
         ...(objectValue(entry.pricing)
           ? { pricing: pickPricing(entry.pricing as Record<string, unknown>) }
           : {}),
@@ -242,6 +246,12 @@ export class AnthropicProvider implements ModelProvider {
     request: ChatRequest,
     stream: boolean,
   ): Record<string, unknown> {
+    const outputLimit = request.maxTokens ?? model.capabilities.maxOutputTokens;
+    if (!outputLimit || outputLimit < 1)
+      throw new RpcError(
+        `Model ${model.providerModelId} has no reported output capacity. Refresh its model metadata or explicitly supply maxTokens; Anthropic requires max_tokens.`,
+        RpcErrorCode.InvalidParams,
+      );
     const systemMessages = request.messages
       .filter((message) => message.role === 'system')
       .map((message) => message.content);
@@ -252,7 +262,7 @@ export class AnthropicProvider implements ModelProvider {
     }
     return {
       model: model.providerModelId,
-      max_tokens: request.maxTokens ?? model.capabilities.maxOutputTokens ?? 1024,
+      max_tokens: outputLimit,
       messages: request.messages
         .filter((message) => message.role !== 'system')
         .map(anthropicMessage),
@@ -332,7 +342,7 @@ function pickCapabilities(value: Record<string, unknown>): Partial<Model['capabi
   ] as const) {
     if (typeof value[key] === 'boolean') result[key] = value[key];
   }
-  for (const key of ['contextWindow', 'maxOutputTokens'] as const) {
+  for (const key of ['contextWindow', 'maxInputTokens', 'maxOutputTokens'] as const) {
     if (typeof value[key] === 'number' || value[key] === null)
       result[key] = value[key] as number | null;
   }

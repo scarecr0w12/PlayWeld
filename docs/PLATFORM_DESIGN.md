@@ -21,6 +21,10 @@ A free, open-source system that runs locally and coordinates game development fr
 
 ## Confirmed requirements and decisions
 
+### Model capacity and user budgets
+
+- **Confirmed by the user, 2026-10-03:** Determine model context and output settings from the selected model's capacity rather than arbitrary platform token limits. Keep explicit user spending/task budgets separate from per-request capacity. Unknown provider capacity must be labeled unknown, not replaced with a guessed model limit. The selected implementation defaults are described in [model capacity](TECHNICAL_ARCHITECTURE.md#model-capacity-and-task-budgets).
+
 ### Product identity
 
 - The public product name is **PlayWeld**. The user reports purchasing **playweld.com**. Existing technical identifiers are retained under the [branding compatibility default](BRANDING.md#compatibility-identifiers). The user authorized a full repository/desktop rebrand and creation of artwork; website code belongs to a separate project. The [visual asset treatment](../assets/brand/README.md) is an authored default, distinct from the confirmed product name.

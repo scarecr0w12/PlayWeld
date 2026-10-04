@@ -256,6 +256,8 @@ export class ModelsWidget extends ControlRoomReactWidget {
                     <th>Tools</th>
                     <th>Vision</th>
                     <th>Embeddings</th>
+                    <th>Context / input capacity</th>
+                    <th>Output capacity</th>
                     <th>Pricing</th>
                     <th>Work types</th>
                     <th>Roles</th>
@@ -298,6 +300,20 @@ export class ModelsWidget extends ControlRoomReactWidget {
                       <td>{model.capabilities.tools ? 'Yes' : 'No'}</td>
                       <td>{model.capabilities.vision ? 'Yes' : 'No'}</td>
                       <td>{model.capabilities.embeddings ? 'Yes' : 'No'}</td>
+                      <td
+                        title={`Metadata: ${model.metadataSource}; updated ${model.metadataUpdatedAt}`}
+                      >
+                        {model.capabilities.contextWindow
+                          ? `${model.capabilities.contextWindow.toLocaleString()} shared`
+                          : model.capabilities.maxInputTokens
+                            ? `${model.capabilities.maxInputTokens.toLocaleString()} input`
+                            : 'Unknown — provider-managed'}
+                      </td>
+                      <td>
+                        {model.capabilities.maxOutputTokens
+                          ? model.capabilities.maxOutputTokens.toLocaleString()
+                          : 'Unknown — provider-managed'}
+                      </td>
                       <td>{this.renderPricingEditor(model)}</td>
                       <td>
                         {this.renderStringListEditor(model.modelId, 'workTypes', model.workTypes)}

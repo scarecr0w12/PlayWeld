@@ -1343,6 +1343,9 @@ export const RpcMethods = {
                   maxOutputTokens: Type.Optional(
                     Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]),
                   ),
+                  maxInputTokens: Type.Optional(
+                    Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]),
+                  ),
                 },
                 { additionalProperties: false },
               ),

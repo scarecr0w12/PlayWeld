@@ -113,7 +113,7 @@ flowchart TD
 
 ### WP8 — Model providers, registry, and adaptive router
 
-- **Implements:** M01–M09, [PLATFORM_DESIGN proposal 9](PLATFORM_DESIGN.md#proposed-architecture-for-discussion).
+- **Implements:** M01–M10, [PLATFORM_DESIGN proposal 9](PLATFORM_DESIGN.md#proposed-architecture-for-discussion). M10's source correction uses [selected-model capacities and separate task budgets](TECHNICAL_ARCHITECTURE.md#model-capacity-and-task-budgets); live installed-provider acceptance remains separate.
 - **Depends on:** WP5, WP7.
 - **Scope:** provider/account adapter interface (stream, tools, structured output, embeddings, usage); OpenAI-compatible local endpoint adapter first; model catalog with timestamped metadata; pool intersection and deterministic eligibility; outcome store; quality-first selection policy with budgets, exploration, and policy versioning; Theia AI bridged through one adapter `LanguageModel`.
 - **Done when:** eligibility tests cover empty-intersection reporting; router decisions record candidate set, reason, and outcome.

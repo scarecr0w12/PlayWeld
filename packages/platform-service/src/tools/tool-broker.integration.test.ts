@@ -61,6 +61,44 @@ afterEach(async () => {
 });
 
 describe('Tool broker integration', () => {
+  it('retains native filesystem error codes in failed tool audit records', async () => {
+    await setSetting('access.mode', 'project', 'full');
+    const result = await callTool('fs/write-file', {
+      path: 'missing-parent/new.md',
+      content: 'Draft',
+    });
+    expect(result.status).toBe('failed');
+    expect(result.error?.code).toBe('ENOENT');
+    const records = await client!.call('tool/calls', { projectId, toolId: 'fs/write-file' });
+    expect(records.calls[0]!.error?.code).toBe('ENOENT');
+  });
+
+  it('offers board reads and approval-gated posts to agents in ask-always mode', async () => {
+    const broker = (service as unknown as { toolBroker: ToolBroker }).toolBroker;
+    const offered = broker.listTools(projectId, {
+      agentRole: 'game-designer',
+      accessCeiling: 'restricted',
+    });
+    expect(offered.map((tool) => tool.toolId)).toContain('board/read');
+    expect(offered.map((tool) => tool.toolId)).toContain('board/post');
+    expect(offered.map((tool) => tool.toolId)).not.toContain('fs/write-file');
+    expect(
+      broker.inspectTools(projectId, { agentRole: 'game-designer', accessCeiling: 'restricted' })
+        .excluded,
+    ).toContainEqual({ toolId: 'fs/write-file', reason: 'role_tool_denied' });
+    expect((await callTool('board/read', {})).status).toBe('completed');
+    const approval = waitForApproval();
+    const post = callTool('board/post', { title: 'Test', type: 'comment', body: 'Test' });
+    const pending = await approval;
+    expect(pending.toolId).toBe('board/post');
+    await client!.call('broker/approve', {
+      projectId,
+      approvalId: pending.approvalId,
+      approve: false,
+    });
+    await expect(post).rejects.toMatchObject({ code: RpcErrorCode.ToolDenied });
+  });
+
   it('pages recursive listings and skips generated trees unless requested', async () => {
     const root = path.join(projectPath, 'listing');
     mkdirSync(path.join(root, 'Saved'), { recursive: true });

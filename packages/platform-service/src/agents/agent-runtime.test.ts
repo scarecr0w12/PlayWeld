@@ -8,10 +8,119 @@ import {
 } from '@gamecrafter/contracts';
 import type { TaskHandlerContext } from '../workers/types';
 import { runAgentTask } from './agent-runtime';
+import { estimateRequestTokens, modelContext } from './model-context';
 
 const timestamp = '2026-09-29T00:00:00.000Z';
 
 describe('agent runtime', () => {
+  it.each([
+    { contextWindow: 1_000_000, maxOutputTokens: 100_000 },
+    { contextWindow: null, maxOutputTokens: null },
+    { contextWindow: null, maxInputTokens: 1_000_000, maxOutputTokens: 128_000 },
+  ])(
+    'uses reported capacity or provider-managed limits instead of old defaults: %j',
+    async (metadata) => {
+      const requests: Array<{ request: { maxTokens?: number }; selectionId: string }> = [];
+      const context = createContext(
+        [
+          response([
+            {
+              id: 'done',
+              name: 'tasks/complete',
+              arguments: JSON.stringify({
+                summary: 'Complete',
+                artifacts: [],
+                evidence: [],
+                claims: [],
+              }),
+            },
+          ]),
+        ],
+        {
+          initialCheckpoint: {
+            transcript: [{ role: 'system', content: 'instruction '.repeat(20_000) }],
+            pinnedCount: 1,
+            turn: 0,
+            maxCompletionTokens: 4096,
+          },
+          input: { role: roleSnapshot(), agentSettings: { maxTranscriptTokens: 60000 } },
+          tool: async (id, args) => {
+            if (id === 'model/prepare')
+              return { selectionId: 'selected', modelId: 'reported-model', ...metadata };
+            if (id === 'model/complete') requests.push(args as (typeof requests)[number]);
+          },
+        },
+      );
+      await runAgentTask(context);
+      expect(requests).toHaveLength(1);
+      expect(requests[0]!.selectionId).toBe('selected');
+      if (metadata.maxOutputTokens === null)
+        expect(requests[0]!.request).not.toHaveProperty('maxTokens');
+      else expect(requests[0]!.request.maxTokens).toBe(metadata.maxOutputTokens);
+    },
+  );
+
+  it('chunks a resumed transcript to the selected model capacity, including tool schemas', async () => {
+    const requests: Array<{ messages: Parameters<typeof estimateRequestTokens>[0]; tools: [] }> =
+      [];
+    const context = createContext([], {
+      initialCheckpoint: {
+        transcript: [
+          { role: 'system', content: 'Pinned constraints' },
+          ...Array.from({ length: 30 }, () => ({ role: 'user', content: 'history '.repeat(1200) })),
+        ],
+        pinnedCount: 1,
+        turn: 0,
+      },
+      tool: async (id, args) => {
+        if (id === 'model/prepare')
+          return {
+            selectionId: 'small',
+            modelId: 'small-model',
+            contextWindow: 8000,
+            maxOutputTokens: 1000,
+          };
+        if (id === 'model/complete') {
+          const request = (args as { request: (typeof requests)[number] }).request;
+          requests.push(structuredClone(request));
+          return request.tools.length === 0
+            ? response([], 'Retained decisions and paths.')
+            : response([
+                {
+                  id: 'done',
+                  name: 'tasks/complete',
+                  arguments: JSON.stringify({
+                    summary: 'Complete',
+                    artifacts: [],
+                    evidence: [],
+                    claims: [],
+                  }),
+                },
+              ]);
+        }
+      },
+    });
+    await runAgentTask(context);
+    expect(requests.length).toBeGreaterThan(2);
+    for (const request of requests)
+      expect(estimateRequestTokens(request.messages, request.tools)).toBeLessThanOrEqual(7000);
+    expect(requests.at(-1)!.messages[0]!.content).toBe('Pinned constraints');
+  });
+
+  it('honors an explicit lower ceiling and independent provider input limits', () => {
+    const metadata = {
+      selectionId: 'selected',
+      modelId: 'model',
+      contextWindow: 1_000_000,
+      maxOutputTokens: 100_000,
+    };
+    expect(modelContext(metadata).inputLimit).toBe(900_000);
+    expect(modelContext(metadata, 60_000).inputLimit).toBe(60_000);
+    expect(modelContext(metadata, 2_000_000).inputLimit).toBe(900_000);
+    expect(
+      modelContext({ ...metadata, contextWindow: null, maxInputTokens: 1_000_000 }).inputLimit,
+    ).toBe(1_000_000);
+  });
   it('bounds a multi-megabyte recent tool result before the next model request', async () => {
     const requests: string[] = [];
     const context = createContext(
@@ -111,7 +220,7 @@ describe('agent runtime', () => {
     expect(sent).toBe(false);
   });
 
-  it('retries a truncated completion with more output room without executing partial tool calls', async () => {
+  it('reports the model output limit without executing partial tool calls', async () => {
     const limits: number[] = [];
     let writes = 0;
     const partial = response([
@@ -142,8 +251,8 @@ describe('agent runtime', () => {
         },
       },
     );
-    expect((await runAgentTask(context)).summary).toBe('Complete');
-    expect(limits).toEqual([4096, 8192]);
+    await expect(runAgentTask(context)).rejects.toThrow('output limit');
+    expect(limits).toEqual([4096]);
     expect(writes).toBe(0);
   });
 
@@ -234,7 +343,7 @@ describe('agent runtime', () => {
         input: {
           role: system,
           projectInstructions: 'Project instructions',
-          agentSettings: { maxTranscriptTokens: 6000 },
+          agentSettings: { contextTokenCeiling: 6000 },
         },
         tool: async (toolId, input) => {
           if (toolId === 'model/complete') {
@@ -271,6 +380,52 @@ describe('agent runtime', () => {
     await expect(runAgentTask(budgetLimited)).rejects.toMatchObject({
       code: RpcErrorCode.AgentBudgetExceeded,
     });
+  });
+
+  it('identifies the exhausted token budget separately from dollar spend', async () => {
+    const context = createContext([], {
+      task: taskRecord({
+        budget: { maxTokens: 100_000, maxCostUsd: 5 },
+        spent: { tokens: 102_925, costUsd: 0 },
+      }),
+    });
+    await expect(runAgentTask(context)).rejects.toMatchObject({
+      code: RpcErrorCode.AgentBudgetExceeded,
+      message: expect.stringContaining('102925 / 100000 tokens'),
+      data: expect.objectContaining({ budget: { maxTokens: 100_000, maxCostUsd: 5 } }),
+    });
+  });
+
+  it('identifies dollar exhaustion without implying a token limit', async () => {
+    const context = createContext([], {
+      task: taskRecord({ budget: { maxCostUsd: 5 }, spent: { tokens: 100, costUsd: 5 } }),
+    });
+    await expect(runAgentTask(context)).rejects.toMatchObject({
+      message: 'Agent task budget exhausted: $5 / $5 model cost.',
+    });
+  });
+
+  it('allows high cumulative usage when the task has no token ceiling', async () => {
+    const context = createContext(
+      [
+        response([
+          {
+            id: 'done',
+            name: 'tasks/complete',
+            arguments: JSON.stringify({
+              summary: 'Complete',
+              artifacts: [],
+              evidence: [],
+              claims: [],
+            }),
+          },
+        ]),
+      ],
+      {
+        task: taskRecord({ budget: { maxCostUsd: 5 }, spent: { tokens: 169414, costUsd: 0 } }),
+      },
+    );
+    expect((await runAgentTask(context)).summary).toBe('Complete');
   });
 
   it('rejects completion claims that omit contract-required evidence kinds', async () => {
@@ -314,8 +469,18 @@ function createContext(
   const role = overrides.role ?? roleSnapshot();
   const task = overrides.task ?? taskRecord();
   const tool: TaskHandlerContext['tool'] = async (toolId, input) => {
+    if (toolId === 'model/prepare')
+      return (
+        (await overrides.tool?.(toolId, input)) ?? {
+          selectionId: 'fake-selection',
+          modelId: 'fake-model',
+          contextWindow: 64000,
+          maxOutputTokens: 4096,
+        }
+      );
     if (toolId === 'model/complete') {
-      await overrides.tool?.(toolId, input);
+      const override = await overrides.tool?.(toolId, input);
+      if (override && typeof override === 'object' && 'finishReason' in override) return override;
       return completions.shift() ?? response([]);
     }
     if (toolId === 'skills/search') return { entries: [] };

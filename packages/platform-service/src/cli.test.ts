@@ -47,6 +47,13 @@ describe('platform service CLI lifecycle', () => {
         (await execCommand(process.execPath, [cli, 'stop'], { env, timeout: 12000 })).stdout,
       ).toBe('stopped\n');
       expect(existsSync(lockPath)).toBe(false);
+      const logEntries = readFileSync(path.join(root, 'logs', 'service.jsonl'), 'utf8')
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line) as { msg: string });
+      expect(logEntries.map((entry) => entry.msg)).toEqual(
+        expect.arrayContaining(['service_started', 'service_stopped']),
+      );
     } finally {
       daemon.kill('SIGKILL');
       await new Promise<void>((resolve) => {

@@ -101,26 +101,42 @@ export class ToolBroker {
     projectId?: string,
     options: { agentRole?: string; includeInternal?: boolean; accessCeiling?: AccessMode } = {},
   ): ToolDefinition[] {
+    return this.inspectTools(projectId, options).tools;
+  }
+
+  inspectTools(
+    projectId?: string,
+    options: { agentRole?: string; includeInternal?: boolean; accessCeiling?: AccessMode } = {},
+  ): { tools: ToolDefinition[]; excluded: Array<{ toolId: string; reason: string }> } {
     if (projectId) this.requireProject(projectId);
-    return this.options.registry.list().filter((tool) => {
+    const excluded: Array<{ toolId: string; reason: string }> = [];
+    const exclude = (toolId: string, reason: string): false => {
+      excluded.push({ toolId, reason });
+      return false;
+    };
+    const tools = this.options.registry.list().filter((tool) => {
       const internal = tool.source.endsWith('-internal');
-      if (internal && !options.includeInternal) return false;
+      if (internal && !options.includeInternal) return exclude(tool.toolId, 'internal_tool');
       if (projectId && tool.source.startsWith('plugin:')) {
-        if (!(this.options.isToolAvailable?.(tool, projectId) ?? false)) return false;
+        if (!(this.options.isToolAvailable?.(tool, projectId) ?? false))
+          return exclude(tool.toolId, 'unavailable_for_project');
       } else if (projectId && !(this.options.isToolAvailable?.(tool, projectId) ?? true)) {
-        return false;
+        return exclude(tool.toolId, 'unavailable_for_project');
       }
       if (projectId && options.agentRole && !internal) {
-        if (!this.roleAllows(options.agentRole, projectId, tool.toolId)) return false;
+        if (!this.roleAllows(options.agentRole, projectId, tool.toolId))
+          return exclude(tool.toolId, 'role_tool_denied');
       }
       if (projectId && options.accessCeiling && !internal) {
         const configured = this.options.settings.resolve('access.mode', { projectId })
           .value as AccessMode;
         const mode = minAccessMode(configured, options.accessCeiling);
-        if (this.decisionFor(projectId, tool, mode).decision === 'denied') return false;
+        const policy = this.decisionFor(projectId, tool, mode);
+        if (policy.decision === 'denied') return exclude(tool.toolId, policy.reason);
       }
       return true;
     });
+    return { tools, excluded };
   }
 
   async call(request: ToolCallRequest, context: ToolCallContext = {}): Promise<ToolCallRecord> {
@@ -749,9 +765,11 @@ function isTimeoutError(error: unknown): boolean {
 }
 
 function asToolError(error: unknown): ToolCallError {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
   return {
     message: error instanceof Error ? error.message : String(error),
-    ...(error instanceof RpcError ? { code: String(error.code) } : {}),
+    ...(typeof code === 'string' || typeof code === 'number' ? { code: String(code) } : {}),
   };
 }
 

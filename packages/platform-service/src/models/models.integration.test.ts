@@ -516,6 +516,17 @@ describe('model registry and adaptive routing integration', () => {
     );
     expect(offeredNames).toContain('board/read');
     expect(offeredNames).not.toContain('fs/write-file');
+    const events = await client.call('task/events', { projectId, taskId: task.taskId });
+    expect(events.events.map((event) => event.payload)).toContainEqual(
+      expect.objectContaining({
+        diagnostic: 'agent-tool-availability',
+        role: 'coordinator',
+        offeredToolIds: expect.arrayContaining(['board/read']),
+        excludedTools: expect.arrayContaining([
+          { toolId: 'fs/write-file', reason: 'role_tool_denied' },
+        ]),
+      }),
+    );
     const activateSkill = offeredTools.find((tool) =>
       tool.function.description.endsWith('(Platform tool: skills/activate)'),
     );

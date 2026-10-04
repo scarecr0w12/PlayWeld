@@ -12,6 +12,7 @@ import {
   type ToolDefinition,
 } from '@gamecrafter/contracts';
 import type { TaskHandlerContext } from '../workers/types';
+import { modelContext, estimateRequestTokens, type AgentModelContext } from './model-context';
 
 const completionClaimValidator = compile<CompletionClaim>(CompletionClaimSchema);
 const runtimeToolDefinitions: NonNullable<ChatRequest['tools']> = [
@@ -42,7 +43,6 @@ interface AgentCheckpoint {
   activatedSkills: string[];
   eligibleSkills: string[];
   evidence: Array<{ kind: string; ref: string }>;
-  maxCompletionTokens?: number;
 }
 
 export async function runAgentTask(context: TaskHandlerContext): Promise<TaskResult> {
@@ -51,10 +51,6 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
   const roleName = role.name;
   const maxTurns =
     role.maxTurns ?? positiveInteger(asRecord(input.agentSettings).defaultMaxTurns, 60);
-  const maxTranscriptTokens = positiveInteger(
-    asRecord(input.agentSettings).maxTranscriptTokens,
-    60_000,
-  );
   const checkpoint = asCheckpoint(context.initialCheckpoint);
   const transcript =
     checkpoint?.transcript ??
@@ -65,7 +61,8 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
   }
   let pinnedCount = checkpoint?.pinnedCount ?? transcript.length;
   let turn = checkpoint?.turn ?? 0;
-  let maxCompletionTokens = checkpoint?.maxCompletionTokens ?? 4096;
+  // Legacy checkpoint token allowances are deliberately ignored: the selected
+  // model is authoritative on every new turn and resume.
   const activatedSkills = checkpoint?.activatedSkills ?? [];
   let eligibleSkills = checkpoint?.eligibleSkills ?? [...role.skills];
   const evidence = checkpoint?.evidence ?? [];
@@ -124,33 +121,62 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
   let spentTokens = context.task.spent.tokens;
 
   while (turn < maxTurns) {
-    if (budgetExceeded(context, spentCost, spentTokens)) {
-      throw new RpcError('Agent task exceeded its budget.', RpcErrorCode.AgentBudgetExceeded, {
-        spentCost,
-        spentTokens,
-      });
+    const exhausted = exhaustedBudgets(context, spentCost, spentTokens);
+    if (exhausted.length > 0) {
+      throw new RpcError(
+        `Agent task budget exhausted: ${exhausted.join('; ')}.`,
+        RpcErrorCode.AgentBudgetExceeded,
+        {
+          spentCost,
+          spentTokens,
+          budget: context.task.budget,
+        },
+      );
     }
+    const requestId = `agent:${context.task.taskId}:${turn + 1}`;
+    const capacity = modelContext(
+      await context.tool('model/prepare', {
+        requestId,
+        taskType: role.workTypes[0] ?? 'coordination',
+      }),
+      asRecord(input.agentSettings).contextTokenCeiling,
+    );
+    context.progress(
+      `Selected ${capacity.modelId}: context ${capacity.contextWindow ?? 'provider-managed'}, output ${capacity.maxOutputTokens ?? 'provider-managed'}, input allowance ${capacity.inputLimit ?? 'provider-managed'}.`,
+    );
     pinnedCount = await compactTranscript(
       context,
       transcript,
       pinnedCount,
-      maxTranscriptTokens,
+      capacity,
+      toolDefinitions,
       roleName,
       (usage) => {
         spentCost += usage.costUsd;
         spentTokens += usage.tokens;
+        const exhausted = exhaustedBudgets(context, spentCost, spentTokens);
+        if (exhausted.length > 0)
+          throw new RpcError(
+            `Agent task budget exhausted: ${exhausted.join('; ')}.`,
+            RpcErrorCode.AgentBudgetExceeded,
+          );
       },
       evidence,
     );
 
-    const requestId = `agent:${context.task.taskId}:${turn + 1}`;
+    const afterCompaction = exhaustedBudgets(context, spentCost, spentTokens);
+    if (afterCompaction.length > 0)
+      throw new RpcError(
+        `Agent task budget exhausted: ${afterCompaction.join('; ')}.`,
+        RpcErrorCode.AgentBudgetExceeded,
+      );
     const response = await requestCompletion(
       context,
       role,
       transcript,
       toolDefinitions,
       requestId,
-      maxCompletionTokens,
+      capacity,
     );
     turn += 1;
     const usage = usageFrom(response);
@@ -159,27 +185,10 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
     await context.reportUsage({ costUsd: usage.costUsd, tokens: usage.tokens });
     evidence.push({ kind: 'model-call', ref: requestId });
     if (response.finishReason === 'length') {
-      if (maxCompletionTokens >= 32768) {
-        throw new RpcError(
-          'Agent model response was truncated at 32768 output tokens. Split the requested work into smaller tasks.',
-          RpcErrorCode.ProviderRequestFailed,
-        );
-      }
-      maxCompletionTokens *= 2;
-      context.progress(
-        `Model response was truncated; retrying with ${maxCompletionTokens} output tokens.`,
+      throw new RpcError(
+        `Agent response reached ${capacity.modelId}'s ${capacity.maxOutputTokens === null ? 'provider-managed output limit' : `${capacity.maxOutputTokens}-token output limit`}. Partial tool calls were not executed. Split the requested output into smaller operations${capacity.maxOutputTokens === null ? ' or refresh the model output-capacity metadata' : ''}.`,
+        RpcErrorCode.ProviderRequestFailed,
       );
-      await saveCheckpoint(
-        context,
-        transcript,
-        turn,
-        pinnedCount,
-        activatedSkills,
-        eligibleSkills,
-        evidence,
-        maxCompletionTokens,
-      );
-      continue;
     }
     transcript.push({
       role: 'assistant',
@@ -194,7 +203,6 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
       activatedSkills,
       eligibleSkills,
       evidence,
-      maxCompletionTokens,
     );
 
     if (response.toolCalls.length === 0) {
@@ -211,7 +219,6 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
         activatedSkills,
         eligibleSkills,
         evidence,
-        maxCompletionTokens,
       );
       continue;
     }
@@ -255,7 +262,6 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
         activatedSkills,
         eligibleSkills,
         evidence,
-        maxCompletionTokens,
       );
       if (completion) break;
     }
@@ -278,28 +284,23 @@ async function requestCompletion(
   transcript: ChatMessage[],
   tools: NonNullable<ChatRequest['tools']>,
   requestId: string,
-  maxCompletionTokens = 4096,
+  capacity: AgentModelContext,
 ): Promise<ChatResponse> {
-  const estimatedInputTokens = Math.ceil(
-    JSON.stringify({ messages: transcript, tools }).length / 3,
-  );
-  const inputLimit = positiveInteger(
-    asRecord(asRecord(context.input).agentSettings).maxTranscriptTokens,
-    60_000,
-  );
-  if (estimatedInputTokens > inputLimit) {
+  const estimatedInputTokens = estimateRequestTokens(transcript, tools);
+  if (capacity.inputLimit !== null && estimatedInputTokens > capacity.inputLimit) {
     throw new RpcError(
-      `Agent context exceeds its ${inputLimit}-token input limit (estimated ${estimatedInputTokens}, including tool schemas). Narrow the task, project instructions, or requested tool results.`,
+      `Agent context exceeds ${capacity.modelId}'s ${capacity.inputLimit}-token input allowance (estimated ${estimatedInputTokens}, including tool schemas; context ${capacity.contextWindow ?? 'unknown'}, reserved output ${capacity.maxOutputTokens ?? 'provider-managed'}). Narrow pinned instructions or split the task.`,
       RpcErrorCode.ProviderRequestFailed,
     );
   }
   const response = await context.tool('model/complete', {
     requestId,
+    selectionId: capacity.selectionId,
     route: { taskType: role.workTypes[0] ?? 'coordination' },
     request: {
       messages: transcript,
       tools,
-      maxTokens: maxCompletionTokens,
+      ...(capacity.maxOutputTokens === null ? {} : { maxTokens: capacity.maxOutputTokens }),
     },
   });
   if (typeof response !== 'object' || response === null) {
@@ -312,39 +313,101 @@ async function compactTranscript(
   context: TaskHandlerContext,
   transcript: ChatMessage[],
   pinnedCount: number,
-  maxTokens: number,
+  capacity: AgentModelContext,
+  tools: ChatRequest['tools'],
   role: string,
   addUsage: (usage: { costUsd: number; tokens: number }) => void,
   evidence: Array<{ kind: string; ref: string }>,
 ): Promise<number> {
-  if (estimateTokens(transcript) <= maxTokens) return pinnedCount;
-  const recentStart = Math.max(pinnedCount, transcript.length - 6);
+  if (
+    capacity.inputLimit === null ||
+    estimateRequestTokens(transcript, tools) <= capacity.inputLimit
+  )
+    return pinnedCount;
+  let recentStart = Math.max(pinnedCount, transcript.length - 6);
+  while (recentStart > pinnedCount && transcript[recentStart]?.role === 'tool') recentStart--;
+  let newestStart = transcript.length - 1;
+  while (newestStart > pinnedCount && transcript[newestStart]?.role === 'tool') newestStart--;
+  if (recentStart <= pinnedCount) recentStart = newestStart;
   if (recentStart <= pinnedCount) return pinnedCount;
-  const older = transcript.slice(pinnedCount, recentStart);
-  const requestId = `agent:${context.task.taskId}:compact:${Date.now()}`;
-  const response = await requestCompletion(
-    context,
-    { ...asRole(asRecord(context.input).role), name: role },
-    [
+  // Keep complete assistant/tool groups. If the recent tail itself is too big,
+  // move more history into compaction, leaving the newest group intact.
+  while (
+    estimateRequestTokens(
+      [...transcript.slice(0, pinnedCount), ...transcript.slice(recentStart)],
+      tools,
+    ) >= capacity.inputLimit &&
+    recentStart < newestStart
+  ) {
+    recentStart++;
+    while (recentStart < transcript.length && transcript[recentStart]?.role === 'tool')
+      recentStart++;
+  }
+  const room =
+    capacity.inputLimit -
+    estimateRequestTokens(
+      [
+        ...transcript.slice(0, pinnedCount),
+        ...transcript.slice(recentStart),
+        { role: 'system', content: '[compacted summary]\n' },
+      ],
+      tools,
+    );
+  if (room < 1) return pinnedCount;
+  let remaining = JSON.stringify(transcript.slice(pinnedCount, recentStart));
+  let summary = '';
+  let chunk = 0;
+  while (remaining.length > 0) {
+    const messages = (text: string): ChatMessage[] => [
       {
         role: 'system',
-        content:
-          'Summarize this agent transcript. Preserve decisions, constraints, file paths, and unresolved questions.',
+        content: `Summarize this agent transcript in at most ${room} tokens. Preserve decisions, constraints, file paths, and unresolved questions. Merge the previous summary with the next transcript fragment.`,
       },
-      ...older,
-    ],
-    [],
-    requestId,
-  );
-  const usage = usageFrom(response);
-  addUsage(usage);
-  await context.reportUsage({ costUsd: usage.costUsd, tokens: usage.tokens });
-  evidence.push({ kind: 'model-call', ref: requestId });
+      { role: 'user', content: `Previous summary:\n${summary}\nNext fragment:\n${text}` },
+    ];
+    let low = 0;
+    let high = remaining.length;
+    while (low < high) {
+      const middle = Math.ceil((low + high) / 2);
+      if (estimateRequestTokens(messages(remaining.slice(0, middle)), []) <= capacity.inputLimit)
+        low = middle;
+      else high = middle - 1;
+    }
+    if (low === 0)
+      throw new RpcError(
+        'Model context cannot fit the compaction summary and another transcript fragment. Split the task or narrow pinned instructions.',
+        RpcErrorCode.ProviderRequestFailed,
+      );
+    const requestId = `agent:${context.task.taskId}:compact:${Date.now()}:${chunk++}`;
+    const response = await requestCompletion(
+      context,
+      { ...asRole(asRecord(context.input).role), name: role },
+      messages(remaining.slice(0, low)),
+      [],
+      requestId,
+      {
+        ...capacity,
+        maxOutputTokens:
+          capacity.maxOutputTokens === null ? room : Math.min(room, capacity.maxOutputTokens),
+      },
+    );
+    const usage = usageFrom(response);
+    await context.reportUsage({ costUsd: usage.costUsd, tokens: usage.tokens });
+    addUsage(usage);
+    evidence.push({ kind: 'model-call', ref: requestId });
+    if (response.finishReason === 'length')
+      throw new RpcError(
+        'Compaction reached its output allowance. Split the task or narrow pinned instructions.',
+        RpcErrorCode.ProviderRequestFailed,
+      );
+    summary = response.content;
+    remaining = remaining.slice(low);
+  }
   transcript.splice(pinnedCount, recentStart - pinnedCount, {
     role: 'system',
-    content: `[compacted summary]\n${response.content}`,
+    content: `[compacted summary]\n${summary}`,
   });
-  return pinnedCount + 1;
+  return pinnedCount;
 }
 
 function completeResult(
@@ -407,7 +470,6 @@ async function saveCheckpoint(
   activatedSkills: string[],
   eligibleSkills: string[],
   evidence: Array<{ kind: string; ref: string }>,
-  maxCompletionTokens = 4096,
 ): Promise<void> {
   const checkpoint: AgentCheckpoint = {
     transcript,
@@ -416,7 +478,6 @@ async function saveCheckpoint(
     activatedSkills,
     eligibleSkills,
     evidence,
-    maxCompletionTokens,
   };
   await context.checkpoint(checkpoint);
 }
@@ -452,10 +513,6 @@ function usageFrom(response: ChatResponse): { costUsd: number; tokens: number } 
   };
 }
 
-function estimateTokens(messages: ChatMessage[]): number {
-  return Math.ceil(JSON.stringify(messages).length / 3);
-}
-
 function boundedToolResult(content: string): string {
   const maxCharacters = 16_000;
   if (content.length <= maxCharacters) return content;
@@ -473,16 +530,18 @@ function boundedToolResult(content: string): string {
   }
 }
 
-function budgetExceeded(
+function exhaustedBudgets(
   context: TaskHandlerContext,
   spentCost: number,
   spentTokens: number,
-): boolean {
+): string[] {
   const budget = context.task.budget;
-  return (
-    (budget.maxCostUsd !== undefined && spentCost >= budget.maxCostUsd) ||
-    (budget.maxTokens !== undefined && spentTokens >= budget.maxTokens)
-  );
+  const exhausted: string[] = [];
+  if (budget.maxTokens !== undefined && spentTokens >= budget.maxTokens)
+    exhausted.push(`${spentTokens} / ${budget.maxTokens} tokens (cumulative model input + output)`);
+  if (budget.maxCostUsd !== undefined && spentCost >= budget.maxCostUsd)
+    exhausted.push(`$${spentCost} / $${budget.maxCostUsd} model cost`);
+  return exhausted;
 }
 
 function asRole(value: unknown): RoleRecord {
@@ -505,7 +564,6 @@ function asCheckpoint(value: unknown): AgentCheckpoint | undefined {
     activatedSkills: checkpoint.activatedSkills ?? [],
     eligibleSkills: checkpoint.eligibleSkills ?? [],
     evidence: checkpoint.evidence ?? [],
-    maxCompletionTokens: positiveInteger(checkpoint.maxCompletionTokens, 4096),
   };
 }
 

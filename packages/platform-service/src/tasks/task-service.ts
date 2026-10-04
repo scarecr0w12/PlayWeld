@@ -144,7 +144,7 @@ export class TaskService {
               defaultMaxTurns: this.settings.resolve('coordination.defaultMaxTurns', {
                 projectId: input.projectId,
               }).value,
-              maxTranscriptTokens: this.settings.resolve('coordination.maxTranscriptTokens', {
+              contextTokenCeiling: this.settings.resolve('coordination.maxTranscriptTokens', {
                 projectId: input.projectId,
               }).value,
             },

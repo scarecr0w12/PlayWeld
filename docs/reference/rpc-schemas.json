@@ -21199,6 +21199,17 @@
                         }
                       ]
                     },
+                    "maxInputTokens": {
+                      "anyOf": [
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "maxOutputTokens": {
                       "anyOf": [
                         {
@@ -21396,6 +21407,17 @@
                         }
                       ]
                     },
+                    "maxInputTokens": {
+                      "anyOf": [
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "maxOutputTokens": {
                       "anyOf": [
                         {
@@ -21541,6 +21563,17 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "maxInputTokens": {
+                    "anyOf": [
+                      {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 }
               },
@@ -21659,6 +21692,17 @@
                 "type": "boolean"
               },
               "contextWindow": {
+                "anyOf": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "maxInputTokens": {
                 "anyOf": [
                   {
                     "minimum": 0,

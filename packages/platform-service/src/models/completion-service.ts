@@ -6,6 +6,9 @@ import {
   type RpcNotificationParams,
   type RpcParams,
   type RouteOutcome,
+  type RouteDecision,
+  type RouteRequest,
+  type Model,
 } from '@gamecrafter/contracts';
 import type { ModelRegistry } from './model-registry';
 import type { ModelRouter } from './router';
@@ -16,6 +19,11 @@ export interface CompletionContext {
   notify?: (name: 'model/delta', params: RpcNotificationParams<'model/delta'>) => void;
 }
 
+export interface PreparedCompletion {
+  decision: RouteDecision;
+  model: Model;
+}
+
 export class CompletionService {
   constructor(
     private readonly registry: ModelRegistry,
@@ -23,20 +31,30 @@ export class CompletionService {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
+  prepare(route: RouteRequest, sessionId?: string): PreparedCompletion {
+    const decision = this.router.route(route, sessionId);
+    const model = this.registry.getModel(decision.modelId);
+    if (!model || !model.enabled)
+      throw new RpcError(`Model not found: ${decision.modelId}`, RpcErrorCode.ModelNotFound);
+    return { decision, model };
+  }
+
   async complete(
     params: RpcParams<'model/complete'>,
     context: CompletionContext = {},
+    prepared?: PreparedCompletion,
   ): Promise<ChatResponse> {
     const route =
-      'route' in params
+      prepared?.decision ??
+      ('route' in params
         ? this.router.route(
             { ...params.route, projectId: params.route.projectId ?? params.projectId },
             context.sessionId,
           )
-        : undefined;
+        : undefined);
     const modelId = route?.modelId ?? ('modelId' in params ? params.modelId : undefined);
     if (!modelId) throw new RpcError('A modelId or route is required', RpcErrorCode.InvalidParams);
-    const model = this.registry.getModel(modelId);
+    const model = prepared?.model ?? this.registry.getModel(modelId);
     if (!model || !model.enabled)
       throw new RpcError(`Model not found: ${modelId}`, RpcErrorCode.ModelNotFound);
     const account = this.registry.getRuntimeAccount(model.accountId);

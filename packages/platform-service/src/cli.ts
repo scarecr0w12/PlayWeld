@@ -5,7 +5,7 @@ import net from 'node:net';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { acquireLock, isProcessAlive, readLock } from './lock';
-import { log } from './logger';
+import { enableFileLogging, log } from './logger';
 import { resolvePaths } from './paths';
 import { PlatformService } from './service';
 import { connect } from '@gamecrafter/service-client';
@@ -43,12 +43,14 @@ async function main(): Promise<void> {
 async function runForeground(paths: ReturnType<typeof resolvePaths>): Promise<void> {
   mkdirSync(paths.profileDir, { recursive: true, mode: 0o700 });
   const lock = acquireLock(paths);
+  enableFileLogging(paths.logDir);
   let service: PlatformService;
   let stopping = false;
   const shutdown = async (checkpoint = true) => {
     if (stopping) return;
     stopping = true;
     await service.stop(checkpoint);
+    log('info', 'service_stopped', { pid: process.pid });
     lock.release();
   };
   try {
@@ -57,9 +59,15 @@ async function runForeground(paths: ReturnType<typeof resolvePaths>): Promise<vo
       platformVersion: packageJson.version,
       onStopRequested: () => {
         stopping = true;
+        log('info', 'service_stopped', { pid: process.pid });
         lock.release();
         process.exit(0);
       },
+    });
+    log('info', 'service_started', {
+      pid: process.pid,
+      serviceVersion: packageJson.version,
+      profileDir: paths.profileDir,
     });
   } catch (error) {
     lock.release();

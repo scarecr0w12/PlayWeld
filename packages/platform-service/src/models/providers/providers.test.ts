@@ -6,6 +6,34 @@ import { AnthropicProvider } from './anthropic';
 import { OpenAICompatibleProvider } from './openai-compatible';
 
 describe('OpenAI-compatible provider', () => {
+  it('reads provider capacities without guessing capacities for ID-only models', async () => {
+    const server = createServer((_request, response) =>
+      response.end(
+        JSON.stringify({
+          data: [
+            {
+              id: 'reported',
+              context_length: 1_000_000,
+              top_provider: { max_completion_tokens: 128_000 },
+            },
+            { id: 'unknown' },
+          ],
+        }),
+      ),
+    );
+    try {
+      const provider = new OpenAICompatibleProvider();
+      expect(await provider.listModels(openAIAccount(await listen(server)))).toEqual([
+        {
+          providerModelId: 'reported',
+          capabilities: { contextWindow: 1_000_000, maxOutputTokens: 128_000 },
+        },
+        { providerModelId: 'unknown', capabilities: {} },
+      ]);
+    } finally {
+      await closeServer(server);
+    }
+  });
   it.each([false, true])(
     'adapts function-tool reasoning rejection with streaming=%s',
     async (stream) => {
@@ -281,7 +309,7 @@ describe('OpenAI-compatible provider', () => {
       const account = openAIAccount(baseUrl);
       const provider = new OpenAICompatibleProvider();
       expect(await provider.listModels(account)).toEqual([
-        { providerModelId: 'fake-model', displayName: 'Fake Model' },
+        { providerModelId: 'fake-model', displayName: 'Fake Model', capabilities: {} },
       ]);
       const response = await provider.complete(
         account,
@@ -366,6 +394,40 @@ describe('OpenAI-compatible provider', () => {
 });
 
 describe('Anthropic provider', () => {
+  it('reads independent input/output capacity and rejects an unknown mandatory output limit', async () => {
+    let completions = 0;
+    const server = createServer((request, response) => {
+      if (request.method !== 'GET') completions++;
+      response.end(
+        JSON.stringify({
+          data: [{ id: 'reported', max_input_tokens: 1_000_000, max_tokens: 128_000 }],
+        }),
+      );
+    });
+    try {
+      const account = anthropicAccount(await listen(server));
+      const provider = new AnthropicProvider();
+      expect(await provider.listModels(account)).toEqual([
+        {
+          providerModelId: 'reported',
+          capabilities: { maxInputTokens: 1_000_000, maxOutputTokens: 128_000 },
+        },
+      ]);
+      const unknown = model(account, 'unknown');
+      unknown.capabilities.maxOutputTokens = null;
+      await expect(
+        provider.complete(
+          account,
+          unknown,
+          { messages: [{ role: 'user', content: 'Hello' }] },
+          { signal: new AbortController().signal },
+        ),
+      ).rejects.toThrow('no reported output capacity');
+      expect(completions).toBe(0);
+    } finally {
+      await closeServer(server);
+    }
+  });
   it('maps system messages, tools, responses, and streaming deltas', async () => {
     let requestBody: Record<string, unknown> | undefined;
     let stream = false;
@@ -432,7 +494,7 @@ describe('Anthropic provider', () => {
       const account = anthropicAccount(baseUrl);
       const provider = new AnthropicProvider();
       expect(await provider.listModels(account)).toEqual([
-        { providerModelId: 'claude-fake', displayName: 'Claude Fake' },
+        { providerModelId: 'claude-fake', displayName: 'Claude Fake', capabilities: {} },
       ]);
       const modelData = model(account, 'claude-fake');
       const response = await provider.complete(account, modelData, chatRequest(), {

@@ -52,9 +52,16 @@ export class OpenAICompatibleProvider implements ModelProvider {
           : typeof entry.name === 'string'
             ? { displayName: entry.name }
             : {}),
-        ...(objectValue(entry.capabilities)
-          ? { capabilities: pickCapabilities(entry.capabilities as Record<string, unknown>) }
-          : {}),
+        capabilities: {
+          ...pickCapabilities(objectValue(entry.capabilities) ? entry.capabilities : {}),
+          ...(typeof entry.context_length === 'number'
+            ? { contextWindow: entry.context_length }
+            : {}),
+          ...(objectValue(entry.top_provider) &&
+          typeof entry.top_provider.max_completion_tokens === 'number'
+            ? { maxOutputTokens: entry.top_provider.max_completion_tokens }
+            : {}),
+        },
         ...(objectValue(entry.pricing)
           ? { pricing: pickPricing(entry.pricing as Record<string, unknown>) }
           : {}),
@@ -422,6 +429,7 @@ function pickCapabilities(value: Record<string, unknown>): Partial<Model['capabi
     'streaming',
     'embeddings',
     'contextWindow',
+    'maxInputTokens',
     'maxOutputTokens',
   ];
   const result: Partial<Model['capabilities']> = {};
@@ -430,7 +438,7 @@ function pickCapabilities(value: Record<string, unknown>): Partial<Model['capabi
     if (typeof capability === 'boolean') {
       (result as Record<string, unknown>)[key] = capability;
     } else if (
-      (key === 'contextWindow' || key === 'maxOutputTokens') &&
+      (key === 'contextWindow' || key === 'maxInputTokens' || key === 'maxOutputTokens') &&
       (typeof capability === 'number' || capability === null)
     ) {
       (result as Record<string, unknown>)[key] = capability;

@@ -8,6 +8,7 @@ import {
 import { Value } from '@sinclair/typebox/value';
 import type { ProjectDatabases } from '../projects/project-databases';
 import type { SettingsService } from '../settings/settings-service';
+import { log } from '../logger';
 
 interface LockRow {
   lockId: string;
@@ -75,6 +76,18 @@ export class LockManager {
         return holders.map((holder) => ({ resource, holder }));
       });
       if (conflicts.length > 0) {
+        log('warn', 'resource_lock_conflict', {
+          projectId,
+          taskId,
+          workerId,
+          requestedMode: mode,
+          conflicts: conflicts.map(({ resource, holder }) => ({
+            resource,
+            taskId: holder.taskId,
+            workerId: holder.workerId,
+            expiresAt: holder.expiresAt,
+          })),
+        });
         throw new RpcError(
           'One or more resources are locked by another task.',
           RpcErrorCode.LockConflict,
@@ -132,6 +145,12 @@ export class LockManager {
         .prepare(`SELECT ${lockColumns} FROM resource_locks WHERE project_id = ? AND lock_id = ?`)
         .get<LockRow>(projectId, lockId);
       if (!row || (taskId !== undefined && row.taskId !== taskId && !allowOverride)) {
+        log('warn', 'resource_lock_release_denied', {
+          projectId,
+          taskId: taskId ?? null,
+          lockId,
+          holderTaskId: row?.taskId ?? null,
+        });
         throw new RpcError(`Lock not held: ${lockId}`, RpcErrorCode.LockNotHeld);
       }
       database

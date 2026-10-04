@@ -15,7 +15,7 @@ import {
   type ToolDefinition,
 } from '@gamecrafter/contracts';
 import { projectRelativePath, resolveProjectPath } from '../assets/path-utils';
-import type { CompletionService } from '../models/completion-service';
+import type { CompletionService, PreparedCompletion } from '../models/completion-service';
 import type { ProfileStore } from '../profile/profile-store';
 import type { RoleRegistry } from '../roles/role-registry';
 import type { TaskService } from '../tasks/task-service';
@@ -31,6 +31,68 @@ export interface AgentToolOptions {
 }
 
 export function registerAgentTools(registry: ToolRegistry, options: AgentToolOptions): void {
+  const selections = new Map<
+    string,
+    { projectId: string; requestId: string; selectionId: string; prepared: PreparedCompletion }
+  >();
+  registry.register(
+    tool(
+      'model/prepare',
+      'Select agent model',
+      'Select the eligible model for this turn and read its actual context/output capacities without making a provider completion.',
+      {
+        type: 'object',
+        properties: { requestId: { type: 'string' }, taskType: { type: 'string' } },
+        required: ['requestId'],
+        additionalProperties: false,
+      },
+      'none',
+      'Selected model metadata and route decision.',
+      'agent-internal',
+    ),
+    (context, input) => {
+      const task = requireTask(options.tasks, context);
+      const args = asRecord(input);
+      const roleName = context.agentRole ?? task.role ?? task.assignee?.role ?? 'coordinator';
+      for (const [taskId, entry] of selections) {
+        try {
+          if (
+            ['succeeded', 'failed', 'cancelled'].includes(
+              options.tasks.get(entry.projectId, taskId).state,
+            )
+          )
+            selections.delete(taskId);
+        } catch {
+          selections.delete(taskId);
+        }
+      }
+      const prepared = options.completion.prepare({
+        projectId: context.projectId,
+        agentRole: roleName,
+        taskType:
+          stringValue(args.taskType) ??
+          options.roles.get(roleName, context.projectId).workTypes[0] ??
+          'coordination',
+      });
+      const selectionId = uuidv7();
+      selections.set(task.taskId, {
+        projectId: context.projectId,
+        requestId: String(args.requestId),
+        selectionId,
+        prepared,
+      });
+      return {
+        output: {
+          selectionId,
+          modelId: prepared.model.modelId,
+          contextWindow: prepared.model.capabilities.contextWindow,
+          maxInputTokens: prepared.model.capabilities.maxInputTokens ?? null,
+          maxOutputTokens: prepared.model.capabilities.maxOutputTokens,
+          metadataSource: prepared.model.metadataSource,
+        },
+      };
+    },
+  );
   registry.register(
     tool(
       'model/complete',
@@ -40,6 +102,7 @@ export function registerAgentTools(registry: ToolRegistry, options: AgentToolOpt
         type: 'object',
         properties: {
           requestId: { type: 'string' },
+          selectionId: { type: 'string' },
           route: {
             type: 'object',
             properties: { taskType: { type: 'string' } },
@@ -61,27 +124,44 @@ export function registerAgentTools(registry: ToolRegistry, options: AgentToolOpt
       const roleName = context.agentRole ?? task.role ?? task.assignee?.role ?? 'coordinator';
       const route = asRecord(args.route);
       const requestId = stringValue(args.requestId) ?? uuidv7();
-      const response = await options.completion.complete(
-        {
-          projectId: context.projectId,
-          requestId,
-          route: {
+      const selected = selections.get(task.taskId);
+      if (
+        args.selectionId !== undefined &&
+        (!selected ||
+          selected.selectionId !== args.selectionId ||
+          selected.projectId !== context.projectId)
+      )
+        throw new RpcError(
+          'Agent model selection is stale. Select the model again before completing.',
+          RpcErrorCode.InvalidParams,
+        );
+      const prepared = args.selectionId === undefined ? undefined : selected?.prepared;
+      try {
+        const response = await options.completion.complete(
+          {
             projectId: context.projectId,
-            agentRole: roleName,
-            taskType:
-              stringValue(route.taskType) ??
-              options.roles.get(roleName, context.projectId).workTypes[0] ??
-              'coordination',
+            requestId,
+            route: {
+              projectId: context.projectId,
+              agentRole: roleName,
+              taskType:
+                stringValue(route.taskType) ??
+                options.roles.get(roleName, context.projectId).workTypes[0] ??
+                'coordination',
+            },
+            request: asRecord(args.request) as never,
           },
-          request: asRecord(args.request) as never,
-        },
-        { signal: context.signal },
-      );
-      return {
-        output: response,
-        costUsd: response.usage.costUsd ?? 0,
-        evidence: [{ kind: 'model-call', ref: requestId }],
-      };
+          { signal: context.signal },
+          prepared,
+        );
+        return {
+          output: response,
+          costUsd: response.usage.costUsd ?? 0,
+          evidence: [{ kind: 'model-call', ref: requestId }],
+        };
+      } finally {
+        if (selected?.requestId === requestId) selections.delete(task.taskId);
+      }
     },
   );
 
@@ -116,6 +196,38 @@ export function registerAgentTools(registry: ToolRegistry, options: AgentToolOpt
         throw new RpcError('A role and goal are required.', RpcErrorCode.InvalidParams);
       const role = options.roles.get(roleName, context.projectId);
       const accessCeiling = minAccessMode(context.accessMode, role.maxAccess);
+      const childBudget = { ...asRecord(args.budget) };
+      // A model's context window is not a cumulative task budget. Only inherit
+      // a user-supplied task token ceiling; coordinators cannot invent one.
+      if (parent.budget.maxTokens === undefined) delete childBudget.maxTokens;
+      else childBudget.maxTokens = parent.budget.maxTokens;
+      const isolation =
+        args.isolation === 'none' || args.isolation === 'worktree'
+          ? args.isolation
+          : role.isolation;
+      const writes = Array.isArray(args.touches)
+        ? args.touches.filter(
+            (touch): touch is { resource: string; intent: 'write' } =>
+              asRecord(touch).intent === 'write' && typeof asRecord(touch).resource === 'string',
+          )
+        : [];
+      const parentLocks = options.locks
+        .list(context.projectId)
+        .filter((lock) => lock.taskId === parent.taskId);
+      const blockedResources = writes
+        .filter(
+          (touch) =>
+            !(isolation === 'worktree' && touch.resource.startsWith('file:')) &&
+            parentLocks.some((lock) => lock.resource === touch.resource),
+        )
+        .map((touch) => touch.resource);
+      if (blockedResources.length > 0) {
+        throw new RpcError(
+          `Delegation would block the child on locks held by its parent ${parent.taskId}. Release the parent's locks for these write touches before delegating: ${blockedResources.join(', ')}`,
+          RpcErrorCode.LockConflict,
+          { parentTaskId: parent.taskId, resources: blockedResources },
+        );
+      }
       const created = options.tasks.create({
         projectId: context.projectId,
         kind: 'agent.run',
@@ -123,13 +235,10 @@ export function registerAgentTools(registry: ToolRegistry, options: AgentToolOpt
         goal,
         parentTaskId: parent.taskId,
         role: role.name,
-        isolation:
-          args.isolation === 'none' || args.isolation === 'worktree'
-            ? args.isolation
-            : role.isolation,
+        isolation,
         ...(Array.isArray(args.touches) ? { touches: args.touches as never } : {}),
         ...(args.contract === undefined ? {} : { contract: args.contract as never }),
-        ...(args.budget === undefined ? {} : { budget: args.budget as never }),
+        ...(Object.keys(childBudget).length === 0 ? {} : { budget: childBudget as never }),
         assignee: { role: role.name, accessCeiling },
         input: { goal },
       });

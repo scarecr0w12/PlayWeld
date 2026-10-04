@@ -763,11 +763,11 @@ export function createBuiltinSettings(): BuiltinSettings {
     ),
     setting(
       'coordination.maxTranscriptTokens',
-      'Agent transcript token limit',
-      'Estimated agent input limit including messages, tool-call arguments and tool schemas. Compact older turns; reject oversized remaining context before sending it to a provider.',
+      'Optional agent context ceiling',
+      'Zero uses selected-model capacity automatically. A positive value explicitly lowers the estimated input allowance, including messages and tool schemas; it cannot raise the model limit.',
       'coordination',
-      { type: 'integer', minimum: 1000, maximum: 1_000_000 },
-      60_000,
+      { type: 'integer', minimum: 0 },
+      0,
       ['platform', 'project'],
     ),
     setting(

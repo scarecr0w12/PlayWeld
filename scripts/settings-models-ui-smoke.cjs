@@ -29,7 +29,7 @@ async function main() {
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(
       JSON.stringify({
-        data: ['one', 'two', 'three'].map((id) => ({ id, capabilities: { chat: true } })),
+        data: ['one', 'two', 'three'].map((id) => ({ id, capabilities: { chat: true }, ...(id === 'two' ? { context_length: 1_000_000, top_provider: { max_completion_tokens: 128_000 } } : {}) })),
       }),
     );
   });
@@ -298,6 +298,25 @@ async function main() {
     checks.push(
       'Edited model names and tags reflect saved canonical values immediately and after reopening; pool typing updates without refresh',
     );
+    await wait(() => {
+      const text = document.querySelector('.gamecrafter-models')?.textContent ?? '';
+      return text.includes('1,000,000 shared') && text.includes('128,000') && text.includes('Unknown — provider-managed');
+    });
+    checks.push('Models displays reported context/output capacities and labels unknown capacity');
+    await close('Models & Routing');
+    const projectsDirectory = path.join(directory, 'projects');
+    fs.mkdirSync(projectsDirectory, { recursive: true });
+    const project = await client.call('project/create', {
+      name: 'Capacity Smoke', engine: { family: 'godot' }, parentDirectory: projectsDirectory, folderName: 'capacity-smoke',
+    });
+    await open('Swarm', 'swarm');
+    await wait((id) => [...document.querySelectorAll('select[aria-label="Swarm Project"] option')].some((option) => option.value === id), project.projectId);
+    await page.select('select[aria-label="Swarm Project"]', project.projectId);
+    await page.waitForSelector('input[aria-label="Token budget"]');
+    assert.equal(await page.$eval('input[aria-label="Token budget"]', (node) => node.value), '');
+    checks.push('Swarm starts with no implicit cumulative token budget');
+    await close('Swarm');
+    await open('Models', 'models');
     await page.screenshot({ path: path.join(directory, 'models.png') });
     assert.deepEqual(errors, []);
     const report = {

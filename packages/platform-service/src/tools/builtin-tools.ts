@@ -77,7 +77,7 @@ export function registerBuiltinTools(
     definition(
       'fs/write-file',
       'Write Project file',
-      'Write UTF-8 content to a file in the Project.',
+      'Write UTF-8 content to a file in the Project. Set createDirectories to true when the parent directory may not exist.',
       {
         type: 'object',
         properties: {

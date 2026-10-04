@@ -102,8 +102,10 @@ async function run(payload: WorkerRunPayload): Promise<void> {
     }
     const taskError: TaskError = {
       message: error instanceof Error ? error.message : String(error),
-      ...(error instanceof Error && 'code' in error && typeof error.code === 'string'
-        ? { code: error.code }
+      ...(error instanceof Error &&
+      'code' in error &&
+      (typeof error.code === 'string' || typeof error.code === 'number')
+        ? { code: String(error.code) }
         : {}),
       retryable:
         typeof error === 'object' && error !== null && 'retryable' in error

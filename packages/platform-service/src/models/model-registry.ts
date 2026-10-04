@@ -323,7 +323,7 @@ export class ModelRegistry {
           : {
               ...existing,
               displayName: item.displayName ?? existing.displayName,
-              capabilities: mergeCapabilities(item.capabilities),
+              capabilities: mergeCapabilities({ ...existing.capabilities, ...item.capabilities }),
               pricing: mergePricing(item.pricing),
               metadataUpdatedAt,
             }

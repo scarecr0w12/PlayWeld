@@ -31,7 +31,7 @@ export class SwarmWidget extends ControlRoomReactWidget {
   private requestId = '';
   private requestText = '';
   private role = 'coordinator';
-  private budgetTokens = '60000';
+  private budgetTokens = '';
   private impactPreview?: ImpactResult;
   private taskTree?: SwarmTaskNode;
   private questions: TaskQuestion[] = [];
@@ -187,9 +187,10 @@ export class SwarmWidget extends ControlRoomReactWidget {
                   />
                 </label>
                 <label>
-                  Token budget
+                  Total token budget (optional)
                   <input
                     aria-label="Token budget"
+                    placeholder="No cumulative token ceiling"
                     type="number"
                     min={1}
                     value={this.budgetTokens}
@@ -647,7 +648,10 @@ export class SwarmWidget extends ControlRoomReactWidget {
         projectId: this.projectId!,
         text: this.requestText.trim(),
         role: this.role.trim() || 'coordinator',
-        budget: { maxTokens: Number(this.budgetTokens) || 60_000 },
+        budget:
+          this.budgetTokens.trim() && Number(this.budgetTokens) > 0
+            ? { maxTokens: Number(this.budgetTokens) }
+            : {},
       });
       this.requestId = request.requestId;
       this.notice = `Request created. Thread ${request.threadId}.`;

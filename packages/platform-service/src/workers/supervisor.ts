@@ -402,19 +402,37 @@ export class WorkerSupervisor implements TaskSupervisorPort {
     }
     if (child.pid !== undefined)
       this.options.onWorkerStarted?.(task.taskId, worker.workerId, child.pid);
+    const toolSnapshot =
+      task.kind === 'agent.run'
+        ? this.options.tools?.inspectTools(runtime.projectId, {
+            agentRole: task.role ?? task.assignee?.role,
+            accessCeiling: task.assignee?.accessCeiling,
+          })
+        : undefined;
+    if (toolSnapshot) {
+      runtime.graph.appendEvent(
+        task.taskId,
+        TaskEventKind.Progress,
+        {
+          message: 'Agent tool availability recorded.',
+          diagnostic: 'agent-tool-availability',
+          workerId: worker.workerId,
+          attempt: task.attempt,
+          role: task.role ?? task.assignee?.role ?? null,
+          accessCeiling: task.assignee?.accessCeiling ?? null,
+          offeredToolIds: toolSnapshot.tools.map((tool) => tool.toolId),
+          excludedTools: toolSnapshot.excluded,
+        },
+        'scheduler',
+      );
+    }
     const command: WorkerCommand = {
       type: 'run',
       task,
       handler,
       input: task.input,
       checkpoint: task.checkpoint,
-      tools:
-        task.kind === 'agent.run'
-          ? (this.options.tools?.listTools(runtime.projectId, {
-              agentRole: task.role ?? task.assignee?.role,
-              accessCeiling: task.assignee?.accessCeiling,
-            }) ?? [])
-          : [],
+      tools: toolSnapshot?.tools ?? [],
     };
     this.send(child, command);
   }

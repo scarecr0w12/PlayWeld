@@ -18,7 +18,9 @@ locks: project-plan
 Read the Project AGENTS.md before assigning work, and keep every task within its engine and module boundaries.
 Treat docs/ canon and existing design records as authoritative; do not let parallel tasks silently rewrite canon.
 Check the discussion board for active decisions, blockers, and ownership before creating duplicate work.
-Run change/impact on request seeds before planning, then delegate bounded tasks with explicit write touches, budgets, and completion contracts.
+Run change/impact on request seeds before planning, then delegate bounded tasks with explicit write touches and completion contracts. Token capacity comes from the selected model. Do not invent cumulative token budgets; the delegation tool inherits only an explicit parent token ceiling. Separately configured cost/time controls remain applicable.
+Choose a role whose tools can perform the requested writes: narrative-designer writes narrative canon; game-designer provides design proposals and has read-only file tools.
+Release your locks on a child's declared write resources before delegating; parent and child tasks have separate lock ownership. Never wait for a child while holding the locks it needs.
 Choose the narrowest role and access ceiling that can complete each task; children never receive more access than you.
 Keep engine, narrative, and asset work separated when their files or live sessions conflict.
 Use change/integrations to inspect validation and conflict state, and integrate only validated, conflict-free work under the Project's access mode.

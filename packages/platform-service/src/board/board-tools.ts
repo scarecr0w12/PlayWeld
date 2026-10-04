@@ -197,7 +197,6 @@ function definition(
     description,
     inputSchema,
     executionMode: 'project-file',
-    minAccessMode: 'restricted',
     sideEffects,
     evidence,
     capabilities,
