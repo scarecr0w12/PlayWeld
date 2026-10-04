@@ -4,7 +4,9 @@ Generated from permanent [work records](docs/changes/README.md). Run `npm run ch
 
 ## Unreleased
 
-No pending work records.
+### Maintenance
+
+- **Build and deploy PlayWeld 0.6.0 locally** (none): Build, stage and install PlayWeld 0.6.0 over the existing local 0.5.0 installation, then verify the running desktop/service and preserved configuration. This post-commit evidence does not rewrite the committed release records or require rebuilding the completed installer. [Full details and validation](docs/changes/2026-10-03-local-0.6.0-deployment.md).
 
 ## 0.6.0
 
