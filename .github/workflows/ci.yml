@@ -38,6 +38,7 @@ jobs:
         run: npm ci --foreground-scripts
       - run: npx turbo run build typecheck lint test --concurrency=1
       - run: npm run test:changes
+      - run: npm run test:cache-maintenance
       - run: node scripts/check-release-version.cjs
       - run: node scripts/generate-system-reference.cjs --check
       - run: node scripts/generate-documentation-inventory.cjs --check
@@ -81,5 +82,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: browser-ui-evidence
-          path: .turbo/live-browser/
+          path: .artifacts/live-browser/
           if-no-files-found: warn

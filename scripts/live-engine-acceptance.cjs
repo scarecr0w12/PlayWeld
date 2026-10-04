@@ -10,7 +10,7 @@ const { connect } = require('@gamecrafter/service-client');
 const { RpcErrorCode } = require('@gamecrafter/contracts');
 const root = path.resolve(__dirname, '..');
 const out = path.resolve(
-  process.env.GAMECRAFTER_ACCEPTANCE_OUTPUT ?? path.join(root, '.turbo', 'live-engine-acceptance'),
+  process.env.GAMECRAFTER_ACCEPTANCE_OUTPUT ?? path.join(root, '.artifacts', 'live-engine-acceptance'),
 );
 const unity = process.env.GC_ACCEPTANCE_UNITY || 'D:\\Unity\\Editor\\6000.6.0f1\\Editor\\Unity.exe';
 const unrealRoot = process.env.GC_ACCEPTANCE_UNREAL || 'D:\\Unreal\\UE_5.8';

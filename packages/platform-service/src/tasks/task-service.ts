@@ -147,6 +147,18 @@ export class TaskService {
               contextTokenCeiling: this.settings.resolve('coordination.maxTranscriptTokens', {
                 projectId: input.projectId,
               }).value,
+              decisionsEnabled:
+                this.settings.resolve('models.decisions.mode', { projectId: input.projectId })
+                  .value !== 'off' &&
+                Boolean(
+                  this.settings.resolve('models.decisions.accountId', {
+                    projectId: input.projectId,
+                  }).value,
+                ) &&
+                Boolean(
+                  this.settings.resolve('models.decisions.model', { projectId: input.projectId })
+                    .value,
+                ),
             },
           },
         }

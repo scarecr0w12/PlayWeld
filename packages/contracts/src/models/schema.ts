@@ -286,7 +286,7 @@ export const RouteOutcomeSchema = Type.Object(
 );
 export type RouteOutcome = Static<typeof RouteOutcomeSchema>;
 
-export const ModelUsageRecordSchema = Type.Object(
+const CompletionUsageRecordSchema = Type.Object(
   {
     usageId: Type.String({ format: 'uuid' }),
     requestId: Type.Union([Type.String(), Type.Null()]),
@@ -311,4 +311,18 @@ export const ModelUsageRecordSchema = Type.Object(
   },
   { additionalProperties: false },
 );
+export const ModelUsageRecordSchema = Type.Union([
+  CompletionUsageRecordSchema,
+  Type.Object(
+    {
+      ...CompletionUsageRecordSchema.properties,
+      source: Type.Literal('decision'),
+      inputTokens: Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]),
+      outputTokens: Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]),
+      cacheReadInputTokens: Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]),
+      cacheCreationInputTokens: Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]),
+    },
+    { additionalProperties: false },
+  ),
+]);
 export type ModelUsageRecord = Static<typeof ModelUsageRecordSchema>;

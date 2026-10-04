@@ -3,6 +3,7 @@ import path from 'node:path';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import {
   type AccessMode,
+  type DecisionAssessment,
   type ApprovalRequest,
   type ChangeRequest,
   type FeedbackInput,
@@ -551,6 +552,16 @@ export class ControlRoomServiceImpl implements ControlRoomService {
   ): Promise<Array<{ decision: RouteDecision; outcome: RouteOutcome | null }>> {
     const client = await this.getPlatformClient();
     return (await client.call('router/decisions', { projectId, limit })).decisions;
+  }
+
+  async listDecisionAssessments(
+    projectId: string,
+    taskId?: string,
+    limit = 50,
+  ): Promise<DecisionAssessment[]> {
+    const client = await this.getPlatformClient();
+    return (await client.call('decisions/history', { schemaVersion: 1, projectId, taskId, limit }))
+      .assessments;
   }
 
   async routerStats(taskType?: string): Promise<{

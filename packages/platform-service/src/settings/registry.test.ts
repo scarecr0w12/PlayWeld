@@ -10,7 +10,16 @@ describe('SettingsRegistry', () => {
 
     const description = registry.describe();
     expect(description.groups).toHaveLength(17);
-    expect(description.definitions).toHaveLength(77);
+    expect(description.definitions).toHaveLength(85);
+    for (const [key, value] of Object.entries({
+      mode: 'shadow',
+      accountId: '',
+      model: '',
+      allowRemote: false,
+    }))
+      expect(
+        description.definitions.find((definition) => definition.key === `models.decisions.${key}`),
+      ).toMatchObject({ default: value, scopes: ['platform', 'project'] });
     expect(
       description.definitions.find(
         (definition) => definition.key === 'knowledge.vectorStore.deployment',

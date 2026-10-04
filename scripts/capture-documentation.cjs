@@ -25,7 +25,7 @@ async function main() {
   const { resolvePaths } = require('../packages/platform-service/lib/paths');
   const { connect } = require('@gamecrafter/service-client');
   const version = require('../packages/platform-service/package.json').version;
-  const run = path.resolve('.turbo', 'documentation', String(Date.now()));
+  const run = path.resolve('.artifacts', 'documentation', String(Date.now()));
   const output = path.resolve(process.env.GAMECRAFTER_DOC_OUTPUT ?? path.join(run, 'screenshots'));
   fs.mkdirSync(output, { recursive: true });
   fs.mkdirSync(run, { recursive: true });

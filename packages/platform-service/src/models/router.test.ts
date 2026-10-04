@@ -27,6 +27,76 @@ const defaultSettings: Record<string, unknown> = {
 };
 
 describe('ModelRouter', () => {
+  it('previews eligible candidates without persisting a selection or exploring', async () => {
+    const fixture = await createFixture();
+    try {
+      fixture.setSetting('models.exploration.rate', 1);
+      const preview = fixture.router.preview({ taskType: 'code', agentRole: 'programmer' });
+      expect(preview.candidates).toHaveLength(2);
+      expect(preview.explored).toBe(false);
+      expect(fixture.router.decisions()).toHaveLength(0);
+    } finally {
+      fixture.close();
+    }
+  });
+
+  it('applies bounded advice only after current filters and preserves manual selection', async () => {
+    const fixture = await createFixture();
+    try {
+      fixture.setSetting('models.autoRouting.quality', 'cost-first');
+      const route = { taskType: 'code', agentRole: 'programmer' };
+      const advice = { modelId: fixture.modelIds.good, assessmentId: uuidv7() };
+      const assisted = fixture.router.route(route, undefined, advice);
+      expect(assisted.modelId).toBe(fixture.modelIds.good);
+      expect(assisted.policyVersion).toBe('quality-first-v1+decision-advice-v1');
+      expect(assisted.reason).toContain(advice.assessmentId);
+      expect(
+        fixture.router.route({ ...route, manualModelId: fixture.modelIds.cheap }, undefined, advice)
+          .modelId,
+      ).toBe(fixture.modelIds.cheap);
+      fixture.registry.updateModel(fixture.modelIds.good, { enabled: false });
+      const fallback = fixture.router.route(route, undefined, advice);
+      expect(fallback.modelId).toBe(fixture.modelIds.cheap);
+      expect(fallback.reason).toContain('advice ineligible');
+      fixture.registry.createPool({
+        name: 'Empty pool',
+        scope: 'platform',
+        target: null,
+        modelIds: [],
+      });
+      expect(() => fixture.router.route(route, undefined, advice)).toThrowError(
+        expect.objectContaining({ data: expect.objectContaining({ stage: 'pools' }) }),
+      );
+    } finally {
+      fixture.close();
+    }
+  });
+
+  it('does not let advice bypass capabilities or estimated budget filters', async () => {
+    const fixture = await createFixture();
+    try {
+      const advice = { modelId: fixture.modelIds.cheap, assessmentId: uuidv7() };
+      expect(
+        fixture.router.route(
+          { taskType: 'code', agentRole: 'programmer', requiredCapabilities: ['tools'] },
+          undefined,
+          advice,
+        ).modelId,
+      ).toBe(fixture.modelIds.good);
+      expect(() =>
+        fixture.router.route(
+          { taskType: 'code', agentRole: 'programmer', constraints: { maxCostUsd: 0 } },
+          undefined,
+          advice,
+        ),
+      ).toThrowError(
+        expect.objectContaining({ data: expect.objectContaining({ stage: 'constraints' }) }),
+      );
+    } finally {
+      fixture.close();
+    }
+  });
+
   it('filters work types, roles, and capabilities before routing', async () => {
     const fixture = await createFixture();
     try {

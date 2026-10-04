@@ -14,7 +14,7 @@ const { connect } = require('@gamecrafter/service-client');
 const { diagnostics } = require('../docs/examples/service-diagnostics.cjs');
 
 async function main() {
-  const root = path.resolve('.turbo/documentation-recovery', String(Date.now()));
+  const root = path.resolve('.artifacts/documentation-recovery', String(Date.now()));
   fs.mkdirSync(root, { recursive: true });
   const version = require('../packages/platform-service/package.json').version;
   const checks = [];

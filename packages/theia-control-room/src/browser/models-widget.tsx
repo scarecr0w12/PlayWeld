@@ -9,12 +9,20 @@ import type {
   ProjectSummary,
   ProviderAccount,
   ProviderKind,
+  DecisionAssessment,
 } from '@gamecrafter/contracts';
 import {
   ControlRoomService,
   type ControlRoomService as ControlRoomServiceApi,
 } from '../common/control-room-protocol';
-import { formatPricing, summarizeDecision } from '../common/models-view-model';
+import {
+  formatDecisionAssessmentDetail,
+  formatDecisionAssessmentUsage,
+  formatPricing,
+  summarizeDecision,
+  summarizeDecisionAssessmentAdvice,
+} from '../common/models-view-model';
+import { MarkdownContent } from './markdown-content';
 
 @injectable()
 export class ModelsWidget extends ControlRoomReactWidget {
@@ -24,9 +32,12 @@ export class ModelsWidget extends ControlRoomReactWidget {
   private models: Model[] = [];
   private pools: ModelPool[] = [];
   private decisions: Awaited<ReturnType<ControlRoomServiceApi['listRouteDecisions']>> = [];
+  private decisionAssessments: DecisionAssessment[] = [];
+  private decisionAssessmentsLoading = false;
+  private decisionAssessmentsError?: string;
   private projects: ProjectSummary[] = [];
   private selectedProjectId?: string;
-  private activeSection: 'accounts' | 'models' | 'pools' | 'decisions' = 'accounts';
+  private activeSection: 'accounts' | 'models' | 'pools' | 'decisions' | 'assessments' = 'accounts';
   private accountKind: ProviderKind = 'openai-compatible';
   private accountName = '';
   private accountBaseUrl = 'http://localhost:11434/v1';
@@ -116,6 +127,7 @@ export class ModelsWidget extends ControlRoomReactWidget {
               ['models', 'Models', this.models.length],
               ['pools', 'Model pools', this.pools.length],
               ['decisions', 'Routing decisions', this.decisions.length],
+              ['assessments', 'Decision assessments', this.decisionAssessments?.length ?? 0],
             ] as const
           ).map(([section, label, count]) => (
             <button
@@ -237,7 +249,12 @@ export class ModelsWidget extends ControlRoomReactWidget {
                   {this.accounts.map((account) => (
                     <tr key={account.accountId}>
                       <td>{account.providerKind}</td>
-                      <td>{account.displayName}</td>
+                      <td>
+                        {account.displayName}
+                        <div className="gamecrafter-page-hint">
+                          <code>{account.accountId}</code>
+                        </div>
+                      </td>
                       <td>{account.baseUrl}</td>
                       <td>{account.privacy}</td>
                       <td>{account.hasCredential ? 'Yes' : 'No'}</td>
@@ -594,6 +611,96 @@ export class ModelsWidget extends ControlRoomReactWidget {
             </div>
           )}
         </section>
+
+        <section
+          className="gamecrafter-models-section gamecrafter-page-panel"
+          hidden={this.activeSection !== 'assessments'}
+        >
+          <h2>Decision assessments</h2>
+          <p className="gamecrafter-page-section-intro">
+            Read-only advice history. Modes and statuses are recorded per assessment; configure the
+            mode in Models settings. New setups default to shadow mode.
+          </p>
+          <p className="gamecrafter-page-section-intro">
+            Suggestions remain advisory: they do not change task labels, the eligible model pool,
+            permissions, or review requirements.
+          </p>
+          <p className="gamecrafter-page-section-intro">
+            Assessments reuse an enabled provider account and model from Models. For local
+            inference, configure an OpenAI-compatible account base URL such as{' '}
+            <code>http://127.0.0.1:9001/v1</code>; the adapter posts to <code>/v1/systemone</code>.
+            Opening or refreshing this history does not make a provider test or paid model call.
+          </p>
+          {!this.selectedProjectId ? (
+            <p className="gamecrafter-page-empty">
+              Select a project to view its assessment history. All Projects does not request
+              assessment history.
+            </p>
+          ) : this.decisionAssessmentsLoading ? (
+            <p role="status">Loading decision assessments...</p>
+          ) : this.decisionAssessmentsError ? (
+            <div role="alert" className="gamecrafter-models-error">
+              <p>
+                Decision assessment history could not be loaded: {this.decisionAssessmentsError}
+              </p>
+              <button type="button" onClick={() => void this.refreshDecisionAssessments()}>
+                Retry history
+              </button>
+            </div>
+          ) : this.decisionAssessments.length === 0 ? (
+            <p className="gamecrafter-page-empty">
+              No assessments are recorded for this project yet. In shadow or assist mode,
+              assessments are recorded when eligible task work runs; mode off makes no assessment
+              calls.
+            </p>
+          ) : (
+            <ul>
+              {this.decisionAssessments.map((assessment) => (
+                <li key={assessment.assessmentId}>
+                  <h3>
+                    {assessment.taskType} · {new Date(assessment.createdAt).toLocaleString()}
+                  </h3>
+                  <dl className="gamecrafter-page-meta" aria-label="Assessment summary">
+                    <div className="gamecrafter-page-meta-item">
+                      <dt>Mode / status</dt>
+                      <dd>
+                        {assessment.mode} · {assessment.status}
+                        {assessment.reused ? ' · reused' : ''}
+                      </dd>
+                    </div>
+                    <div className="gamecrafter-page-meta-item">
+                      <dt>Baseline model</dt>
+                      <dd>{assessment.baselineModelId ?? 'Not recorded'}</dd>
+                    </div>
+                    <div className="gamecrafter-page-meta-item">
+                      <dt>Suggested model</dt>
+                      <dd>{assessment.suggestedModelId ?? 'No recommendation'}</dd>
+                    </div>
+                    <div className="gamecrafter-page-meta-item">
+                      <dt>Latency</dt>
+                      <dd>{assessment.latencyMs.toLocaleString()} ms</dd>
+                    </div>
+                    <div className="gamecrafter-page-meta-item">
+                      <dt>Usage</dt>
+                      <dd>{formatDecisionAssessmentUsage(assessment)}</dd>
+                    </div>
+                    {assessment.taskId && (
+                      <div className="gamecrafter-page-meta-item">
+                        <dt>Task</dt>
+                        <dd>{assessment.taskId}</dd>
+                      </div>
+                    )}
+                  </dl>
+                  <p>{summarizeDecisionAssessmentAdvice(assessment)}</p>
+                  <details className="gamecrafter-page-advanced">
+                    <summary>Assessment details</summary>
+                    <MarkdownContent text={formatDecisionAssessmentDetail(assessment)} />
+                  </details>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     );
   }
@@ -670,6 +777,7 @@ export class ModelsWidget extends ControlRoomReactWidget {
         (await this.resolveProjectSelection(projects, () => this.selectedProjectId)) || undefined;
       if (version !== this.refreshVersion || this.isDisposed) return;
       this.selectedProjectId = projectId;
+      void this.refreshDecisionAssessments(version, projectId);
       const [accounts, models, pools, decisions] = await Promise.all([
         this.controlRoomService.listProviderAccounts(),
         this.controlRoomService.listModels(),
@@ -688,6 +796,40 @@ export class ModelsWidget extends ControlRoomReactWidget {
       this.errorMessage = error instanceof Error ? error.message : String(error);
     }
     this.update();
+  }
+
+  private async refreshDecisionAssessments(
+    version = this.refreshVersion,
+    projectId = this.selectedProjectId,
+  ): Promise<void> {
+    if (version !== this.refreshVersion || this.isDisposed) return;
+    this.decisionAssessmentsError = undefined;
+    if (!projectId) {
+      this.decisionAssessments = [];
+      this.decisionAssessmentsLoading = false;
+      this.update();
+      return;
+    }
+
+    this.decisionAssessmentsLoading = true;
+    this.update();
+    try {
+      const assessments = await this.controlRoomService.listDecisionAssessments(
+        projectId,
+        undefined,
+        30,
+      );
+      if (version !== this.refreshVersion || this.isDisposed) return;
+      this.decisionAssessments = assessments;
+    } catch (error) {
+      if (version !== this.refreshVersion || this.isDisposed) return;
+      this.decisionAssessmentsError = error instanceof Error ? error.message : String(error);
+    } finally {
+      if (version === this.refreshVersion && !this.isDisposed) {
+        this.decisionAssessmentsLoading = false;
+        this.update();
+      }
+    }
   }
 
   private async run(operation: () => Promise<unknown>): Promise<void> {

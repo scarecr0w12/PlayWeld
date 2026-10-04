@@ -4,6 +4,41 @@
   "tasks": {
     "test": {
       "dependsOn": ["build"]
+    },
+    "build": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.agents/skills/game-development/**",
+        "$TURBO_ROOT$/.agents/skills/game-code-review/**",
+        "$TURBO_ROOT$/.agents/skills/unreal-development/**",
+        "$TURBO_ROOT$/.agents/skills/unity-development/**",
+        "$TURBO_ROOT$/.agents/skills/godot-scene-audit/**",
+        "$TURBO_ROOT$/.agents/skills/engine-integration-tests/**",
+        "$TURBO_ROOT$/.agents/skills/gameplay-implementation/**",
+        "$TURBO_ROOT$/.agents/skills/test-driven-development/**",
+        "$TURBO_ROOT$/.agents/skills/asset-pipeline/**",
+        "$TURBO_ROOT$/.agents/skills/visual-consistency/**",
+        "$TURBO_ROOT$/.agents/skills/blender-modeling/**",
+        "$TURBO_ROOT$/.agents/skills/materials-textures/**",
+        "$TURBO_ROOT$/.agents/skills/rigging-animation/**",
+        "$TURBO_ROOT$/.agents/skills/sprite-production/**",
+        "$TURBO_ROOT$/.agents/skills/game-audio/**",
+        "$TURBO_ROOT$/.agents/skills/technical-art-vfx/**",
+        "$TURBO_ROOT$/.agents/skills/game-design-review/**",
+        "$TURBO_ROOT$/.agents/skills/level-design/**",
+        "$TURBO_ROOT$/.agents/skills/narrative-style-guide/**",
+        "$TURBO_ROOT$/.agents/skills/game-ai/**",
+        "$TURBO_ROOT$/.agents/skills/multiplayer-gameplay/**",
+        "$TURBO_ROOT$/.agents/skills/game-accessibility/**",
+        "$TURBO_ROOT$/.agents/skills/game-localization/**",
+        "$TURBO_ROOT$/.agents/skills/game-performance/**",
+        "$TURBO_ROOT$/.agents/skills/game-build-release/**",
+        "$TURBO_ROOT$/.agents/skills/project-planning/**",
+        "$TURBO_ROOT$/.agents/skills/evidence-review/**",
+        "$TURBO_ROOT$/.agents/skills/source-research/**",
+        "$TURBO_ROOT$/.agents/skills/discussion-board-maintenance/**",
+        "$TURBO_ROOT$/.agents/skills/security-review/**"
+      ]
     }
   }
 }

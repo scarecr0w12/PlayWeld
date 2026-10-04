@@ -4,8 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const spawn = require('cross-spawn');
-const out = path.resolve(__dirname, '../.turbo/extended-engine-acceptance');
-const project = path.resolve(__dirname, '../.turbo/live-engine-acceptance/projects/unity/game');
+const out = path.resolve(__dirname, '../.artifacts/extended-engine-acceptance');
+const project = path.resolve(__dirname, '../.artifacts/live-engine-acceptance/projects/unity/game');
 const editor =
   process.env.GC_ACCEPTANCE_UNITY || 'D:\\Unity\\Editor\\6000.6.0f1\\Editor\\Unity.exe';
 const cli =

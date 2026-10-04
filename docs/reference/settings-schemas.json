@@ -237,6 +237,111 @@
       "source": "builtin"
     },
     {
+      "key": "models.decisions.mode",
+      "title": "Decision assistance mode",
+      "description": "Off makes no calls. Shadow records task and model advice without changing dispatch. Assist uses confident advice inside the existing eligible model pool; never changes task type or permissions.",
+      "group": "models",
+      "schema": {
+        "type": "string",
+        "enum": ["off", "shadow", "assist"]
+      },
+      "default": "shadow",
+      "scopes": ["platform", "project"],
+      "source": "builtin"
+    },
+    {
+      "key": "models.decisions.accountId",
+      "title": "Decision provider account",
+      "description": "Provider account ID for an independently running typed decision server. Empty disables assessment. Credentials remain in the provider credential store.",
+      "group": "models",
+      "schema": {
+        "type": "string"
+      },
+      "default": "",
+      "scopes": ["platform", "project"],
+      "source": "builtin"
+    },
+    {
+      "key": "models.decisions.model",
+      "title": "Decision model identifier",
+      "description": "Explicit server model identifier; this judge is never Auto-routed. Pin a model revision when probability thresholds depend on it.",
+      "group": "models",
+      "schema": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "default": "",
+      "scopes": ["platform", "project"],
+      "source": "builtin"
+    },
+    {
+      "key": "models.decisions.protocol",
+      "title": "Typed decision protocol",
+      "description": "System One targets local Kev/Laya-compatible /v1/systemone. OpenRouter Decisions targets /api/alpha/decisions.",
+      "group": "models",
+      "schema": {
+        "type": "string",
+        "enum": ["systemone", "openrouter-decisions"]
+      },
+      "default": "systemone",
+      "scopes": ["platform", "project"],
+      "source": "builtin"
+    },
+    {
+      "key": "models.decisions.allowRemote",
+      "title": "Allow remote decision inference",
+      "description": "Explicitly permit non-loopback HTTPS decision endpoints. Task summaries and eligible candidate metadata leave this machine; a privacy judge cannot undo that disclosure.",
+      "group": "models",
+      "schema": {
+        "type": "boolean"
+      },
+      "default": false,
+      "scopes": ["platform", "project"],
+      "source": "builtin"
+    },
+    {
+      "key": "models.decisions.timeoutMs",
+      "title": "Decision request timeout (ms)",
+      "description": "Deadline for the complete decision response. Failure keeps deterministic routing; no automatic retry.",
+      "group": "models",
+      "schema": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 30000
+      },
+      "default": 3000,
+      "scopes": ["platform", "project"],
+      "source": "builtin"
+    },
+    {
+      "key": "models.decisions.minProbability",
+      "title": "Decision probability threshold",
+      "description": "Minimum selected-option or yes probability for advice. Not the provider confidence field and not a calibration guarantee. Evaluate on your own tasks.",
+      "group": "models",
+      "schema": {
+        "type": "number",
+        "minimum": 0.5,
+        "maximum": 1
+      },
+      "default": 0.9,
+      "scopes": ["platform", "project"],
+      "source": "builtin"
+    },
+    {
+      "key": "models.decisions.minMargin",
+      "title": "Model recommendation probability margin",
+      "description": "Minimum selected-option probability minus the runner-up for an assisted model recommendation. Permissions, candidate eligibility, manual choice, and budget filters remain authoritative.",
+      "group": "models",
+      "schema": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "default": 0.2,
+      "scopes": ["platform", "project"],
+      "source": "builtin"
+    },
+    {
       "key": "models.autoRouting.maxLatencyMs",
       "title": "Maximum routing latency (ms)",
       "description": "Set zero for no maximum latency constraint.",

@@ -61,6 +61,41 @@ flowchart LR
 - A single tool broker applies Full access, Restricted, or Ask always at execution time and logs the decision. Full access permits high-risk actions as requested. Restricted and Ask always require strong boundaries for executable plugins; a plugin running with ordinary host filesystem or network access could bypass a prompt. Game-platform plugins therefore run in supervised, isolated workers with declared capabilities and brokered operations. No Docker or Podman dependency is required. The exact OS isolation mechanism must be chosen and verified for Windows and Linux.
 - Theia/VS Code-compatible extensions are a separate runtime with their own privileges. The catalog must show that distinction; our access mode cannot honestly promise to govern arbitrary third-party editor extensions unless their execution is isolated under the same policy.
 
+## Typed decision assistance
+
+Engineering default informed by the [decision-model investigation](research/decision-models-and-task-policy.md) and [routing-system comparison](research/local-model-routing-systems.md): integrate a separately running typed decision endpoint rather than bundle an inference engine or replace the router with a general coordinator model. The service's [assessment contract](../packages/contracts/src/models/decisions.ts) separates uncertain judgments from task-completion evidence and validated router outcomes.
+
+- **Shadow:** record classification, effort, missing-context, review, decomposition, engine-validation advice, and a candidate recommendation; leave dispatch and agent instructions unchanged. The default is shadow with empty account/model settings, so there are no calls until configured.
+- **Assist:** explicit opt-in permits sufficiently concentrated candidate advice to influence model selection and adds bounded task advice to the agent's pinned context. Eligibility, account/model enablement, pool intersections, declared capabilities, estimated budget/latency filters, and manual selection remain authoritative at preparation time. Advice never changes task type, permissions, dependencies, completion requirements, or review authority.
+- **Off:** make no assessment request. Outage, denial, malformed output, insufficient probability/margin, reported context truncation or collapsed options, and configuration changes retain the ordinary router policy. These are regression-tested transport/dispatch boundaries, not evidence of a model's decision accuracy.
+
+### Configuration and ownership
+
+Use Models & Routing to add a dedicated OpenAI-compatible provider account pointing to the separately running decision server. The account ID is visible in the account table; credentials use the existing encrypted store. Do not discover/add the decision checkpoint to worker pools unless it separately supports the worker's chat/tool protocol. The typed adapter does not use provider discovery or ordinary chat completion to call the judge.
+
+Configure these Models settings at platform or Project scope:
+
+| Setting | Meaning and default |
+| --- | --- |
+| `models.decisions.mode` | `shadow` by default; `off` or explicit `assist` |
+| `models.decisions.accountId` | Account ID; empty disables calls |
+| `models.decisions.model` | Explicit decision checkpoint/version; empty disables calls |
+| `models.decisions.protocol` | `systemone` by default; optionally `openrouter-decisions` |
+| `models.decisions.allowRemote` | False; non-loopback inference requires opt-in and HTTPS |
+| `models.decisions.timeoutMs` | 3,000 ms complete-response deadline, no automatic retries |
+| `models.decisions.minProbability` | 0.9 selected-option/yes probability; not the provider confidence field |
+| `models.decisions.minMargin` | 0.2 selected-option versus runner-up margin for model advice |
+
+For a local System One server, use an account base URL such as `http://127.0.0.1:9001` or `http://127.0.0.1:9001/v1`; the adapter posts to `/v1/systemone`. OpenRouter Decisions expects `https://openrouter.ai` or `https://openrouter.ai/api`, an OpenRouter credential, explicit remote consent, and an appropriate decision-model identifier. A network-hosted local server is also non-loopback; plain HTTP on another machine is intentionally rejected. Provider access is still governed by the paid-effect broker policy, including Ask always approvals; a refused optional assessment does not block ordinary eligible model routing.
+
+The service requests an eligible-candidate preview without persisting a worker selection or consuming exploration. Short `m0`, `m1`, ... option labels correspond to the ordered candidate snapshot, avoiding long-ID collisions in small encoder option budgets. Only returned known labels with the configured probability and margin can produce a suggestion. Thresholds do not establish calibration; task-quality comparisons and locked evaluations remain Verify.
+
+Agents assess once for a task loop and checkpoint the assessment identity. Matching task/state/configuration records are reused without recharging their reported usage; identical in-flight requests are coalesced. This is not an exactly-once paid-operation guarantee across process crashes. Fresh decision usage contributes to task token/cost spending separately from worker completion. Requests are capped at 64 KiB, responses at 1 MiB, and cancellation/deadlines cover body reads. Summaries and eligible metadata are supplied to the endpoint; the dedicated history stores their hash rather than a copy of task text or credentials. Existing broker logs/task records retain their ordinary audit inputs. A hosted judge cannot be the sole privacy gate for its own input disclosure.
+
+Versioned assessments live in the profile database, scoped by Project/task, with service-owned `decision.assessment` events in Project history. Audit Model Usage merges that ledger as a separate `decision` source with nullable input/output/cache counts; existing `completion` count fields retain their non-null contract. Unknown counts are not fabricated zeroes and unknown charges are not free. The read-only Models & Routing assessment tab shows baseline versus suggested model, advice, nullable usage/cost, latency, and structured details. Assessment requests and history params/results explicitly require `schemaVersion: 1`. The authenticated `decisions/assess` RPC uses the same broker boundary; `decisions/history` is read-only. Profile migration 15 adds the history table without changing existing tasks, outcomes, or credentials. Project clones retain their historical events, but do not copy the profile's detailed assessment index.
+
+Source and automated fake-endpoint evidence: [transport tests](../packages/platform-service/src/models/decision-provider.test.ts), [assessment tests](../packages/platform-service/src/models/decision-service.test.ts), [router boundary tests](../packages/platform-service/src/models/router.test.ts), [worker/RPC integration tests](../packages/platform-service/src/models/models.integration.test.ts), and [UI view-model tests](../packages/theia-control-room/src/common/models-view-model.test.ts). No Kev/Laya weights, live Jev request, measured routing improvement, trained PlayWeld classifier, or calibrated deployment is established by these tests. LLMRouter/RouteLLM/vLLM adapters and counterfactual evaluation pipelines remain possible extensions, not shipped dependencies.
+
 ## Plugin and connector contract
 
 The unified Plugins catalog shows both coding extensions and platform plugins. Native game-platform plugins use a versioned manifest declaring entry points, contributed module/genre/agent/skill/tool/UI types, compatible versions, settings schema, dependencies, requested capabilities, and migrations. Runtime plugin code runs out of the main UI process. UI additions use registered extension points or declarative panels so community packages do not need to rebuild Theia. Theia's [extension model](https://theia-ide.org/docs/extensions/) distinguishes compiled Theia extensions from installable compatible extensions; the platform plugin API is our own contract.

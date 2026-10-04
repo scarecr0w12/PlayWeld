@@ -100,6 +100,50 @@ async function createFakeServer(): Promise<string> {
         );
         return;
       }
+      if (request.method === 'POST' && request.url === '/v1/systemone') {
+        const input = JSON.parse(body) as {
+          model: string;
+          state: { candidates: Array<{ option: string; modelId: string }> };
+          questions: Record<string, { type: string; criteria?: Record<string, string> | string[] }>;
+        };
+        fakeRequests.push({
+          path: request.url,
+          model: input.model,
+          authorization: request.headers.authorization,
+          body: input,
+        });
+        const answers = Object.fromEntries(
+          Object.entries(input.questions).map(([id, question]) => {
+            if (question.type === 'noul') return [id, { noul: id === 'needs_review' ? 1 : 0 }];
+            if (question.type === 'score')
+              return [id, { score: 0, probabilities: { '0': 1, '1': 0, '2': 0 }, confidence: 1 }];
+            const keys = Object.keys(question.criteria!);
+            const choice =
+              id === 'model'
+                ? (input.state.candidates.find((candidate) =>
+                    candidate.modelId.endsWith('/good-expensive'),
+                  )?.option ?? keys[0]!)
+                : keys[0]!;
+            return [
+              id,
+              {
+                choice,
+                probabilities: Object.fromEntries(keys.map((key) => [key, key === choice ? 1 : 0])),
+                confidence: 1,
+              },
+            ];
+          }),
+        );
+        response.writeHead(200, { 'content-type': 'application/json' });
+        response.end(
+          JSON.stringify({
+            model: input.model,
+            answers,
+            usage: { input_tokens: 12, output_tokens: 2, cost: 0.002 },
+          }),
+        );
+        return;
+      }
       response.writeHead(404, { 'content-type': 'application/json' });
       response.end(JSON.stringify({ error: { message: 'unknown fake endpoint' } }));
     });
@@ -190,6 +234,139 @@ describe('model registry and adaptive routing integration', () => {
       rmSync(directory, { recursive: true, force: true });
     }
   });
+
+  it.each(['shadow', 'assist'])(
+    'integrates %s decision advice through the broker, runtime, audit and RPC history',
+    async (mode) => {
+      const root = mkdtempSync(path.join(tmpdir(), 'gc-decisions-'));
+      temporaryDirectories.push(root);
+      projectsDirectory = path.join(root, 'projects');
+      mkdirSync(projectsDirectory, { recursive: true });
+      const paths = resolvePaths({ GAMECRAFTER_PROFILE_DIR: path.join(root, 'profile') });
+      service = await startService(paths);
+      client = await connectService(service.socketPath, paths);
+      const project = await client.call('project/create', {
+        name: 'Decision integration',
+        engine: { family: 'godot' },
+        parentDirectory: projectsDirectory,
+        folderName: 'decision-project',
+      });
+      projectId = project.projectId;
+      const baseUrl = await createFakeServer();
+      const cheap = await addAccount(baseUrl, 'Cheap worker', 'cheap');
+      const good = await addAccount(baseUrl, 'Good worker', 'good');
+      const cheapModel = (await client.call('model/discover', { accountId: cheap.accountId }))
+        .models[0]!;
+      const goodModel = (await client.call('model/discover', { accountId: good.accountId }))
+        .models[0]!;
+      const judge = await addAccount(baseUrl, 'Typed judge', 'judge');
+      await client.call('pool/create', {
+        name: 'Bounded worker candidates',
+        scope: 'project',
+        projectId,
+        target: { kind: 'agent', id: 'coordinator' },
+        modelIds: [cheapModel.modelId, goodModel.modelId],
+      });
+      for (const [key, value] of Object.entries({
+        'access.mode': 'full',
+        'models.exploration.rate': 0,
+        'models.autoRouting.quality': 'cost-first',
+        'models.decisions.mode': mode,
+        'models.decisions.accountId': judge.accountId,
+        'models.decisions.model': 'judge-pinned',
+      }))
+        await client.call('settings/set', { projectId, scope: 'project', key, value });
+      scriptedCompletions.push({
+        choices: [
+          {
+            message: {
+              content: '',
+              tool_calls: [
+                {
+                  id: 'done',
+                  type: 'function',
+                  function: {
+                    name: 'tasks/complete',
+                    arguments: JSON.stringify({
+                      summary: 'Done',
+                      artifacts: [],
+                      evidence: [],
+                      claims: [{ kind: 'generated', ref: 'summary' }],
+                    }),
+                  },
+                },
+              ],
+            },
+            finish_reason: 'tool_calls',
+          },
+        ],
+        usage: { prompt_tokens: 20, completion_tokens: 5 },
+      });
+      const created = await client.call('task/create', {
+        projectId,
+        kind: 'agent.run',
+        title: 'Assess a task',
+        goal: 'Review the game build workflow.',
+        role: 'coordinator',
+        contract: { required: ['generated'], validators: [] },
+        input: {},
+      });
+      const task = await waitForAgentTask(created.task.taskId);
+      expect(task.state).toBe('succeeded');
+      const history = await client.call('decisions/history', {
+        schemaVersion: 1,
+        projectId,
+        taskId: task.taskId,
+      });
+      expect(history.assessments).toHaveLength(1);
+      const assessment = history.assessments[0]!;
+      expect(assessment).toMatchObject({
+        schemaVersion: 1,
+        mode,
+        status: 'assessed',
+        taskId: task.taskId,
+        baselineModelId: cheapModel.modelId,
+        suggestedModelId: goodModel.modelId,
+        advice: ['review'],
+        usage: { inputTokens: 12, outputTokens: 2, costUsd: 0.002 },
+      });
+      const decisionRequests = fakeRequests.filter((request) => request.path === '/v1/systemone');
+      expect(decisionRequests).toHaveLength(1);
+      expect(decisionRequests[0]!.authorization).toBe('Bearer fake-judge-api-key');
+      const workerRequest = fakeRequests.find(
+        (request) => request.path === '/v1/chat/completions',
+      )!;
+      expect(workerRequest.model).toBe(mode === 'assist' ? 'good-expensive' : 'cheap-low-quality');
+      const messages = workerRequest.body!.messages as Array<{ content: string }>;
+      expect(messages.some((message) => message.content.includes('Bounded task advice'))).toBe(
+        mode === 'assist',
+      );
+      const audit = await client.call('audit/read', { projectId });
+      expect(audit.modelUsage).toContainEqual(
+        expect.objectContaining({
+          source: 'decision',
+          modelId: 'decision:judge-pinned',
+          inputTokens: 12,
+          outputTokens: 2,
+          costUsd: 0.002,
+          costStatus: 'known',
+        }),
+      );
+      expect(audit.events.some((event) => event.kind === 'decision.assessment')).toBe(true);
+      expect(audit.calls).toContainEqual(
+        expect.objectContaining({
+          toolId: 'decisions/assess',
+          status: 'completed',
+          costUsd: 0.002,
+        }),
+      );
+      expect(task.spent.tokens).toBeGreaterThanOrEqual(39);
+      expect(task.spent.costUsd).toBeGreaterThanOrEqual(0.002);
+      expect(JSON.stringify(assessment)).not.toContain(task.goal);
+      expect(JSON.stringify(assessment)).not.toContain('fake-judge-api-key');
+    },
+    60_000,
+  );
 
   it('routes discovered models without streaming metadata through a chat pool and returns a complete answer', async () => {
     const root = mkdtempSync(path.join(tmpdir(), 'gc-plain-chat-'));

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   RpcErrorCode,
   uuidv7,
@@ -13,6 +13,141 @@ import { estimateRequestTokens, modelContext } from './model-context';
 const timestamp = '2026-09-29T00:00:00.000Z';
 
 describe('agent runtime', () => {
+  it.each(['shadow', 'assist'])(
+    'assesses once, accounts usage, and handles %s advice separately',
+    async (mode) => {
+      const assessmentId = uuidv7();
+      const assess = vi.fn(async () => ({
+        assessmentId,
+        status: 'assessed',
+        mode,
+        reused: false,
+        advice: ['review'],
+        requestedModel: 'judge-pinned',
+        returnedModel: 'judge-pinned',
+        usage: { inputTokens: 20, outputTokens: 4, costUsd: 0.01 },
+      }));
+      const prepares: Record<string, unknown>[] = [];
+      const messages: Array<Array<{ content: string }>> = [];
+      const done = response([
+        {
+          id: 'done',
+          name: 'tasks/complete',
+          arguments: JSON.stringify({ summary: 'Done', artifacts: [], evidence: [], claims: [] }),
+        },
+      ]);
+      const context = createContext([response([], 'Continue'), done], {
+        input: { role: roleSnapshot(), agentSettings: { decisionsEnabled: true } },
+        tool: async (id, args) => {
+          if (id === 'decisions/assess') return assess();
+          if (id === 'model/prepare') prepares.push(args as Record<string, unknown>);
+          if (id === 'model/complete')
+            messages.push(
+              (args as { request: { messages: Array<{ content: string }> } }).request.messages.map(
+                (message) => ({ ...message }),
+              ),
+            );
+        },
+      });
+      context.reportUsage = vi.fn(async () => undefined);
+      await runAgentTask(context);
+      expect(assess).toHaveBeenCalledTimes(1);
+      expect(prepares).toHaveLength(2);
+      expect(
+        prepares.every(
+          (request) => request.assessmentId === assessmentId && request.taskType === 'test',
+        ),
+      ).toBe(true);
+      expect(messages[0]!.some((message) => message.content.includes('Bounded task advice'))).toBe(
+        mode === 'assist',
+      );
+      expect(context.reportUsage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          costUsd: 0.01,
+          tokens: 24,
+          modelId: 'judge-pinned',
+          decisionId: assessmentId,
+        }),
+      );
+    },
+  );
+
+  it('continues with deterministic routing when assessment is denied or fails', async () => {
+    const assess = vi.fn(async () => {
+      throw new Error('Rejected');
+    });
+    const prepare = vi.fn();
+    const context = createContext(
+      [
+        response([
+          {
+            id: 'done',
+            name: 'tasks/complete',
+            arguments: JSON.stringify({ summary: 'Done', artifacts: [], evidence: [], claims: [] }),
+          },
+        ]),
+      ],
+      {
+        input: { role: roleSnapshot(), agentSettings: { decisionsEnabled: true } },
+        tool: async (id) => {
+          if (id === 'decisions/assess') return assess();
+          if (id === 'model/prepare') prepare();
+        },
+      },
+    );
+    await runAgentTask(context);
+    expect(assess).toHaveBeenCalledTimes(1);
+    expect(prepare).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not re-charge a cached assessment and stops if new assessment consumes the task budget', async () => {
+    const prepare = vi.fn();
+    const make = (reused: boolean) =>
+      createContext(
+        [
+          response([
+            {
+              id: 'done',
+              name: 'tasks/complete',
+              arguments: JSON.stringify({
+                summary: 'Done',
+                artifacts: [],
+                evidence: [],
+                claims: [],
+              }),
+            },
+          ]),
+        ],
+        {
+          input: { role: roleSnapshot(), agentSettings: { decisionsEnabled: true } },
+          tool: async (id) => {
+            if (id === 'decisions/assess')
+              return {
+                assessmentId: uuidv7(),
+                mode: 'shadow',
+                status: 'assessed',
+                reused,
+                requestedModel: 'judge',
+                returnedModel: 'judge',
+                usage: { inputTokens: 4, outputTokens: 1, costUsd: 2 },
+              };
+            if (id === 'model/prepare') prepare();
+          },
+        },
+      );
+    await expect(runAgentTask(make(false))).rejects.toMatchObject({
+      code: RpcErrorCode.AgentBudgetExceeded,
+    });
+    expect(prepare).not.toHaveBeenCalled();
+    const cached = make(true);
+    cached.reportUsage = vi.fn(async () => undefined);
+    await runAgentTask(cached);
+    expect(prepare).toHaveBeenCalledTimes(1);
+    expect(cached.reportUsage).not.toHaveBeenCalledWith(
+      expect.objectContaining({ modelId: 'judge' }),
+    );
+  });
+
   it.each([
     { contextWindow: 1_000_000, maxOutputTokens: 100_000 },
     { contextWindow: null, maxOutputTokens: null },

@@ -8,7 +8,7 @@ assert.equal(
   'win32',
   'This installed Unity/Unreal acceptance uses Windows tooling',
 );
-const directory = path.resolve('.turbo/documentation-engines', String(Date.now()));
+const directory = path.resolve('.artifacts/documentation-engines', String(Date.now()));
 fs.mkdirSync(directory, { recursive: true });
 const stages = ['compile-unreal', 'map-unreal', 'tests'];
 const report = {

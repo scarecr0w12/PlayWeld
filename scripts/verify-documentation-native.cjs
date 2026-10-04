@@ -1,9 +1,9 @@
-// Native Godot checks run only on a copy under .turbo; never imports the tracked fixture.
+// Native Godot checks run only on a copy under .artifacts; never imports the tracked fixture.
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const assert = require('node:assert/strict');
-const directory = path.resolve('.turbo/documentation-native', String(Date.now()));
+const directory = path.resolve('.artifacts/documentation-native', String(Date.now()));
 fs.mkdirSync(directory, { recursive: true });
 fs.cpSync(path.resolve('docs/examples/lantern-workshop/game'), path.join(directory, 'game'), {
   recursive: true,

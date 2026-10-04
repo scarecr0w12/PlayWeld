@@ -369,4 +369,21 @@ export const profileMigrations: Migration[] = [
       ALTER TABLE mcp_usage ADD COLUMN cost_status TEXT;
     `,
   },
+  {
+    id: 15,
+    name: 'create bounded decision assessment history',
+    up: `
+      CREATE TABLE decision_assessments (
+        assessment_id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL,
+        task_id TEXT,
+        created_at TEXT NOT NULL,
+        assessment_json TEXT NOT NULL
+      );
+      CREATE INDEX decision_assessments_project_time_idx
+        ON decision_assessments(project_id, created_at DESC);
+      CREATE INDEX decision_assessments_task_time_idx
+        ON decision_assessments(task_id, created_at DESC);
+    `,
+  },
 ];

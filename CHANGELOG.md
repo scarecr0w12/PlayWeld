@@ -6,6 +6,22 @@ Generated from permanent [work records](docs/changes/README.md). Run `npm run ch
 
 No pending work records.
 
+## 0.9.0
+
+### Added
+
+- **Integrate bounded local decision models with tasks and routing** (minor): Integrate independently running typed decision endpoints with PlayWeld task assessment and eligible model selection, using inactive-until-configured shadow defaults, explicit assist mode, durable evidence, and visible usage/history. [Full details and validation](docs/changes/2026-10-04-bounded-decision-model-integration.md).
+
+### Documentation
+
+- **Investigate decision models and local routing systems** (none): Research-only investigation of Jev, local typed decision engines, LLMRouter, comparable model-routing systems, and technical evaluation methods for PlayWeld model selection and task-policy advice. [Full details and validation](docs/changes/2026-10-04-decision-model-routing-research.md).
+
+### Maintenance
+
+- **Bound build-cache growth and separate test artifacts** (none): Exclude Electron release packages from build caching, scope bundled-skill inputs to the service build, and provide conservative cache and artifact retention tooling. [Full details and validation](docs/changes/2026-10-04-build-cache-maintenance.md).
+- **Build and deploy decision assistance locally** (none): Prepare and deploy the user-authorized local 0.9.0 Windows upgrade, then commit and push the decision integration, research and documented cache-maintenance changes. [Full details and validation](docs/changes/2026-10-04-local-0.9.0-deployment.md).
+- **Prepare version 0.9.0** (none): Prepare version 0.9.0 from 0.8.0, retaining all pending work records in the changelog and detailed release notes. [Full details and validation](docs/changes/2026-10-04-release-0.9.0.md).
+
 ## 0.8.0
 
 ### Changed

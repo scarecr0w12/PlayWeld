@@ -4,6 +4,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 import {
   ChatRequestSchema,
   ChatResponseSchema,
+  DecisionAssessmentRequestSchema,
+  DecisionAssessmentSchema,
   ChangeNodeRefSchema,
   RpcError,
   RpcErrorCode,
@@ -13,9 +15,12 @@ import {
   minAccessMode,
   uuidv7,
   type ToolDefinition,
+  type DecisionAssessmentRequest,
+  type RouteRequest,
 } from '@gamecrafter/contracts';
 import { projectRelativePath, resolveProjectPath } from '../assets/path-utils';
 import type { CompletionService, PreparedCompletion } from '../models/completion-service';
+import type { DecisionService } from '../models/decision-service';
 import type { ProfileStore } from '../profile/profile-store';
 import type { RoleRegistry } from '../roles/role-registry';
 import type { TaskService } from '../tasks/task-service';
@@ -28,9 +33,85 @@ export interface AgentToolOptions {
   roles: RoleRegistry;
   projects: ProfileStore;
   locks: LockManager;
+  decisions?: DecisionService;
 }
 
 export function registerAgentTools(registry: ToolRegistry, options: AgentToolOptions): void {
+  if (options.decisions)
+    registry.register(
+      tool(
+        'decisions/assess',
+        'Assess task and model options',
+        'Ask the configured typed decision endpoint for bounded task and model advice. Shadow mode records only; advice never grants permissions or changes the task type.',
+        DecisionAssessmentRequestSchema,
+        'paid',
+        'Typed advisory assessment, probability distributions, and separate usage.',
+        'agent-internal',
+        DecisionAssessmentSchema,
+      ),
+      async (context, input) => {
+        const request = input as DecisionAssessmentRequest;
+        if (
+          request.projectId !== context.projectId ||
+          (request.taskId ?? null) !== context.taskId ||
+          (request.route.projectId !== undefined && request.route.projectId !== context.projectId)
+        )
+          throw new RpcError(
+            'Decision assessment context does not match.',
+            RpcErrorCode.InvalidParams,
+          );
+        const task = context.taskId ? requireTask(options.tasks, context) : undefined;
+        if (
+          task &&
+          ((task.budget.maxTokens !== undefined && task.spent.tokens >= task.budget.maxTokens) ||
+            (task.budget.maxCostUsd !== undefined && task.spent.costUsd >= task.budget.maxCostUsd))
+        )
+          throw new RpcError(
+            'Decision assessment task budget exhausted.',
+            RpcErrorCode.AgentBudgetExceeded,
+          );
+        const roleName = context.agentRole ?? task?.role ?? task?.assignee?.role;
+        const role = roleName ? options.roles.get(roleName, context.projectId) : undefined;
+        const assessment = await options.decisions!.assess(
+          {
+            ...request,
+            summary: task?.goal ?? request.summary,
+            route: task
+              ? {
+                  ...request.route,
+                  projectId: context.projectId,
+                  agentRole: roleName,
+                  taskType: role?.workTypes[0] ?? 'coordination',
+                  requiredCapabilities: [
+                    ...new Set([
+                      ...(request.route.requiredCapabilities ?? []),
+                      'chat' as const,
+                      'tools' as const,
+                    ]),
+                  ],
+                }
+              : request.route,
+          },
+          context.signal,
+        );
+        if (task && !assessment.reused)
+          options.tasks
+            .runtime(context.projectId)
+            .store.appendEvent(task.taskId, 'decision.assessment', assessment, 'service');
+        return {
+          output: assessment,
+          costUsd:
+            assessment.reused || assessment.status === 'disabled' ? 0 : assessment.usage.costUsd,
+          costStatus:
+            assessment.reused || assessment.status === 'disabled'
+              ? ('known' as const)
+              : assessment.usage.costUsd === null
+                ? ('unknown' as const)
+                : ('known' as const),
+          evidence: [{ kind: 'decision-assessment', ref: assessment.assessmentId }],
+        };
+      },
+    );
   const selections = new Map<
     string,
     { projectId: string; requestId: string; selectionId: string; prepared: PreparedCompletion }
@@ -42,7 +123,11 @@ export function registerAgentTools(registry: ToolRegistry, options: AgentToolOpt
       'Select the eligible model for this turn and read its actual context/output capacities without making a provider completion.',
       {
         type: 'object',
-        properties: { requestId: { type: 'string' }, taskType: { type: 'string' } },
+        properties: {
+          requestId: { type: 'string' },
+          taskType: { type: 'string' },
+          assessmentId: { type: 'string', format: 'uuid' },
+        },
         required: ['requestId'],
         additionalProperties: false,
       },
@@ -66,14 +151,22 @@ export function registerAgentTools(registry: ToolRegistry, options: AgentToolOpt
           selections.delete(taskId);
         }
       }
-      const prepared = options.completion.prepare({
+      const route: RouteRequest = {
         projectId: context.projectId,
+        requiredCapabilities: ['chat', 'tools'],
         agentRole: roleName,
         taskType:
           stringValue(args.taskType) ??
           options.roles.get(roleName, context.projectId).workTypes[0] ??
           'coordination',
-      });
+      };
+      const advice = options.decisions?.routingAdvice(
+        stringValue(args.assessmentId),
+        context.projectId,
+        task.taskId,
+        route,
+      );
+      const prepared = options.completion.prepare(route, undefined, advice);
       const selectionId = uuidv7();
       selections.set(task.taskId, {
         projectId: context.projectId,

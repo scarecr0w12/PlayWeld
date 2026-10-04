@@ -17,7 +17,7 @@ async function freePort() {
   return port;
 }
 async function main() {
-  const directory = path.resolve('.turbo/documentation-electron', String(Date.now()));
+  const directory = path.resolve('.artifacts/documentation-electron', String(Date.now()));
   fs.mkdirSync(directory, { recursive: true });
   const paths = resolvePaths({
     ...process.env,

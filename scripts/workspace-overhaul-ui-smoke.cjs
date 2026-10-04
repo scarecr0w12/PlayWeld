@@ -11,7 +11,7 @@ const { connect } = require('@gamecrafter/service-client');
 
 async function main() {
   const { default: puppeteer } = await import('puppeteer');
-  const directory = path.resolve('.turbo', 'workspace-overhaul-ui', String(Date.now()));
+  const directory = path.resolve('.artifacts', 'workspace-overhaul-ui', String(Date.now()));
   fs.mkdirSync(directory, { recursive: true });
   const version = require('../packages/platform-service/package.json').version;
   const paths = resolvePaths({ ...process.env, GAMECRAFTER_PROFILE_DIR: path.join(directory, 'profile') });

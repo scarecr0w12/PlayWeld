@@ -28,7 +28,8 @@ describe('profile migrations', () => {
       expect(tables).toContain('backup_runs');
       expect(tables).toContain('dcc_installations');
       expect(tables).toContain('update_states');
-      expect(database.prepare('SELECT id FROM schema_migrations').all()).toHaveLength(14);
+      expect(tables).toContain('decision_assessments');
+      expect(database.prepare('SELECT id FROM schema_migrations').all()).toHaveLength(15);
       expect(
         database
           .prepare('PRAGMA table_info(model_usage)')

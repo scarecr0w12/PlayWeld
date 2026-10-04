@@ -8,7 +8,7 @@ const { resolvePaths } = require('../packages/platform-service/lib/paths');
 const { connect } = require('@gamecrafter/service-client');
 const { RpcErrorCode } = require('@gamecrafter/contracts');
 async function main() {
-  const directory = path.resolve('.turbo/documentation-examples', String(Date.now()));
+  const directory = path.resolve('.artifacts/documentation-examples', String(Date.now()));
   const paths = resolvePaths({
     ...process.env,
     GAMECRAFTER_PROFILE_DIR: path.join(directory, 'profile'),

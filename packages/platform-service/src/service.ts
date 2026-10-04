@@ -47,6 +47,7 @@ import {
 import { WorkerSupervisor, type WorkerScheduleSnapshot } from './workers/supervisor';
 import { log } from './logger';
 import { CompletionService } from './models/completion-service';
+import { DecisionService } from './models/decision-service';
 import { ModelRegistry } from './models/model-registry';
 import { ModelRouter } from './models/router';
 import { createBuiltinModelProviders } from './models/providers';
@@ -182,6 +183,12 @@ export class PlatformService {
       settings: settingsService,
     });
     const completionService = new CompletionService(modelRegistry, modelRouter);
+    const decisionService = new DecisionService({
+      database,
+      settings: settingsService,
+      registry: modelRegistry,
+      router: modelRouter,
+    });
     const chatService = new ChatService(projectDatabases);
     const pluginInstaller = new PluginInstaller({
       database,
@@ -265,6 +272,7 @@ export class PlatformService {
       roles: roleRegistry,
       projects: profile,
       locks: lockManager,
+      decisions: decisionService,
     });
     const toolBroker = new ToolBroker({
       registry: toolRegistry,
@@ -767,6 +775,32 @@ export class PlatformService {
         return { removed: true };
       },
       'router/route': (request, context) => modelRouter.route(request, context.sessionId),
+      'decisions/assess': async (request, context) => {
+        const call = await toolBroker.call(
+          {
+            projectId: request.projectId,
+            taskId: request.taskId,
+            toolId: 'decisions/assess',
+            input: request,
+          },
+          { sessionId: context.sessionId },
+        );
+        if (call.status !== 'completed')
+          throw new RpcError(
+            'Decision assessment was not completed.',
+            RpcErrorCode.ProviderRequestFailed,
+          );
+        return call.output as import('@gamecrafter/contracts').DecisionAssessment;
+      },
+      'decisions/history': ({ projectId, taskId, limit }) => {
+        if (!profile.getById(projectId))
+          throw new RpcError('Project not found.', RpcErrorCode.ProjectNotFound);
+        if (taskId) taskService.get(projectId, taskId);
+        return {
+          schemaVersion: 1 as const,
+          assessments: decisionService.history(projectId, taskId, limit),
+        };
+      },
       'router/reportOutcome': (outcome) => {
         modelRouter.reportOutcome(outcome);
         return { recorded: true };

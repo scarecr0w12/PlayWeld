@@ -5,6 +5,7 @@ import {
   type Model,
   type ModelPool,
   type ModelUsageRecord,
+  type DecisionAssessment,
   type RouteCandidate,
   type RouteDecision,
   type RouteOutcome,
@@ -67,7 +68,16 @@ export class ModelRouter {
     this.random = options.random ?? Math.random;
   }
 
-  route(request: RouteRequest, sessionId?: string): RouteDecision {
+  preview(request: RouteRequest, sessionId?: string): RouteDecision {
+    return this.route(request, sessionId, undefined, true);
+  }
+
+  route(
+    request: RouteRequest,
+    sessionId?: string,
+    advice?: { modelId: string; assessmentId: string },
+    preview = false,
+  ): RouteDecision {
     const enabledModels = this.options.registry.listModels({ enabledOnly: true });
     let eligible = enabledModels;
     if (eligible.length === 0) {
@@ -156,7 +166,17 @@ export class ModelRouter {
     scored.sort(compareCandidates);
     let winner = scored[0]!;
     let explored = false;
-    if (!request.manualModelId && this.shouldExplore(request.projectId, sessionId)) {
+    const advised =
+      !request.manualModelId && advice
+        ? scored.find((candidate) => candidate.modelId === advice.modelId)
+        : undefined;
+    if (advised) winner = advised;
+    if (
+      !preview &&
+      !request.manualModelId &&
+      !advised &&
+      this.shouldExplore(request.projectId, sessionId)
+    ) {
       const remainingBudget = this.remainingExplorationBudget(request.projectId, sessionId);
       const affordable = scored.filter(
         (candidate) =>
@@ -178,15 +198,23 @@ export class ModelRouter {
     const decision: RouteDecision = {
       decisionId: uuidv7(),
       modelId: winner.modelId,
-      reason: this.decisionReason(
-        winner,
-        qualityPolicy,
-        request,
-        poolResult.noPoolsConfigured,
-        explored,
-      ),
+      reason:
+        this.decisionReason(
+          winner,
+          qualityPolicy,
+          request,
+          poolResult.noPoolsConfigured,
+          explored,
+        ) +
+        (advised
+          ? `; bounded decision advice ${advice!.assessmentId}`
+          : advice && !request.manualModelId
+            ? '; decision advice ineligible; retained router policy'
+            : ''),
       explored,
-      policyVersion: ROUTER_POLICY_VERSION,
+      policyVersion: advised
+        ? `${ROUTER_POLICY_VERSION}+decision-advice-v1`
+        : ROUTER_POLICY_VERSION,
       candidates: scored.map(
         ({
           modelId,
@@ -214,7 +242,7 @@ export class ModelRouter {
       },
       decidedAt,
     };
-    this.persistDecision(decision);
+    if (!preview) this.persistDecision(decision);
     return decision;
   }
 
@@ -275,7 +303,9 @@ export class ModelRouter {
     });
   }
 
-  recordModelUsage(record: ModelUsageRecord & { projectId: string | null }): void {
+  recordModelUsage(
+    record: Extract<ModelUsageRecord, { source: 'completion' }> & { projectId: string | null },
+  ): void {
     this.options.database
       .prepare(
         `INSERT INTO model_usage (
@@ -380,7 +410,36 @@ export class ModelRouter {
         costUsd: null,
         costStatus: 'unverified' as const,
       }));
-    return [...current, ...legacy]
+    const decisionUsage: ModelUsageRecord[] = this.options.database
+      .prepare(
+        'SELECT assessment_json AS assessment FROM decision_assessments WHERE project_id = ? ORDER BY created_at DESC, assessment_id DESC LIMIT ?',
+      )
+      .all<{ assessment: string }>(projectId, limit)
+      .map((row) => JSON.parse(row.assessment) as DecisionAssessment)
+      .filter(
+        (entry) =>
+          entry.status === 'assessed' ||
+          entry.reasonCodes.includes('decision-request-failed') ||
+          entry.reasonCodes.includes('assessment-cancelled'),
+      )
+      .map((entry) => ({
+        usageId: entry.assessmentId,
+        requestId: `decision:${entry.assessmentId}`,
+        taskId: entry.taskId,
+        decisionId: null,
+        modelId: `decision:${entry.requestedModel}`,
+        modelName: `Decision: ${entry.returnedModel ?? entry.requestedModel}`,
+        providerModelId: entry.returnedModel ?? entry.requestedModel,
+        occurredAt: entry.createdAt,
+        source: 'decision',
+        inputTokens: entry.usage.inputTokens,
+        outputTokens: entry.usage.outputTokens,
+        cacheReadInputTokens: null,
+        cacheCreationInputTokens: null,
+        costUsd: entry.usage.costUsd,
+        costStatus: entry.usage.costUsd === null ? 'unknown' : 'known',
+      }));
+    return [...current, ...legacy, ...decisionUsage]
       .sort(
         (left, right) =>
           right.occurredAt.localeCompare(left.occurredAt) ||

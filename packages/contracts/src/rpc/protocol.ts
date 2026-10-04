@@ -91,6 +91,8 @@ import {
   ModelSchema,
   ModelUsageSchema,
   ModelUsageRecordSchema,
+  DecisionAssessmentRequestSchema,
+  DecisionAssessmentSchema,
   ProviderAccountSchema,
   ProviderKindSchema,
   RouteDecisionSchema,
@@ -1411,6 +1413,22 @@ export const RpcMethods = {
     result: Type.Object({ removed: Type.Literal(true) }, { additionalProperties: false }),
   },
   'router/route': { params: RouteRequestSchema, result: RouteDecisionSchema },
+  'decisions/assess': { params: DecisionAssessmentRequestSchema, result: DecisionAssessmentSchema },
+  'decisions/history': {
+    params: Type.Object(
+      {
+        schemaVersion: Type.Literal(1),
+        projectId: Type.String({ format: 'uuid' }),
+        taskId: Type.Optional(Type.String({ format: 'uuid' })),
+        limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 200 })),
+      },
+      { additionalProperties: false },
+    ),
+    result: Type.Object(
+      { schemaVersion: Type.Literal(1), assessments: Type.Array(DecisionAssessmentSchema) },
+      { additionalProperties: false },
+    ),
+  },
   'router/reportOutcome': {
     params: RouteOutcomeSchema,
     result: Type.Object({ recorded: Type.Literal(true) }, { additionalProperties: false }),

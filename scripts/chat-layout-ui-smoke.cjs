@@ -14,7 +14,7 @@ async function main() {
   const { default: puppeteer } = await import('puppeteer');
   const desktop = process.argv.includes('--electron');
   const directory = path.resolve(
-    '.turbo',
+    '.artifacts',
     'chat-layout-ui',
     `${desktop ? 'electron' : 'browser'}-${Date.now()}`,
   );

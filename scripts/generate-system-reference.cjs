@@ -45,7 +45,7 @@ function safe(s) {
 const out = [
   '# PlayWeld RPC API reference',
   '',
-  '**Last updated:** 2026-10-02',
+  '**Last updated:** 2026-10-04',
   '',
   '**Source:** Generated from the built contract method table by [generate-system-reference.cjs](../scripts/generate-system-reference.cjs). Rebuild packages before regeneration. This is the internal local service API, not an HTTP REST API.',
   '',
@@ -119,7 +119,7 @@ const settings = createBuiltinSettings();
 const lines = [
   '# PlayWeld settings reference',
   '',
-  '**Last updated:** 2026-10-02',
+  '**Last updated:** 2026-10-04',
   '',
   '**Source:** Generated builtin settings from [definitions.ts](../packages/platform-service/src/settings/definitions.ts). Plugin contributions extend this catalog at runtime. Full value schemas are in [settings-schemas.json](reference/settings-schemas.json).',
   '',

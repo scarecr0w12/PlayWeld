@@ -1,5 +1,6 @@
 import type {
   AccessMode,
+  DecisionAssessment,
   ApprovalRequest,
   ChangeRequest,
   ChatConversation,
@@ -212,6 +213,11 @@ export interface ControlRoomService {
     projectId?: string,
     limit?: number,
   ): Promise<Array<{ decision: RouteDecision; outcome: RouteOutcome | null }>>;
+  listDecisionAssessments(
+    projectId: string,
+    taskId?: string,
+    limit?: number,
+  ): Promise<DecisionAssessment[]>;
   routerStats(taskType?: string): Promise<{
     models: Array<{
       modelId: string;

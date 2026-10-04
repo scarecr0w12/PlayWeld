@@ -184,12 +184,24 @@ export class AuditWidget extends ControlRoomReactWidget {
                   </small>
                 </div>
                 <div>
-                  <dt>Recorded input / output tokens</dt>
+                  <dt>Known input / output tokens</dt>
                   <dd>
-                    {usage.reduce((sum, entry) => sum + entry.inputTokens, 0).toLocaleString()} /{' '}
-                    {usage.reduce((sum, entry) => sum + entry.outputTokens, 0).toLocaleString()}
+                    {usage
+                      .reduce((sum, entry) => sum + (entry.inputTokens ?? 0), 0)
+                      .toLocaleString()}{' '}
+                    /{' '}
+                    {usage
+                      .reduce((sum, entry) => sum + (entry.outputTokens ?? 0), 0)
+                      .toLocaleString()}
                   </dd>
-                  <small>Cache counts shown per request</small>
+                  <small>
+                    {
+                      usage.filter(
+                        (entry) => entry.inputTokens === null || entry.outputTokens === null,
+                      ).length
+                    }{' '}
+                    request(s) have incomplete token counts. Cache counts shown per request.
+                  </small>
                 </div>
                 <div>
                   <dt>Fully priced requests</dt>
@@ -224,8 +236,8 @@ export class AuditWidget extends ControlRoomReactWidget {
                       >
                         <strong>{entry.modelName ?? entry.providerModelId ?? entry.modelId}</strong>
                         <span>
-                          {entry.source} / {entry.inputTokens.toLocaleString()} in,{' '}
-                          {entry.outputTokens.toLocaleString()} out
+                          {entry.source} / {entry.inputTokens?.toLocaleString() ?? 'Unknown'} in,{' '}
+                          {entry.outputTokens?.toLocaleString() ?? 'Unknown'} out
                         </span>
                         <span className={`gamecrafter-audit-cost is-${entry.costStatus}`}>
                           {costStatusLabel(entry.costUsd, entry.costStatus)}
@@ -277,15 +289,15 @@ export class AuditWidget extends ControlRoomReactWidget {
                         <div>
                           <dt>Input / output tokens</dt>
                           <dd>
-                            {selectedUsage.inputTokens.toLocaleString()} /{' '}
-                            {selectedUsage.outputTokens.toLocaleString()}
+                            {selectedUsage.inputTokens?.toLocaleString() ?? 'Unknown'} /{' '}
+                            {selectedUsage.outputTokens?.toLocaleString() ?? 'Unknown'}
                           </dd>
                         </div>
                         <div>
                           <dt>Cache read / creation tokens</dt>
                           <dd>
-                            {(selectedUsage.cacheReadInputTokens ?? 0).toLocaleString()} /{' '}
-                            {(selectedUsage.cacheCreationInputTokens ?? 0).toLocaleString()}
+                            {selectedUsage.cacheReadInputTokens?.toLocaleString() ?? 'Unknown'} /{' '}
+                            {selectedUsage.cacheCreationInputTokens?.toLocaleString() ?? 'Unknown'}
                           </dd>
                         </div>
                         <div>

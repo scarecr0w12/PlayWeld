@@ -1,6 +1,6 @@
 # PlayWeld settings reference
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-04
 
 **Source:** Generated builtin settings from [definitions.ts](../packages/platform-service/src/settings/definitions.ts). Plugin contributions extend this catalog at runtime. Full value schemas are in [settings-schemas.json](reference/settings-schemas.json).
 
@@ -39,13 +39,21 @@ Agent delegation and skill behavior.
 
 Model selection and task budgets.
 
-| Key                                  | Default           | Scopes                     | Purpose                                                                    |
-| ------------------------------------ | ----------------- | -------------------------- | -------------------------------------------------------------------------- |
-| `models.autoRouting.quality`         | `"quality-first"` | platform, project, session | Select the quality, balance, or cost priority for automatic model routing. |
-| `models.autoRouting.maxLatencyMs`    | `0`               | platform, project, session | Set zero for no maximum latency constraint.                                |
-| `models.exploration.rate`            | `0.1`             | platform, project          | Probability of exploring a less-observed eligible model.                   |
-| `models.exploration.budgetUsdPerDay` | `1`               | platform, project          | Maximum daily spend on exploration picks.                                  |
-| `models.budget.maxCostPerTaskUsd`    | `5`               | platform, project, session | Maximum model spend allowed for a single task.                             |
+| Key                                  | Default           | Scopes                     | Purpose                                                                                                                                                                                           |
+| ------------------------------------ | ----------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `models.autoRouting.quality`         | `"quality-first"` | platform, project, session | Select the quality, balance, or cost priority for automatic model routing.                                                                                                                        |
+| `models.decisions.mode`              | `"shadow"`        | platform, project          | Off makes no calls. Shadow records task and model advice without changing dispatch. Assist uses confident advice inside the existing eligible model pool; never changes task type or permissions. |
+| `models.decisions.accountId`         | `""`              | platform, project          | Provider account ID for an independently running typed decision server. Empty disables assessment. Credentials remain in the provider credential store.                                           |
+| `models.decisions.model`             | `""`              | platform, project          | Explicit server model identifier; this judge is never Auto-routed. Pin a model revision when probability thresholds depend on it.                                                                 |
+| `models.decisions.protocol`          | `"systemone"`     | platform, project          | System One targets local Kev/Laya-compatible /v1/systemone. OpenRouter Decisions targets /api/alpha/decisions.                                                                                    |
+| `models.decisions.allowRemote`       | `false`           | platform, project          | Explicitly permit non-loopback HTTPS decision endpoints. Task summaries and eligible candidate metadata leave this machine; a privacy judge cannot undo that disclosure.                          |
+| `models.decisions.timeoutMs`         | `3000`            | platform, project          | Deadline for the complete decision response. Failure keeps deterministic routing; no automatic retry.                                                                                             |
+| `models.decisions.minProbability`    | `0.9`             | platform, project          | Minimum selected-option or yes probability for advice. Not the provider confidence field and not a calibration guarantee. Evaluate on your own tasks.                                             |
+| `models.decisions.minMargin`         | `0.2`             | platform, project          | Minimum selected-option probability minus the runner-up for an assisted model recommendation. Permissions, candidate eligibility, manual choice, and budget filters remain authoritative.         |
+| `models.autoRouting.maxLatencyMs`    | `0`               | platform, project, session | Set zero for no maximum latency constraint.                                                                                                                                                       |
+| `models.exploration.rate`            | `0.1`             | platform, project          | Probability of exploring a less-observed eligible model.                                                                                                                                          |
+| `models.exploration.budgetUsdPerDay` | `1`               | platform, project          | Maximum daily spend on exploration picks.                                                                                                                                                         |
+| `models.budget.maxCostPerTaskUsd`    | `5`               | platform, project, session | Maximum model spend allowed for a single task.                                                                                                                                                    |
 
 ## Engine, asset & tool connections
 

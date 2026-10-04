@@ -193,6 +193,26 @@
       "evidence": "Source/schema inventory; test paths are discoverability, not a claim that these tests passed. See DOCUMENTATION_COVERAGE.md for live results and gaps."
     },
     {
+      "family": "decisions",
+      "guide": "USER_GUIDE.md",
+      "methods": [
+        "decisions/assess",
+        "decisions/history"
+      ],
+      "implementation": "packages/platform-service/src/models",
+      "tests": [
+        "packages/platform-service/src/models/completion-service.test.ts",
+        "packages/platform-service/src/models/decision-provider.test.ts",
+        "packages/platform-service/src/models/decision-service.test.ts",
+        "packages/platform-service/src/models/model-registry.test.ts",
+        "packages/platform-service/src/models/models.integration.test.ts",
+        "packages/platform-service/src/models/providers/http-utils.test.ts",
+        "packages/platform-service/src/models/providers/providers.test.ts",
+        "packages/platform-service/src/models/router.test.ts"
+      ],
+      "evidence": "Source/schema inventory; test paths are discoverability, not a claim that these tests passed. See DOCUMENTATION_COVERAGE.md for live results and gaps."
+    },
+    {
       "family": "engine",
       "guide": "INTEGRATION_GUIDE.md",
       "methods": [
@@ -293,6 +313,8 @@
       "implementation": "packages/platform-service/src/models",
       "tests": [
         "packages/platform-service/src/models/completion-service.test.ts",
+        "packages/platform-service/src/models/decision-provider.test.ts",
+        "packages/platform-service/src/models/decision-service.test.ts",
         "packages/platform-service/src/models/model-registry.test.ts",
         "packages/platform-service/src/models/models.integration.test.ts",
         "packages/platform-service/src/models/providers/http-utils.test.ts",
@@ -341,6 +363,8 @@
       "implementation": "packages/platform-service/src/models",
       "tests": [
         "packages/platform-service/src/models/completion-service.test.ts",
+        "packages/platform-service/src/models/decision-provider.test.ts",
+        "packages/platform-service/src/models/decision-service.test.ts",
         "packages/platform-service/src/models/model-registry.test.ts",
         "packages/platform-service/src/models/models.integration.test.ts",
         "packages/platform-service/src/models/providers/http-utils.test.ts",
@@ -379,6 +403,8 @@
       "implementation": "packages/platform-service/src/models",
       "tests": [
         "packages/platform-service/src/models/completion-service.test.ts",
+        "packages/platform-service/src/models/decision-provider.test.ts",
+        "packages/platform-service/src/models/decision-service.test.ts",
         "packages/platform-service/src/models/model-registry.test.ts",
         "packages/platform-service/src/models/models.integration.test.ts",
         "packages/platform-service/src/models/providers/http-utils.test.ts",
@@ -413,6 +439,8 @@
       "implementation": "packages/platform-service/src/models",
       "tests": [
         "packages/platform-service/src/models/completion-service.test.ts",
+        "packages/platform-service/src/models/decision-provider.test.ts",
+        "packages/platform-service/src/models/decision-service.test.ts",
         "packages/platform-service/src/models/model-registry.test.ts",
         "packages/platform-service/src/models/models.integration.test.ts",
         "packages/platform-service/src/models/providers/http-utils.test.ts",
@@ -617,6 +645,14 @@
         "models.autoRouting.maxLatencyMs",
         "models.autoRouting.quality",
         "models.budget.maxCostPerTaskUsd",
+        "models.decisions.accountId",
+        "models.decisions.allowRemote",
+        "models.decisions.minMargin",
+        "models.decisions.minProbability",
+        "models.decisions.mode",
+        "models.decisions.model",
+        "models.decisions.protocol",
+        "models.decisions.timeoutMs",
         "models.exploration.budgetUsdPerDay",
         "models.exploration.rate"
       ]
@@ -932,6 +968,8 @@
       "implementation": "packages/platform-service/src/models",
       "tests": [
         "packages/platform-service/src/models/completion-service.test.ts",
+        "packages/platform-service/src/models/decision-provider.test.ts",
+        "packages/platform-service/src/models/decision-service.test.ts",
         "packages/platform-service/src/models/model-registry.test.ts",
         "packages/platform-service/src/models/models.integration.test.ts",
         "packages/platform-service/src/models/providers/http-utils.test.ts",

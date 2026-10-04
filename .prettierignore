@@ -5,6 +5,7 @@ lib/
 dist/
 coverage/
 .turbo/
+.artifacts/
 .browser_modules/
 package-lock.json
 *.tsbuildinfo

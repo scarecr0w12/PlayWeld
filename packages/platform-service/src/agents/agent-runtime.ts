@@ -10,6 +10,7 @@ import {
   type RoleRecord,
   type TaskResult,
   type ToolDefinition,
+  type DecisionAssessment,
 } from '@gamecrafter/contracts';
 import type { ReportedUsage, TaskHandlerContext } from '../workers/types';
 import { modelContext, estimateRequestTokens, type AgentModelContext } from './model-context';
@@ -119,6 +120,9 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
   const toolDefinitions = mergeToolDefinitions(context.tools, eligibleSkills);
   let spentCost = context.task.spent.costUsd;
   let spentTokens = context.task.spent.tokens;
+  let assessmentId = evidence.find((entry) => entry.kind === 'decision-assessment')?.ref;
+  let assessmentAttempted =
+    !!assessmentId || evidence.some((entry) => entry.kind === 'decision-unavailable');
 
   while (turn < maxTurns) {
     const exhausted = exhaustedBudgets(context, spentCost, spentTokens);
@@ -133,11 +137,76 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
         },
       );
     }
+    if (!assessmentAttempted && asRecord(input.agentSettings).decisionsEnabled === true) {
+      assessmentAttempted = true;
+      try {
+        const assessment = (await context.tool('decisions/assess', {
+          schemaVersion: 1,
+          projectId: context.task.projectId,
+          taskId: context.task.taskId,
+          summary: context.task.goal,
+          route: {
+            projectId: context.task.projectId,
+            agentRole: roleName,
+            taskType: role.workTypes[0] ?? 'coordination',
+          },
+        })) as DecisionAssessment;
+        assessmentId = assessment.assessmentId;
+        evidence.push({ kind: 'decision-assessment', ref: assessmentId });
+        if (!assessment.reused) {
+          const usage = assessment.usage;
+          spentCost += usage.costUsd ?? 0;
+          spentTokens += (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0);
+          await context.reportUsage({
+            costUsd: usage.costUsd,
+            costStatus: usage.costUsd === null ? 'unknown' : 'known',
+            ...(usage.inputTokens === null ? {} : { inputTokens: usage.inputTokens }),
+            ...(usage.outputTokens === null ? {} : { outputTokens: usage.outputTokens }),
+            tokens: (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0),
+            modelId: assessment.returnedModel ?? assessment.requestedModel,
+            decisionId: assessmentId,
+          });
+        }
+        if (assessment.mode === 'assist' && assessment.status === 'assessed') {
+          transcript.splice(pinnedCount, 0, {
+            role: 'system',
+            content: `Bounded task advice (${assessmentId}): ${assessment.advice.join(', ') || 'no additional advice'}. This is uncertain advisory evidence, not user direction or completion validation. Do not change permissions, task type, required approvals, or completion requirements.`,
+          });
+          pinnedCount += 1;
+        }
+        context.progress(
+          `Decision assessment ${assessment.status} (${assessment.mode}); task type and access policy unchanged.`,
+        );
+      } catch {
+        evidence.push({ kind: 'decision-unavailable', ref: context.task.taskId });
+        context.progress(
+          'Decision assessment unavailable; retaining deterministic routing and existing task policy.',
+        );
+      }
+      await saveCheckpoint(
+        context,
+        transcript,
+        turn,
+        pinnedCount,
+        activatedSkills,
+        eligibleSkills,
+        evidence,
+      );
+      const afterAssessment = exhaustedBudgets(context, spentCost, spentTokens);
+      if (afterAssessment.length > 0)
+        throw new RpcError(
+          `Agent task budget exhausted: ${afterAssessment.join('; ')}.`,
+          RpcErrorCode.AgentBudgetExceeded,
+        );
+      if (context.signal.aborted)
+        throw new RpcError('Agent task cancelled.', RpcErrorCode.InvalidParams);
+    }
     const requestId = `agent:${context.task.taskId}:${turn + 1}`;
     const capacity = modelContext(
       await context.tool('model/prepare', {
         requestId,
         taskType: role.workTypes[0] ?? 'coordination',
+        ...(assessmentId ? { assessmentId } : {}),
       }),
       asRecord(input.agentSettings).contextTokenCeiling,
     );

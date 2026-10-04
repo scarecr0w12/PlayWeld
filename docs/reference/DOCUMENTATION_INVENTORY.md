@@ -2,7 +2,7 @@
 
 Generated from built contracts, built setting definitions, and service source paths. Regenerate with `node scripts/generate-documentation-inventory.cjs`; check freshness with `--check`. Counts do not establish acceptance. The [coverage record](../DOCUMENTATION_COVERAGE.md) owns gaps and observed results.
 
-Request methods: **186**; notifications: **28**; settings: **77**; setting groups: **17**. Full names and test paths are in [the JSON inventory](documentation-inventory.json).
+Request methods: **188**; notifications: **28**; settings: **85**; setting groups: **17**. Full names and test paths are in [the JSON inventory](documentation-inventory.json).
 
 ## RPC families
 
@@ -16,6 +16,7 @@ Request methods: **186**; notifications: **28**; settings: **77**; setting group
 | change | 11 | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/change/) |
 | chat | 5 | [Guide](../WORKED_TUTORIAL.md) | [Source](../../packages/platform-service/src/chat/) |
 | dcc | 8 | [Guide](../INTEGRATION_GUIDE.md) | [Source](../../packages/platform-service/src/dcc/) |
+| decisions | 2 | [Guide](../USER_GUIDE.md) | [Source](../../packages/platform-service/src/models/) |
 | engine | 8 | [Guide](../INTEGRATION_GUIDE.md) | [Source](../../packages/platform-service/src/engines/) |
 | knowledge | 11 | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/knowledge/) |
 | mcp | 11 | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/mcp/) |
@@ -41,7 +42,7 @@ Request methods: **186**; notifications: **28**; settings: **77**; setting group
 | general: General & background behaviour | 1 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
 | projects: Projects, genres & modules | 1 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
 | agents: Agents, swarms & skills | 4 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
-| models: Model providers & routing | 5 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
+| models: Model providers & routing | 13 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
 | connections: Engine, asset & tool connections | 2 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
 | access: Access & security | 4 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
 | board: Discussion board | 6 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
@@ -72,7 +73,7 @@ Request methods: **186**; notifications: **28**; settings: **77**; setting group
 | ipc | [Guide](../SERVICE_RECIPES.md) | [Source](../../packages/platform-service/src/ipc/) | 3 |
 | knowledge | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/knowledge/) | 11 |
 | mcp | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/mcp/) | 13 |
-| models | [Guide](../USER_GUIDE.md) | [Source](../../packages/platform-service/src/models/) | 6 |
+| models | [Guide](../USER_GUIDE.md) | [Source](../../packages/platform-service/src/models/) | 8 |
 | plugins | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/plugins/) | 4 |
 | processes | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/processes/) | 1 |
 | profile | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/profile/) | 2 |

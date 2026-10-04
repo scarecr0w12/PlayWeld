@@ -60,6 +60,27 @@ function widget() {
 }
 
 describe('Audit cost visibility', () => {
+  it('shows decision inference with unknown tokens and cache counts without inventing zeroes', () => {
+    const view = widget();
+    view.snapshot.modelUsage = [
+      {
+        ...view.snapshot.modelUsage[0],
+        source: 'decision',
+        modelId: 'decision:local-judge',
+        inputTokens: null,
+        outputTokens: null,
+        cacheReadInputTokens: null,
+        cacheCreationInputTokens: null,
+        costUsd: null,
+        costStatus: 'unknown',
+      },
+    ];
+    const html = renderToStaticMarkup(view.render());
+    expect(html).toContain('decision:local-judge');
+    expect(html).toContain('decision / Unknown in');
+    expect(html).toContain('1 request(s) have incomplete token counts');
+    expect(html).toContain('Pricing unavailable');
+  });
   it('summarizes only matching model usage, not a duplicate linked tool charge', () => {
     const view = widget();
     view.query = 'request-1';

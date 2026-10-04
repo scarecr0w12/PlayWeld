@@ -12,7 +12,7 @@ const { connect } = require('@gamecrafter/service-client');
 
 async function main() {
   const { default: puppeteer } = await import('puppeteer');
-  const directory = path.resolve('.turbo', 'settings-models-ui', String(Date.now()));
+  const directory = path.resolve('.artifacts', 'settings-models-ui', String(Date.now()));
   fs.mkdirSync(directory, { recursive: true });
   const paths = resolvePaths({
     ...process.env,

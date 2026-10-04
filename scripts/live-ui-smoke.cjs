@@ -62,7 +62,7 @@ async function inputStep(page, step, value) {
 async function trustSmokeProject(page) {
   if (!await page.$('.workspace-trust-dialog')) return;
   const folders = await page.$$eval('.workspace-trust-folder-list li', (nodes) => nodes.map((node) => node.textContent.trim()));
-  const parent = path.resolve('.turbo', 'live-projects');
+  const parent = path.resolve('.artifacts', 'live-projects');
   assert(folders.length > 0, 'Workspace trust prompt must identify its folders');
   for (const folder of folders) {
     const relative = path.relative(parent, folder);
@@ -77,7 +77,7 @@ async function main() {
   const { default: puppeteer } = await import('puppeteer');
   const desktop = process.argv.includes('--electron');
   const target = process.env.GAMECRAFTER_SMOKE_URL ?? 'http://127.0.0.1:3000';
-  const directory = path.resolve(process.env.GAMECRAFTER_SMOKE_ARTIFACT_DIR ?? path.join('.turbo', desktop ? 'live-electron' : 'live-browser'));
+  const directory = path.resolve(process.env.GAMECRAFTER_SMOKE_ARTIFACT_DIR ?? path.join('.artifacts', desktop ? 'live-electron' : 'live-browser'));
   fs.mkdirSync(directory, { recursive: true });
   const browser = desktop
     ? await connectDesktop(puppeteer)
@@ -112,7 +112,7 @@ async function main() {
     await inputStep(page, 2, 'Created by the repeatable live UI smoke test');
     await inputStep(page, 3, 'Godot');
     await inputStep(page, 4, 'Adventure');
-    await inputStep(page, 5, path.resolve('.turbo', 'live-projects'));
+    await inputStep(page, 5, path.resolve('.artifacts', 'live-projects'));
     await waitForUi(page, () => document.querySelector('.quick-input-title')?.textContent.includes('(6/6)'));
     await page.keyboard.press('Enter');
     await waitForUi(page, (name) => document.querySelector('.gamecrafter-project-home')?.textContent.includes(name), projectName);
@@ -212,6 +212,27 @@ async function main() {
 
 
       }
+      if (suffix === 'models') {
+        await waitForUi(page, (name) => [...document.querySelector('select[aria-label="Models Project"]').options].some(option => option.textContent === name), projectName);
+        const projectId = await page.$eval('select[aria-label="Models Project"]', (select, name) => [...select.options].find(option => option.textContent === name)?.value, projectName);
+        assert(projectId, 'Models must list the owned smoke Project');
+        await page.select('select[aria-label="Models Project"]', projectId);
+        await clickText(page, 'nav[aria-label="Model configuration sections"] button', 'Decision assessments');
+        await waitForUi(page, () => [...document.querySelectorAll('.gamecrafter-models-section:not([hidden]) .gamecrafter-page-empty')].some(node => node.textContent.includes('No assessments are recorded')));
+        assert(!await page.$('.gamecrafter-models-section:not([hidden]) [role="alert"]'), 'Packaged decision history loads without an RPC error');
+        const paths = resolvePaths();
+        const client = await connect({ socketPath: paths.socketPath, token: fs.readFileSync(paths.tokenPath, 'utf8').trim(), clientName: 'packaged-decision-smoke', clientVersion: require('../packages/platform-service/package.json').version });
+        try {
+          const history = await client.call('decisions/history', { schemaVersion: 1, projectId });
+          assert.equal(history.schemaVersion, 1);
+          assert.deepEqual(history.assessments, []);
+          for (const [name, expected] of Object.entries({ mode: 'shadow', accountId: '', model: '', allowRemote: false })) {
+            const setting = await client.call('settings/get', { projectId, key: `models.decisions.${name}` });
+            assert.equal(setting.value, expected, `Safe initial decision setting: ${name}`);
+          }
+        } finally { client.close(); }
+        checks.push('Packaged decision history and versioned RPC load with inactive-until-configured shadow defaults');
+      }
       if (suffix === 'skills') {
         await waitForUi(page, (name) => [...document.querySelector('select[aria-label="Skills Project"]').options].some(option => option.textContent === name), projectName);
         const projectId = await page.$eval('select[aria-label="Skills Project"]', (select, name) => [...select.options].find(option => option.textContent === name)?.value, projectName);
@@ -277,7 +298,7 @@ async function main() {
         try {
           const registered = await client.call('project/list', {});
           const project = registered.projects.find(item => item.name === projectName);
-          if (!project || !path.resolve(project.path).startsWith(path.resolve('.turbo/live-projects') + path.sep)) throw new Error('Asset fixture must stay in the disposable smoke Project.');
+          if (!project || !path.resolve(project.path).startsWith(path.resolve('.artifacts/live-projects') + path.sep)) throw new Error('Asset fixture must stay in the disposable smoke Project.');
           const assetDirectory = path.join(project.path, 'game', 'assets');
           fs.mkdirSync(assetDirectory, { recursive: true });
           fs.writeFileSync(path.join(assetDirectory, 'desktop-smoke.png'), Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII=', 'base64'));

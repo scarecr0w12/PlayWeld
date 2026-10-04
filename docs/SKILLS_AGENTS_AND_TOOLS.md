@@ -1,7 +1,7 @@
 # Skills, Agent Roles, and Tool Connections: Design
 
 **Status:** Engineering-default design built on the 2026-09-27 research pass. User-confirmed requirements are cited from `PLATFORM_DESIGN.md`; everything else here is a selected engineering default under the delegated best-practice judgment, not an implementation claim.  
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-04
 **Research basis:** [agent-skills-and-agent-ecosystem.md](research/agent-skills-and-agent-ecosystem.md), [engine-connectors.md](research/engine-connectors.md), [dcc-and-asset-tools.md](research/dcc-and-asset-tools.md), [process-isolation.md](research/process-isolation.md), [local-model-and-routing-sources.md](research/local-model-and-routing-sources.md).
 
 This document resolves the skill, agent-role, and tool-connection contracts that `OPEN_DECISIONS.md` left open (A03, S04 skill portion, S06, S07, S08, C01, and parts of A02/S01/S02). It is organized by contract, not by milestone.
@@ -151,6 +151,8 @@ Every tool, whether native, plugin-provided, or MCP, carries broker metadata:
 - For MCP tools, `side-effects` defaults from tool annotations when present and otherwise to `external-write` until the user classifies the tool.
 
 Access modes apply at the broker: Full executes everything within available credentials; Restricted allows tools whose `side-effects` are in the Project allowlist; Ask always prompts for any `side-effects` other than `none`. Arbitrary code execution tools (Blender `execute_code`, Unreal Python remote execution, Maya `commandPort`) are always labeled `destructive` because they can do anything the host application can.
+
+The internal `decisions/assess` tool uses the same broker with `paid` side effects even for a local judge, and requires the request's Project/task identity to match the execution context. For agent tasks, task goal and role/work type come from service records; requested capability constraints and manual choices remain binding. A new agent loop can assess once and record/checkpoint bounded advice. Shadow mode changes no dispatch or instructions; explicit assist mode can supply a currently eligible model suggestion and conservative task flags. Model output never approves tools, supplies completion validation, relabels task type, spawns work, or changes required reviews. See [typed decision assistance](TECHNICAL_ARCHITECTURE.md#typed-decision-assistance) for endpoint configuration, probability semantics, evidence scope, and history ownership.
 
 ### 4.3 Engine connectors (implements C03; informs C04)
 

@@ -20255,125 +20255,278 @@
           "modelUsage": {
             "type": "array",
             "items": {
-              "additionalProperties": false,
-              "type": "object",
-              "required": [
-                "usageId",
-                "requestId",
-                "taskId",
-                "decisionId",
-                "modelId",
-                "occurredAt",
-                "source",
-                "inputTokens",
-                "outputTokens",
-                "cacheReadInputTokens",
-                "cacheCreationInputTokens",
-                "costUsd",
-                "costStatus"
-              ],
-              "properties": {
-                "usageId": {
-                  "format": "uuid",
-                  "type": "string"
-                },
-                "requestId": {
-                  "anyOf": [
-                    {
-                      "type": "string"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
-                },
-                "taskId": {
-                  "anyOf": [
-                    {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "usageId",
+                    "requestId",
+                    "taskId",
+                    "decisionId",
+                    "modelId",
+                    "occurredAt",
+                    "source",
+                    "inputTokens",
+                    "outputTokens",
+                    "cacheReadInputTokens",
+                    "cacheCreationInputTokens",
+                    "costUsd",
+                    "costStatus"
+                  ],
+                  "properties": {
+                    "usageId": {
                       "format": "uuid",
                       "type": "string"
                     },
-                    {
-                      "type": "null"
-                    }
-                  ]
-                },
-                "decisionId": {
-                  "anyOf": [
-                    {
-                      "format": "uuid",
+                    "requestId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "taskId": {
+                      "anyOf": [
+                        {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "decisionId": {
+                      "anyOf": [
+                        {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "modelId": {
                       "type": "string"
                     },
-                    {
-                      "type": "null"
-                    }
-                  ]
-                },
-                "modelId": {
-                  "type": "string"
-                },
-                "modelName": {
-                  "type": "string"
-                },
-                "providerModelId": {
-                  "type": "string"
-                },
-                "occurredAt": {
-                  "format": "date-time",
-                  "type": "string"
-                },
-                "source": {
-                  "const": "completion",
-                  "type": "string"
-                },
-                "inputTokens": {
-                  "minimum": 0,
-                  "type": "integer"
-                },
-                "outputTokens": {
-                  "minimum": 0,
-                  "type": "integer"
-                },
-                "cacheReadInputTokens": {
-                  "minimum": 0,
-                  "type": "integer"
-                },
-                "cacheCreationInputTokens": {
-                  "minimum": 0,
-                  "type": "integer"
-                },
-                "costUsd": {
-                  "anyOf": [
-                    {
+                    "modelName": {
+                      "type": "string"
+                    },
+                    "providerModelId": {
+                      "type": "string"
+                    },
+                    "occurredAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "source": {
+                      "const": "completion",
+                      "type": "string"
+                    },
+                    "inputTokens": {
                       "minimum": 0,
-                      "type": "number"
+                      "type": "integer"
                     },
-                    {
-                      "type": "null"
+                    "outputTokens": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "cacheReadInputTokens": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "cacheCreationInputTokens": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "costUsd": {
+                      "anyOf": [
+                        {
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "costStatus": {
+                      "anyOf": [
+                        {
+                          "const": "known",
+                          "type": "string"
+                        },
+                        {
+                          "const": "partial",
+                          "type": "string"
+                        },
+                        {
+                          "const": "unknown",
+                          "type": "string"
+                        },
+                        {
+                          "const": "unverified",
+                          "type": "string"
+                        }
+                      ]
                     }
-                  ]
+                  }
                 },
-                "costStatus": {
-                  "anyOf": [
-                    {
-                      "const": "known",
+                {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": [
+                    "usageId",
+                    "requestId",
+                    "taskId",
+                    "decisionId",
+                    "modelId",
+                    "occurredAt",
+                    "source",
+                    "inputTokens",
+                    "outputTokens",
+                    "cacheReadInputTokens",
+                    "cacheCreationInputTokens",
+                    "costUsd",
+                    "costStatus"
+                  ],
+                  "properties": {
+                    "usageId": {
+                      "format": "uuid",
                       "type": "string"
                     },
-                    {
-                      "const": "partial",
+                    "requestId": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "taskId": {
+                      "anyOf": [
+                        {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "decisionId": {
+                      "anyOf": [
+                        {
+                          "format": "uuid",
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "modelId": {
                       "type": "string"
                     },
-                    {
-                      "const": "unknown",
+                    "modelName": {
                       "type": "string"
                     },
-                    {
-                      "const": "unverified",
+                    "providerModelId": {
                       "type": "string"
+                    },
+                    "occurredAt": {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    "source": {
+                      "const": "decision",
+                      "type": "string"
+                    },
+                    "inputTokens": {
+                      "anyOf": [
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "outputTokens": {
+                      "anyOf": [
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "cacheReadInputTokens": {
+                      "anyOf": [
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "cacheCreationInputTokens": {
+                      "anyOf": [
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "costUsd": {
+                      "anyOf": [
+                        {
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "costStatus": {
+                      "anyOf": [
+                        {
+                          "const": "known",
+                          "type": "string"
+                        },
+                        {
+                          "const": "partial",
+                          "type": "string"
+                        },
+                        {
+                          "const": "unknown",
+                          "type": "string"
+                        },
+                        {
+                          "const": "unverified",
+                          "type": "string"
+                        }
+                      ]
                     }
-                  ]
+                  }
                 }
-              }
+              ]
             }
           }
         }
@@ -22691,6 +22844,928 @@
           "decidedAt": {
             "format": "date-time",
             "type": "string"
+          }
+        }
+      }
+    },
+    "decisions/assess": {
+      "params": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["schemaVersion", "projectId", "summary", "route"],
+        "properties": {
+          "schemaVersion": {
+            "const": 1,
+            "type": "number"
+          },
+          "projectId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "taskId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "summary": {
+            "minLength": 1,
+            "maxLength": 16000,
+            "type": "string"
+          },
+          "route": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": ["taskType"],
+            "properties": {
+              "projectId": {
+                "format": "uuid",
+                "type": "string"
+              },
+              "agentRole": {
+                "type": "string"
+              },
+              "taskType": {
+                "type": "string"
+              },
+              "requiredCapabilities": {
+                "type": "array",
+                "items": {
+                  "anyOf": [
+                    {
+                      "const": "chat",
+                      "type": "string"
+                    },
+                    {
+                      "const": "tools",
+                      "type": "string"
+                    },
+                    {
+                      "const": "vision",
+                      "type": "string"
+                    },
+                    {
+                      "const": "structuredOutput",
+                      "type": "string"
+                    },
+                    {
+                      "const": "streaming",
+                      "type": "string"
+                    },
+                    {
+                      "const": "embeddings",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "manualModelId": {
+                "type": "string"
+              },
+              "constraints": {
+                "additionalProperties": false,
+                "type": "object",
+                "properties": {
+                  "maxCostUsd": {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  "maxLatencyMs": {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                }
+              },
+              "engine": {
+                "type": "string"
+              },
+              "genres": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "assessmentId",
+          "projectId",
+          "taskId",
+          "mode",
+          "status",
+          "reused",
+          "policyVersion",
+          "requestedModel",
+          "configurationHash",
+          "returnedModel",
+          "stateHash",
+          "taskType",
+          "agentRole",
+          "baselineModelId",
+          "candidates",
+          "answers",
+          "suggestedModelId",
+          "advice",
+          "reasonCodes",
+          "minProbability",
+          "minMargin",
+          "latencyMs",
+          "usage",
+          "createdAt"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": 1,
+            "type": "number"
+          },
+          "assessmentId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "projectId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "taskId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode": {
+            "anyOf": [
+              {
+                "const": "off",
+                "type": "string"
+              },
+              {
+                "const": "shadow",
+                "type": "string"
+              },
+              {
+                "const": "assist",
+                "type": "string"
+              }
+            ]
+          },
+          "status": {
+            "anyOf": [
+              {
+                "const": "disabled",
+                "type": "string"
+              },
+              {
+                "const": "assessed",
+                "type": "string"
+              },
+              {
+                "const": "fallback",
+                "type": "string"
+              }
+            ]
+          },
+          "reused": {
+            "type": "boolean"
+          },
+          "policyVersion": {
+            "type": "string"
+          },
+          "requestedModel": {
+            "type": "string"
+          },
+          "configurationHash": {
+            "type": "string"
+          },
+          "returnedModel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "stateHash": {
+            "type": "string"
+          },
+          "taskType": {
+            "type": "string"
+          },
+          "agentRole": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "baselineModelId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "modelId",
+                "score",
+                "qualityEstimate",
+                "observations",
+                "estimatedCostUsd",
+                "estimatedLatencyMs",
+                "reliability"
+              ],
+              "properties": {
+                "modelId": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number"
+                },
+                "qualityEstimate": {
+                  "minimum": 0,
+                  "maximum": 1,
+                  "type": "number"
+                },
+                "observations": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "estimatedCostUsd": {
+                  "anyOf": [
+                    {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "estimatedLatencyMs": {
+                  "anyOf": [
+                    {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "reliability": {
+                  "minimum": 0,
+                  "maximum": 1,
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "answers": {
+            "type": "object",
+            "patternProperties": {
+              "^(.*)$": {
+                "anyOf": [
+                  {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": ["type", "choice", "probabilities", "confidence"],
+                    "properties": {
+                      "type": {
+                        "const": "choice",
+                        "type": "string"
+                      },
+                      "choice": {
+                        "type": "string"
+                      },
+                      "probabilities": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {
+                            "minimum": 0,
+                            "maximum": 1,
+                            "type": "number"
+                          }
+                        }
+                      },
+                      "confidence": {
+                        "anyOf": [
+                          {
+                            "minimum": 0,
+                            "maximum": 1,
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": ["type", "score", "probabilities", "confidence"],
+                    "properties": {
+                      "type": {
+                        "const": "score",
+                        "type": "string"
+                      },
+                      "score": {
+                        "minimum": 0,
+                        "type": "number"
+                      },
+                      "probabilities": {
+                        "type": "object",
+                        "patternProperties": {
+                          "^(.*)$": {
+                            "minimum": 0,
+                            "maximum": 1,
+                            "type": "number"
+                          }
+                        }
+                      },
+                      "confidence": {
+                        "anyOf": [
+                          {
+                            "minimum": 0,
+                            "maximum": 1,
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": ["type", "noul"],
+                    "properties": {
+                      "type": {
+                        "const": "noul",
+                        "type": "string"
+                      },
+                      "noul": {
+                        "minimum": 0,
+                        "maximum": 1,
+                        "type": "number"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "suggestedModelId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "advice": {
+            "type": "array",
+            "items": {
+              "anyOf": [
+                {
+                  "const": "review",
+                  "type": "string"
+                },
+                {
+                  "const": "gather-context",
+                  "type": "string"
+                },
+                {
+                  "const": "split-task",
+                  "type": "string"
+                },
+                {
+                  "const": "validate-engine",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "reasonCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "minProbability": {
+            "minimum": 0,
+            "maximum": 1,
+            "type": "number"
+          },
+          "minMargin": {
+            "minimum": 0,
+            "maximum": 1,
+            "type": "number"
+          },
+          "latencyMs": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "usage": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": ["inputTokens", "outputTokens", "costUsd"],
+            "properties": {
+              "inputTokens": {
+                "anyOf": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "outputTokens": {
+                "anyOf": [
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "costUsd": {
+                "anyOf": [
+                  {
+                    "minimum": 0,
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "decisions/history": {
+      "params": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["schemaVersion", "projectId"],
+        "properties": {
+          "schemaVersion": {
+            "const": 1,
+            "type": "number"
+          },
+          "projectId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "taskId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "limit": {
+            "minimum": 1,
+            "maximum": 200,
+            "type": "integer"
+          }
+        }
+      },
+      "result": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["schemaVersion", "assessments"],
+        "properties": {
+          "schemaVersion": {
+            "const": 1,
+            "type": "number"
+          },
+          "assessments": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "schemaVersion",
+                "assessmentId",
+                "projectId",
+                "taskId",
+                "mode",
+                "status",
+                "reused",
+                "policyVersion",
+                "requestedModel",
+                "configurationHash",
+                "returnedModel",
+                "stateHash",
+                "taskType",
+                "agentRole",
+                "baselineModelId",
+                "candidates",
+                "answers",
+                "suggestedModelId",
+                "advice",
+                "reasonCodes",
+                "minProbability",
+                "minMargin",
+                "latencyMs",
+                "usage",
+                "createdAt"
+              ],
+              "properties": {
+                "schemaVersion": {
+                  "const": 1,
+                  "type": "number"
+                },
+                "assessmentId": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "projectId": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "taskId": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "mode": {
+                  "anyOf": [
+                    {
+                      "const": "off",
+                      "type": "string"
+                    },
+                    {
+                      "const": "shadow",
+                      "type": "string"
+                    },
+                    {
+                      "const": "assist",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "status": {
+                  "anyOf": [
+                    {
+                      "const": "disabled",
+                      "type": "string"
+                    },
+                    {
+                      "const": "assessed",
+                      "type": "string"
+                    },
+                    {
+                      "const": "fallback",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "reused": {
+                  "type": "boolean"
+                },
+                "policyVersion": {
+                  "type": "string"
+                },
+                "requestedModel": {
+                  "type": "string"
+                },
+                "configurationHash": {
+                  "type": "string"
+                },
+                "returnedModel": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "stateHash": {
+                  "type": "string"
+                },
+                "taskType": {
+                  "type": "string"
+                },
+                "agentRole": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "baselineModelId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "candidates": {
+                  "type": "array",
+                  "items": {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": [
+                      "modelId",
+                      "score",
+                      "qualityEstimate",
+                      "observations",
+                      "estimatedCostUsd",
+                      "estimatedLatencyMs",
+                      "reliability"
+                    ],
+                    "properties": {
+                      "modelId": {
+                        "type": "string"
+                      },
+                      "score": {
+                        "type": "number"
+                      },
+                      "qualityEstimate": {
+                        "minimum": 0,
+                        "maximum": 1,
+                        "type": "number"
+                      },
+                      "observations": {
+                        "minimum": 0,
+                        "type": "integer"
+                      },
+                      "estimatedCostUsd": {
+                        "anyOf": [
+                          {
+                            "minimum": 0,
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "estimatedLatencyMs": {
+                        "anyOf": [
+                          {
+                            "minimum": 0,
+                            "type": "number"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "reliability": {
+                        "minimum": 0,
+                        "maximum": 1,
+                        "type": "number"
+                      }
+                    }
+                  }
+                },
+                "answers": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^(.*)$": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": ["type", "choice", "probabilities", "confidence"],
+                          "properties": {
+                            "type": {
+                              "const": "choice",
+                              "type": "string"
+                            },
+                            "choice": {
+                              "type": "string"
+                            },
+                            "probabilities": {
+                              "type": "object",
+                              "patternProperties": {
+                                "^(.*)$": {
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "type": "number"
+                                }
+                              }
+                            },
+                            "confidence": {
+                              "anyOf": [
+                                {
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": ["type", "score", "probabilities", "confidence"],
+                          "properties": {
+                            "type": {
+                              "const": "score",
+                              "type": "string"
+                            },
+                            "score": {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            "probabilities": {
+                              "type": "object",
+                              "patternProperties": {
+                                "^(.*)$": {
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "type": "number"
+                                }
+                              }
+                            },
+                            "confidence": {
+                              "anyOf": [
+                                {
+                                  "minimum": 0,
+                                  "maximum": 1,
+                                  "type": "number"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          }
+                        },
+                        {
+                          "additionalProperties": false,
+                          "type": "object",
+                          "required": ["type", "noul"],
+                          "properties": {
+                            "type": {
+                              "const": "noul",
+                              "type": "string"
+                            },
+                            "noul": {
+                              "minimum": 0,
+                              "maximum": 1,
+                              "type": "number"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                },
+                "suggestedModelId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "advice": {
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "const": "review",
+                        "type": "string"
+                      },
+                      {
+                        "const": "gather-context",
+                        "type": "string"
+                      },
+                      {
+                        "const": "split-task",
+                        "type": "string"
+                      },
+                      {
+                        "const": "validate-engine",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                },
+                "reasonCodes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "minProbability": {
+                  "minimum": 0,
+                  "maximum": 1,
+                  "type": "number"
+                },
+                "minMargin": {
+                  "minimum": 0,
+                  "maximum": 1,
+                  "type": "number"
+                },
+                "latencyMs": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "usage": {
+                  "additionalProperties": false,
+                  "type": "object",
+                  "required": ["inputTokens", "outputTokens", "costUsd"],
+                  "properties": {
+                    "inputTokens": {
+                      "anyOf": [
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "outputTokens": {
+                      "anyOf": [
+                        {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "costUsd": {
+                      "anyOf": [
+                        {
+                          "minimum": 0,
+                          "type": "number"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "createdAt": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }

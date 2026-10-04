@@ -7,7 +7,7 @@ from playwright.sync_api import sync_playwright
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--url", default="http://127.0.0.1:3187")
-parser.add_argument("--output", default=".turbo/extended-engine-acceptance")
+parser.add_argument("--output", default=".artifacts/extended-engine-acceptance")
 args = parser.parse_args()
 output = Path(args.output).resolve()
 output.mkdir(parents=True, exist_ok=True)

@@ -31,8 +31,12 @@ export class CompletionService {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  prepare(route: RouteRequest, sessionId?: string): PreparedCompletion {
-    const decision = this.router.route(route, sessionId);
+  prepare(
+    route: RouteRequest,
+    sessionId?: string,
+    advice?: { modelId: string; assessmentId: string },
+  ): PreparedCompletion {
+    const decision = this.router.route(route, sessionId, advice);
     const model = this.registry.getModel(decision.modelId);
     if (!model || !model.enabled)
       throw new RpcError(`Model not found: ${decision.modelId}`, RpcErrorCode.ModelNotFound);

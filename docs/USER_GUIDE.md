@@ -90,6 +90,16 @@ Use Audit & History's **Model usage** view for recorded model estimates and toke
 
 Live model-provider and embedding-provider acceptance is still outstanding. Existing repository tests use fake HTTP endpoints. A configured account or visible model list does not prove a successful live completion or embedding operation.
 
+### Optional decision assistance
+
+The source integration supports a separately running typed decision server, such as a compatible Kev or Laya System One endpoint. Add a dedicated provider account in Models & Routing, using its base URL and optional credential; the account table exposes the account ID. Configure `models.decisions.accountId` and `models.decisions.model` under Models settings. A base URL like `http://127.0.0.1:9001/v1` targets `/v1/systemone`. Judge checkpoints are configured explicitly, not Auto-routed; discovering them as worker chat models is unnecessary and may fail if that server does not expose chat discovery.
+
+Start with `models.decisions.mode = shadow`, the default: new agent tasks record task classification, complexity, missing-context/review/decomposition/engine-validation flags, and eligible model suggestions without changing execution. Empty account/model settings make no calls. Opening the **Decision assessments** tab only reads service-owned history; it does not start a model or make paid test calls. The detail panel shows distributions and nullable cost/token usage, not proof of correctness.
+
+Explicit `assist` mode adds bounded task guidance and can prefer a model recommendation meeting probability/margin thresholds, but only within the current eligible pool; manual selection, capability and estimated budget filters still win. Task type, tool permissions, required reviews and completion evidence do not change. Assessment denial/outage/malformed or reported-truncated output keeps ordinary routing. `off` disables requests. Existing task snapshots are preserved; configure assistance before creating new agent tasks.
+
+Non-loopback endpoints require `models.decisions.allowRemote = true` and HTTPS. Remote decisions send task summaries and candidate metadata off-machine, use provider credentials, and may cost money. Ask always still prompts through the paid-effect broker; missing usage/prices remain unknown. Evaluate shadow records before enabling assist: repository tests cover fake endpoints, not a live checkpoint's accuracy, calibration, or cost savings. See [all settings and boundaries](TECHNICAL_ARCHITECTURE.md#configuration-and-ownership).
+
 ## Chat and agent work
 
 Chat stores Project-scoped conversations and presents router responses. Use **Find a conversation** to filter the conversation list and selector. On an empty conversation, a starter fills the message draft; it does not send until you explicitly press **Send** or Enter. At a narrow window width the conversation controls stack above the conversation, while the Chat/Agent choice and composer remain available. Models declaring streaming support can stream; other eligible chat models use a complete-response flow. Optional editor context helps explain the currently selected file. Review the context sent with the request, especially when using a remote endpoint.
