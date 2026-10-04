@@ -54,9 +54,9 @@ describe('Swarm task rendering', () => {
     } as TaskRecord;
     const node = buildTaskTree([task], task.taskId)!;
     const widget = Object.create(SwarmWidget.prototype) as {
-      renderTaskNode(node: SwarmTaskNode): React.ReactNode;
+      renderTaskDetails(node: SwarmTaskNode): React.ReactNode;
     };
-    const html = renderToStaticMarkup(React.createElement('ul', {}, widget.renderTaskNode(node)));
+    const html = renderToStaticMarkup(widget.renderTaskDetails(node));
     expect(html).toContain('Model approval rejected');
     expect(html).toContain('role="alert"');
     expect(html).not.toContain('pending');
@@ -78,10 +78,67 @@ describe('Swarm task rendering', () => {
     } as TaskRecord;
     const node = buildTaskTree([task], task.taskId)!;
     const widget = Object.create(SwarmWidget.prototype) as {
-      renderTaskNode(node: SwarmTaskNode): React.ReactNode;
+      renderTaskDetails(node: SwarmTaskNode): React.ReactNode;
     };
-    const html = renderToStaticMarkup(React.createElement('ul', {}, widget.renderTaskNode(node)));
+    const html = renderToStaticMarkup(widget.renderTaskDetails(node));
     expect(html).toContain('Canon draft ready');
     expect(html).toContain('docs/canon.md');
+  });
+
+  it('renders a compact collapsible hierarchy without every goal and result', () => {
+    const root = {
+      taskId: 'root',
+      state: 'running',
+      title: 'Coordinator',
+      goal: 'Long coordinator goal',
+      role: 'coordinator',
+      spent: { costUsd: 0, tokens: 0 },
+      createdAt: '2026-10-01',
+      parentTaskId: null,
+    } as TaskRecord;
+    const child = {
+      ...root,
+      taskId: 'child',
+      parentTaskId: 'root',
+      title: 'Gameplay agent',
+      goal: 'Long child goal',
+    };
+    const node = buildTaskTree([root, child], 'root')!;
+    const widget = Object.assign(Object.create(SwarmWidget.prototype), {
+      taskTree: node,
+      collapsedTasks: new Set<string>(),
+    });
+    let html = renderToStaticMarkup(React.createElement('ul', {}, widget.renderTaskNode(node)));
+    expect(html).toContain('Gameplay agent');
+    expect(html).toContain('aria-expanded="true"');
+    expect(html).toContain('aria-current="true"');
+    expect(html).not.toContain('Long coordinator goal');
+    expect(html).not.toContain('Long child goal');
+    widget.collapsedTasks.add('root');
+    html = renderToStaticMarkup(React.createElement('ul', {}, widget.renderTaskNode(node)));
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).not.toContain('Gameplay agent');
+  });
+
+  it('reveals the ancestors of a task selected from a next-action shortcut', () => {
+    const root = {
+      taskId: 'root',
+      title: 'Root',
+      state: 'running',
+      createdAt: '2026-10-01',
+      parentTaskId: null,
+    } as TaskRecord;
+    const child = { ...root, taskId: 'child', parentTaskId: 'root' };
+    const widget = Object.assign(Object.create(SwarmWidget.prototype), {
+      taskTree: buildTaskTree([root, child], 'root'),
+      collapsedTasks: new Set(['root']),
+      activeSection: 'integrations',
+      update: vi.fn(),
+    });
+    widget.selectTask('child');
+    expect(widget.highlightedTaskId).toBe('child');
+    expect(widget.activeSection).toBe('agents');
+    expect(widget.collapsedTasks.has('root')).toBe(false);
+    expect(widget.update).toHaveBeenCalled();
   });
 });

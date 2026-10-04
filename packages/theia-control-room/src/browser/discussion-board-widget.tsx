@@ -69,6 +69,8 @@ export class DiscussionBoardWidget extends ControlRoomReactWidget {
   private createTags = '';
   private createBody = '';
   private createType: BoardMessageTypeInput = 'comment';
+  private createThreadExpanded = false;
+  private maintenanceExpanded = false;
   private messageType: BoardMessageTypeInput = 'comment';
   private messageBody = '';
   private messageLinks = '[]';
@@ -171,6 +173,48 @@ export class DiscussionBoardWidget extends ControlRoomReactWidget {
               <aside className="gamecrafter-board-sidebar">
                 <section className="gamecrafter-board-section">
                   <h2>Threads</h2>
+                  <nav className="gamecrafter-board-quick-views" aria-label="Quick thread views">
+                    <button
+                      type="button"
+                      aria-pressed={
+                        !this.statusFilter &&
+                        !this.kindFilter &&
+                        !this.tagsFilter.trim() &&
+                        !this.search.trim()
+                      }
+                      onClick={() => void this.setQuickView('', '')}
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={this.statusFilter === 'open' && !this.kindFilter}
+                      onClick={() => void this.setQuickView('open', '')}
+                    >
+                      Open
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={!this.statusFilter && this.kindFilter === 'question'}
+                      onClick={() => void this.setQuickView('', 'question')}
+                    >
+                      Questions
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={!this.statusFilter && this.kindFilter === 'blocker'}
+                      onClick={() => void this.setQuickView('', 'blocker')}
+                    >
+                      Blockers
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={!this.statusFilter && this.kindFilter === 'decision'}
+                      onClick={() => void this.setQuickView('', 'decision')}
+                    >
+                      Decisions
+                    </button>
+                  </nav>
                   <div className="gamecrafter-board-filters">
                     <label>
                       Status
@@ -234,27 +278,53 @@ export class DiscussionBoardWidget extends ControlRoomReactWidget {
                     <button type="button" onClick={() => void this.refreshThreads()}>
                       Apply filters
                     </button>
+                    <button type="button" onClick={() => void this.clearFilters()}>
+                      Clear filters
+                    </button>
                   </div>
+                  <p className="gamecrafter-board-thread-count" aria-live="polite">
+                    Showing {this.threads.length} thread{this.threads.length === 1 ? '' : 's'}
+                  </p>
                   {this.threads.length === 0 ? (
-                    <p>No matching threads.</p>
+                    <p>
+                      No matching threads. Clear filters or switch to a quick view to broaden the
+                      list.
+                    </p>
                   ) : (
                     <ul className="gamecrafter-board-thread-list">
                       {this.threads.map((thread) => (
-                        <li key={thread.threadId}>
+                        <li key={thread.threadId} className="gamecrafter-board-thread-item">
                           <button
                             type="button"
-                            className={
+                            className={`gamecrafter-board-thread-select${
                               thread.threadId === this.threadDetail?.thread.threadId
-                                ? 'selected'
+                                ? ' selected'
                                 : ''
+                            }`}
+                            aria-current={
+                              thread.threadId === this.threadDetail?.thread.threadId
+                                ? 'true'
+                                : undefined
                             }
                             onClick={() => void this.loadThread(thread.threadId)}
                           >
                             <strong>{thread.title}</strong>
-                            <span>
-                              {thread.kind} · {thread.status} · {thread.messageCount} messages
+                            <span className="gamecrafter-board-thread-meta">
+                              <span className={`gamecrafter-board-thread-kind is-${thread.kind}`}>
+                                {thread.kind}
+                              </span>
+                              <span
+                                className={`gamecrafter-board-thread-status is-${thread.status}`}
+                              >
+                                {thread.status}
+                              </span>
+                              <span>{thread.messageCount} messages</span>
                             </span>
-                            {thread.tags.length > 0 && <small>{thread.tags.join(', ')}</small>}
+                            {thread.tags.length > 0 && (
+                              <small className="gamecrafter-board-thread-tags">
+                                {thread.tags.join(', ')}
+                              </small>
+                            )}
                           </button>
                         </li>
                       ))}
@@ -263,93 +333,107 @@ export class DiscussionBoardWidget extends ControlRoomReactWidget {
                 </section>
 
                 <section className="gamecrafter-board-section">
-                  <h2>New thread</h2>
-                  <form
-                    className="gamecrafter-board-form"
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      void this.createThread();
+                  <details
+                    className="gamecrafter-board-collapsible"
+                    open={this.createThreadExpanded}
+                    onToggle={(event) => {
+                      this.createThreadExpanded = event.currentTarget.open;
                     }}
                   >
-                    <label>
-                      Title
-                      <input
-                        aria-label="New thread title"
-                        required
-                        value={this.createTitle}
-                        onChange={(event) => {
-                          this.createTitle = event.currentTarget.value;
-                          this.update();
-                        }}
-                      />
-                    </label>
-                    <label>
-                      Kind
-                      <select
-                        aria-label="New thread kind"
-                        value={this.createKind}
-                        onChange={(event) => {
-                          this.createKind = event.currentTarget.value as BoardThreadKind;
-                          this.update();
-                        }}
-                      >
-                        {threadKinds.map((kind) => (
-                          <option key={kind} value={kind}>
-                            {kind}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Tags
-                      <input
-                        aria-label="New thread tags"
-                        value={this.createTags}
-                        onChange={(event) => {
-                          this.createTags = event.currentTarget.value;
-                          this.update();
-                        }}
-                      />
-                    </label>
-                    <label>
-                      First message
-                      <textarea
-                        aria-label="New thread message"
-                        required
-                        value={this.createBody}
-                        onChange={(event) => {
-                          this.createBody = event.currentTarget.value;
-                          this.update();
-                        }}
-                      />
-                    </label>
-                    <label>
-                      Message type
-                      <select
-                        aria-label="New thread message type"
-                        value={this.createType}
-                        onChange={(event) => {
-                          this.createType = event.currentTarget.value as BoardMessageTypeInput;
-                          this.update();
-                        }}
-                      >
-                        {messageTypes.map((type) => (
-                          <option key={type} value={type}>
-                            {type}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <button type="submit" disabled={this.busy}>
-                      Create thread
-                    </button>
-                  </form>
+                    <summary>New thread</summary>
+                    <form
+                      className="gamecrafter-board-form"
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        void this.createThread();
+                      }}
+                    >
+                      <label>
+                        Title
+                        <input
+                          aria-label="New thread title"
+                          required
+                          value={this.createTitle}
+                          onChange={(event) => {
+                            this.createTitle = event.currentTarget.value;
+                            this.update();
+                          }}
+                        />
+                      </label>
+                      <label>
+                        Kind
+                        <select
+                          aria-label="New thread kind"
+                          value={this.createKind}
+                          onChange={(event) => {
+                            this.createKind = event.currentTarget.value as BoardThreadKind;
+                            this.update();
+                          }}
+                        >
+                          {threadKinds.map((kind) => (
+                            <option key={kind} value={kind}>
+                              {kind}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Tags
+                        <input
+                          aria-label="New thread tags"
+                          value={this.createTags}
+                          onChange={(event) => {
+                            this.createTags = event.currentTarget.value;
+                            this.update();
+                          }}
+                        />
+                      </label>
+                      <label>
+                        First message
+                        <textarea
+                          aria-label="New thread message"
+                          required
+                          value={this.createBody}
+                          onChange={(event) => {
+                            this.createBody = event.currentTarget.value;
+                            this.update();
+                          }}
+                        />
+                      </label>
+                      <label>
+                        Message type
+                        <select
+                          aria-label="New thread message type"
+                          value={this.createType}
+                          onChange={(event) => {
+                            this.createType = event.currentTarget.value as BoardMessageTypeInput;
+                            this.update();
+                          }}
+                        >
+                          {messageTypes.map((type) => (
+                            <option key={type} value={type}>
+                              {type}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <button type="submit" disabled={this.busy}>
+                        Create thread
+                      </button>
+                    </form>
+                  </details>
                 </section>
               </aside>
 
               <main className="gamecrafter-board-thread-pane">
                 {!this.threadDetail ? (
-                  <p>Select a thread to review its discussion and decisions.</p>
+                  <div className="gamecrafter-board-next-action" role="status">
+                    <p>Select a thread to review its discussion and any binding decisions.</p>
+                    <p>
+                      Start with Open for active work, Questions for unanswered requests, or
+                      Blockers for issues preventing progress.
+                    </p>
+                  </div>
                 ) : (
                   <>
                     <header className="gamecrafter-board-thread-header">
@@ -378,6 +462,9 @@ export class DiscussionBoardWidget extends ControlRoomReactWidget {
                         )}
                       </div>
                     </header>
+                    <p className="gamecrafter-board-next-action" role="status">
+                      {nextActionGuidance(activeThread!)}
+                    </p>
                     <ol className="gamecrafter-board-messages">
                       {this.threadDetail.messages.map((message) => (
                         <li
@@ -515,8 +602,16 @@ export class DiscussionBoardWidget extends ControlRoomReactWidget {
               </main>
             </div>
 
-            <section className="gamecrafter-board-maintenance">
-              <h2>Maintenance</h2>
+            <details
+              className="gamecrafter-board-maintenance gamecrafter-board-collapsible"
+              open={this.maintenanceExpanded}
+              onToggle={(event) => {
+                this.maintenanceExpanded = event.currentTarget.open;
+              }}
+            >
+              <summary>
+                Maintenance · {this.maintenance?.pendingDecisions ?? 0} pending decisions
+              </summary>
               <p>
                 Last audit: {formatDate(this.maintenance?.lastAuditAt)} · Last cleanup:{' '}
                 {formatDate(this.maintenance?.lastCleanupAt)}
@@ -548,7 +643,7 @@ export class DiscussionBoardWidget extends ControlRoomReactWidget {
                   Run sync
                 </button>
               </div>
-            </section>
+            </details>
           </>
         )}
       </div>
@@ -573,13 +668,7 @@ export class DiscussionBoardWidget extends ControlRoomReactWidget {
   private async refreshThreads(): Promise<void> {
     if (!this.projectId) return;
     await this.perform(async () => {
-      const result = await this.service.listBoardThreads({
-        projectId: this.projectId!,
-        status: this.statusFilter || undefined,
-        kind: this.kindFilter || undefined,
-        tags: splitTags(this.tagsFilter),
-        search: this.search.trim() || undefined,
-      });
+      const result = await this.service.listBoardThreads(this.boardThreadQuery());
       this.threads = result.threads;
       if (
         this.threadDetail &&
@@ -595,7 +684,62 @@ export class DiscussionBoardWidget extends ControlRoomReactWidget {
     });
   }
 
-  private async refreshProjectState(): Promise<void> {
+  private async setQuickView(
+    status: '' | BoardThreadStatus,
+    kind: '' | BoardThreadKind,
+  ): Promise<void> {
+    this.statusFilter = status;
+    this.kindFilter = kind;
+    await this.refreshThreads();
+  }
+
+  private async clearFilters(): Promise<void> {
+    this.statusFilter = '';
+    this.kindFilter = '';
+    this.tagsFilter = '';
+    this.search = '';
+    await this.refreshThreads();
+  }
+
+  private boardThreadQuery(): {
+    projectId: string;
+    status?: BoardThreadStatus;
+    kind?: BoardThreadKind;
+    tags: string[];
+    search?: string;
+  } {
+    return {
+      projectId: this.projectId!,
+      status: this.statusFilter || undefined,
+      kind: this.kindFilter || undefined,
+      tags: splitTags(this.tagsFilter),
+      search: this.search.trim() || undefined,
+    };
+  }
+
+  public async revealThread(selection: { projectId: string; threadId: string }): Promise<void> {
+    await this.perform(async () => {
+      this.projects = await this.service.listProjects();
+      if (!this.projects.some((project) => project.projectId === selection.projectId)) {
+        throw new Error('The request thread belongs to a Project that is not available.');
+      }
+      this.markProjectSelection();
+      this.projectId = selection.projectId;
+      this.threadDetail = undefined;
+      this.decisions = [];
+      this.statusFilter = '';
+      this.kindFilter = '';
+      this.tagsFilter = '';
+      this.search = '';
+      await this.refreshProjectState(selection.threadId);
+      if (!this.threads.some((thread) => thread.threadId === selection.threadId)) {
+        throw new Error('The request thread was not found in this Project.');
+      }
+      this.update();
+    });
+  }
+
+  private async refreshProjectState(preferredThreadId?: string): Promise<void> {
     if (!this.projectId) return;
     const settings = await this.service.getAllSettings(this.projectId);
     this.accessMode = String(
@@ -603,10 +747,12 @@ export class DiscussionBoardWidget extends ControlRoomReactWidget {
     );
     this.allowDeletion =
       settings.find((setting) => setting.key === 'board.allowPermanentDeletion')?.value === true;
-    const result = await this.service.listBoardThreads({ projectId: this.projectId });
+    const result = await this.service.listBoardThreads(this.boardThreadQuery());
     this.threads = result.threads;
     this.maintenance = await this.service.getBoardMaintenanceStatus({ projectId: this.projectId });
-    if (
+    if (preferredThreadId && this.threads.some((thread) => thread.threadId === preferredThreadId)) {
+      await this.loadThread(preferredThreadId, false);
+    } else if (
       this.threadDetail &&
       this.threads.some((thread) => thread.threadId === this.threadDetail?.thread.threadId)
     ) {
@@ -667,6 +813,7 @@ export class DiscussionBoardWidget extends ControlRoomReactWidget {
       this.createTitle = '';
       this.createTags = '';
       this.createBody = '';
+      this.createThreadExpanded = false;
       this.resultMessage = 'Thread created.';
       await this.refreshProjectState();
       await this.loadThread(result.thread.threadId);
@@ -799,6 +946,25 @@ function authorLabel(message: BoardMessage): string {
 
 function formatDate(value: string | null | undefined): string {
   return value ? new Date(value).toLocaleString() : 'never';
+}
+
+function nextActionGuidance(thread: BoardThread): string {
+  if (thread.status === 'archived') return 'This thread is archived and read-only.';
+  if (thread.status === 'resolved') {
+    return 'This thread is resolved. Archive it when its history no longer needs active attention.';
+  }
+  switch (thread.kind) {
+    case 'question':
+      return 'Next: answer the question in a reply, then resolve the thread when no follow-up remains.';
+    case 'blocker':
+      return 'Next: document what is blocking progress and the needed owner or action; resolve it once cleared.';
+    case 'proposal':
+      return 'Next: review the proposal and its evidence. If accepted, mark the relevant message as a binding decision.';
+    case 'decision':
+      return 'Next: review the decision record and sync status below; resolve the thread when its follow-up is complete.';
+    default:
+      return 'Next: add a finding, question, or decision as the discussion develops; resolve the thread when follow-up is complete.';
+  }
 }
 
 function errorMessage(error: unknown): string {

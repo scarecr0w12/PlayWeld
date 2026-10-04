@@ -103,80 +103,94 @@ export class ProjectHomeWidget extends ControlRoomReactWidget {
             <span className="codicon codicon-add" aria-hidden="true" /> Create Project
           </button>
         </header>
-        <nav className="gamecrafter-project-home-actions" aria-label="Workspace tools">
-          {HOME_ACTIONS.map(({ label, command, icon }) => (
-            <button
-              className="theia-button secondary"
-              type="button"
-              key={command}
-              onClick={() => void this.commandService.executeCommand(command)}
-            >
-              <span className={`codicon codicon-${icon}`} aria-hidden="true" />
-              {label}
-            </button>
-          ))}
-        </nav>
-        <section className="gamecrafter-home-guides" aria-label="Getting started">
-          <article>
-            <span className="gamecrafter-home-guide-kicker">01 · Models</span>
-            <h2>Set up an LLM</h2>
-            <p>
-              Add a provider and discover a model in Models &amp; Routing, then chat here for
-              Project-aware help or switch to Agent mode to delegate a change request to Swarm.
-            </p>
-            <p className="gamecrafter-home-guide-note">
-              External IDE clients such as Copilot, Devin, and Kilo cannot call PlayWeld tools
-              directly yet; their MCP server integration is still pending.
-            </p>
-            <div className="gamecrafter-home-guide-actions">
-              <button
-                className="theia-button secondary"
-                type="button"
-                onClick={() => void this.commandService.executeCommand(MODELS_OPEN_COMMAND_ID)}
-              >
-                Configure Models
-              </button>
+        <section
+          className="gamecrafter-home-next-step"
+          aria-labelledby="gamecrafter-home-next-step-title"
+        >
+          <span className="gamecrafter-home-guide-kicker">Next step</span>
+          {this.projects.length === 0 ? (
+            <>
+              <h2 id="gamecrafter-home-next-step-title">Create a Project</h2>
+              <p>
+                Create a Project to get its game folder and platform record. You can connect an
+                engine afterward.
+              </p>
               <button
                 className="theia-button"
                 type="button"
-                onClick={() => void this.commandService.executeCommand(SWARM_OPEN_COMMAND_ID)}
+                onClick={() => void this.commandService.executeCommand(CREATE_PROJECT_COMMAND_ID)}
               >
-                Open Swarm
+                Create Project
               </button>
+            </>
+          ) : (
+            <>
+              <h2 id="gamecrafter-home-next-step-title">Open a Project to continue</h2>
+              <p>
+                Choose a Project below to load its workspace. Use Engine afterward to inspect its
+                project files, installations, and editor connection.
+              </p>
               <button
-                className="theia-button secondary"
+                className="theia-button"
                 type="button"
-                onClick={() => void this.commandService.executeCommand(CHAT_OPEN_COMMAND_ID)}
+                onClick={() => {
+                  const heading = this.node.querySelector<HTMLElement>(
+                    '#gamecrafter-home-projects',
+                  );
+                  heading?.scrollIntoView({ block: 'start' });
+                  heading?.focus({ preventScroll: true });
+                }}
               >
-                Open Chat
+                Go to Projects
               </button>
-            </div>
-          </article>
-          <article>
-            <span className="gamecrafter-home-guide-kicker">02 · Engine</span>
-            <h2>Connect the game project</h2>
-            <p>
-              A PlayWeld Project is the game folder plus platform records. Native files belong in
-              its <code>game/</code> directory. Unreal detection needs a valid{' '}
-              <code>.uproject</code> there; registering an Unreal executable alone does not connect
-              a separate project.
-            </p>
-            <p className="gamecrafter-home-guide-note">
-              To try it now, create/open the PlayWeld Project, create the Unreal project inside{' '}
-              <code>{'<Project>/game/'}</code>, then register <code>RunUAT.bat</code> and{' '}
-              <code>UnrealEditor-Cmd.exe</code> in Engine. Importing an existing project folder
-              directly is not supported yet.
-            </p>
-            <button
-              className="theia-button secondary"
-              type="button"
-              onClick={() => void this.commandService.executeCommand(ENGINE_OPEN_COMMAND_ID)}
-            >
-              Open Engine setup
-            </button>
-          </article>
+            </>
+          )}
         </section>
-        <h2 className="gamecrafter-home-projects-heading">Projects</h2>
+        <nav className="gamecrafter-home-navigation" aria-label="Workspace navigation">
+          {HOME_NAVIGATION_GROUPS.map((group) => (
+            <section
+              className="gamecrafter-home-navigation-group"
+              aria-labelledby={`${group.id}-title`}
+              key={group.id}
+            >
+              <header>
+                <h2 id={`${group.id}-title`}>{group.title}</h2>
+                <p>{group.description}</p>
+              </header>
+              <div className="gamecrafter-home-navigation-items">
+                {group.items.map(({ label, command, icon, description }) => {
+                  const descriptionId = `${group.id}-${command}-description`;
+                  return (
+                    <button
+                      className="theia-button secondary gamecrafter-home-navigation-item"
+                      type="button"
+                      key={command}
+                      aria-describedby={descriptionId}
+                      onClick={() => void this.commandService.executeCommand(command)}
+                    >
+                      <span className={`codicon codicon-${icon}`} aria-hidden="true" />
+                      <span className="gamecrafter-home-navigation-item-copy">
+                        <strong>{label}</strong>
+                        <small id={descriptionId}>{description}</small>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </nav>
+        <p className="gamecrafter-home-guide-note">
+          PlayWeld Chat and Swarm run inside this workspace; external IDE clients cannot call
+          PlayWeld tools directly yet.
+        </p>
+        <h2
+          id="gamecrafter-home-projects"
+          tabIndex={-1}
+          className="gamecrafter-home-projects-heading"
+        >
+          Projects
+        </h2>
         {this.projects.length === 0 ? (
           <div className="gamecrafter-project-home-empty">
             <span className="codicon codicon-folder-opened" aria-hidden="true" />
@@ -300,20 +314,123 @@ export class ProjectHomeWidget extends ControlRoomReactWidget {
   }
 }
 
-const HOME_ACTIONS = [
-  { label: 'Updates', command: UPDATES_OPEN_COMMAND_ID, icon: 'sync' },
-  { label: 'Settings', command: SETTINGS_OPEN_COMMAND_ID, icon: 'settings-gear' },
-  { label: 'Models', command: MODELS_OPEN_COMMAND_ID, icon: 'hubot' },
-  { label: 'Chat', command: CHAT_OPEN_COMMAND_ID, icon: 'comment-discussion' },
-  { label: 'Skills & Roles', command: SKILLS_OPEN_COMMAND_ID, icon: 'organization' },
-  { label: 'Connections', command: CONNECTIONS_OPEN_COMMAND_ID, icon: 'plug' },
-  { label: 'Discussion Board', command: DISCUSSION_BOARD_OPEN_COMMAND_ID, icon: 'comment' },
-  { label: 'Swarm', command: SWARM_OPEN_COMMAND_ID, icon: 'type-hierarchy' },
-  { label: 'Plugins', command: PLUGINS_OPEN_COMMAND_ID, icon: 'extensions' },
-  { label: 'Engine', command: ENGINE_OPEN_COMMAND_ID, icon: 'debug' },
-  { label: 'DCC Tools', command: DCC_OPEN_COMMAND_ID, icon: 'tools' },
-  { label: 'Knowledge', command: KNOWLEDGE_OPEN_COMMAND_ID, icon: 'book' },
-  { label: 'Assets', command: ASSETS_OPEN_COMMAND_ID, icon: 'file-media' },
-  { label: 'Audit & History', command: AUDIT_OPEN_COMMAND_ID, icon: 'history' },
-  { label: 'Backups', command: BACKUPS_OPEN_COMMAND_ID, icon: 'archive' },
-];
+const HOME_NAVIGATION_GROUPS = [
+  {
+    id: 'game-projects',
+    title: 'Build and review',
+    description: 'Work with game files and inspect recorded project activity.',
+    items: [
+      {
+        label: 'Engine',
+        command: ENGINE_OPEN_COMMAND_ID,
+        icon: 'debug',
+        description: 'Review engine layers, register installations, or connect an editor.',
+      },
+      {
+        label: 'DCC Tools',
+        command: DCC_OPEN_COMMAND_ID,
+        icon: 'tools',
+        description: 'Register DCC tools and inspect supported operations and connections.',
+      },
+      {
+        label: 'Assets',
+        command: ASSETS_OPEN_COMMAND_ID,
+        icon: 'file-media',
+        description: 'Browse project assets, inspect previews, and review generation jobs.',
+      },
+      {
+        label: 'Backups',
+        command: BACKUPS_OPEN_COMMAND_ID,
+        icon: 'archive',
+        description: 'Configure archives, schedules, and restore workflows.',
+      },
+      {
+        label: 'Audit & History',
+        command: AUDIT_OPEN_COMMAND_ID,
+        icon: 'history',
+        description: 'Review tool decisions, execution results, and project events.',
+      },
+    ],
+  },
+  {
+    id: 'ai-teamwork',
+    title: 'AI and teamwork',
+    description: 'Set up assistance, share context, and review delegated work.',
+    items: [
+      {
+        label: 'Models',
+        command: MODELS_OPEN_COMMAND_ID,
+        icon: 'hubot',
+        description: 'Connect providers, discover models, and configure routing.',
+      },
+      {
+        label: 'Chat',
+        command: CHAT_OPEN_COMMAND_ID,
+        icon: 'comment-discussion',
+        description: 'Ask project-aware questions or delegate work in Agent mode.',
+      },
+      {
+        label: 'Skills & Roles',
+        command: SKILLS_OPEN_COMMAND_ID,
+        icon: 'organization',
+        description: 'Browse available skills and agent roles.',
+      },
+      {
+        label: 'Connections',
+        command: CONNECTIONS_OPEN_COMMAND_ID,
+        icon: 'plug',
+        description: 'Configure MCP servers, credentials, and tool policies.',
+      },
+      {
+        label: 'Discussion Board',
+        command: DISCUSSION_BOARD_OPEN_COMMAND_ID,
+        icon: 'comment',
+        description: 'Discuss work, record decisions, and track linked tasks.',
+      },
+      {
+        label: 'Swarm',
+        command: SWARM_OPEN_COMMAND_ID,
+        icon: 'type-hierarchy',
+        description: 'Review agent requests and task progress.',
+      },
+    ],
+  },
+  {
+    id: 'reference-extensions',
+    title: 'Reference and extensions',
+    description: 'Search indexed material or manage installed tools.',
+    items: [
+      {
+        label: 'Knowledge',
+        command: KNOWLEDGE_OPEN_COMMAND_ID,
+        icon: 'book',
+        description: 'Search indexed project docs, source, assets, and discussion.',
+      },
+      {
+        label: 'Plugins',
+        command: PLUGINS_OPEN_COMMAND_ID,
+        icon: 'extensions',
+        description: 'Review installed plugins, catalogs, and requested capabilities.',
+      },
+    ],
+  },
+  {
+    id: 'workspace',
+    title: 'Workspace',
+    description: 'Manage platform configuration and review product updates.',
+    items: [
+      {
+        label: 'Settings',
+        command: SETTINGS_OPEN_COMMAND_ID,
+        icon: 'settings-gear',
+        description: 'Configure shared settings and Project-specific overrides.',
+      },
+      {
+        label: 'Updates',
+        command: UPDATES_OPEN_COMMAND_ID,
+        icon: 'sync',
+        description: 'Check the configured release channel for updates.',
+      },
+    ],
+  },
+] as const;

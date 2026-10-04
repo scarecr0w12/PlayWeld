@@ -20,7 +20,13 @@ export class DiscussionBoardViewContribution extends AbstractViewContribution<Di
   registerCommands(commands: CommandRegistry): void {
     commands.registerCommand(
       { id: DISCUSSION_BOARD_OPEN_COMMAND_ID, label: 'PlayWeld: Open Discussion Board' },
-      { execute: () => this.openView({ activate: true, reveal: true }) },
+      {
+        execute: async (selection?: { projectId: string; threadId: string }) => {
+          const widget = await this.openView({ activate: true, reveal: true });
+          if (selection?.projectId && selection.threadId) await widget.revealThread(selection);
+          return widget;
+        },
+      },
     );
   }
 

@@ -44,6 +44,9 @@ export class SwarmWidget extends ControlRoomReactWidget {
   private busy = false;
   private refreshPending = false;
   private highlightedTaskId?: string;
+  private activeSection: 'agents' | 'approvals' | 'integrations' | 'locks' = 'agents';
+  private readonly collapsedTasks = new Set<string>();
+  private requestComposerOpen = false;
 
   constructor(
     @inject(ControlRoomService) private readonly service: ControlRoomServiceApi,
@@ -111,12 +114,23 @@ export class SwarmWidget extends ControlRoomReactWidget {
 
   protected render(): React.ReactNode {
     const currentRequest = this.requests.find((request) => request.requestId === this.requestId);
+    const selectedNode = findTaskNode(this.taskTree, this.highlightedTaskId ?? '') ?? this.taskTree;
+    const tasks: SwarmTaskNode[] = [];
+    const collect = (node: SwarmTaskNode): void => {
+      tasks.push(node);
+      node.children.forEach(collect);
+    };
+    if (this.taskTree) collect(this.taskTree);
+    const needsReview = tasks.filter(
+      ({ task }) => task.state === 'succeeded' && task.result?.reviewStatus !== 'accepted',
+    );
+    const running = tasks.filter(({ task }) => ['running', 'claimed'].includes(task.state));
     return (
       <main className="gamecrafter-swarm gamecrafter-surface">
         <header className="gamecrafter-swarm-header">
           <div>
             <h1>Swarm</h1>
-            <p>Coordinate bounded agent work, review locks, and integrate changes.</p>
+            <p>Follow delegated work, answer agents, and review changes before integration.</p>
           </div>
           <label>
             Project
@@ -130,6 +144,12 @@ export class SwarmWidget extends ControlRoomReactWidget {
                 this.requestId = '';
                 this.taskTree = undefined;
                 this.approvals = [];
+                this.questions = [];
+                this.locks = [];
+                this.integrations = [];
+                this.highlightedTaskId = undefined;
+                this.impactPreview = undefined;
+                this.collapsedTasks.clear();
                 void this.refresh();
               }}
             >
@@ -159,8 +179,55 @@ export class SwarmWidget extends ControlRoomReactWidget {
           <p>Select a Project to coordinate work.</p>
         ) : (
           <>
-            <section className="gamecrafter-swarm-panel">
-              <h2>New request</h2>
+            <section className="gamecrafter-work-guidance" aria-label="Swarm next steps">
+              <div>
+                <strong>What to do next</strong>
+                <p>
+                  {this.questions.length > 0
+                    ? 'An agent needs your answer. Select its task to respond.'
+                    : this.approvals.length > 0
+                      ? 'Review pending tool approvals before agents can continue.'
+                      : needsReview.length > 0
+                        ? 'Review completed task results, then accept or request revisions.'
+                        : this.integrations.some((entry) => entry.status === 'ready')
+                          ? 'Review validation and changed files in Integrations before merging.'
+                          : this.taskTree
+                            ? 'Select an agent in the hierarchy to inspect its work and progress.'
+                            : 'Start with a bounded request: describe the goal, files, and evidence you expect.'}
+                </p>
+              </div>
+              {this.questions.length > 0 && (
+                <button type="button" onClick={() => this.selectTask(this.questions[0]!.taskId)}>
+                  Answer agent ({this.questions.length})
+                </button>
+              )}
+              {this.approvals.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    this.activeSection = 'approvals';
+                    this.update();
+                  }}
+                >
+                  Review approvals ({this.approvals.length})
+                </button>
+              )}
+              {needsReview.length > 0 && (
+                <button type="button" onClick={() => this.selectTask(needsReview[0]!.task.taskId)}>
+                  Review result ({needsReview.length})
+                </button>
+              )}
+            </section>
+            <details
+              className="gamecrafter-swarm-panel gamecrafter-swarm-request-composer"
+              open={this.requestComposerOpen}
+              onToggle={(event) => {
+                this.requestComposerOpen = event.currentTarget.open;
+              }}
+            >
+              <summary>
+                New request <span>Describe a change and delegate it to agents</span>
+              </summary>
               <label>
                 Request
                 <textarea
@@ -203,14 +270,14 @@ export class SwarmWidget extends ControlRoomReactWidget {
                 <button
                   type="button"
                   onClick={() => void this.previewImpact()}
-                  disabled={this.busy}
+                  disabled={this.busy || !this.requestText.trim()}
                 >
                   Preview impact
                 </button>
                 <button
                   type="button"
                   onClick={() => void this.submitRequest()}
-                  disabled={this.busy}
+                  disabled={this.busy || !this.requestText.trim()}
                 >
                   Submit request
                 </button>
@@ -232,10 +299,33 @@ export class SwarmWidget extends ControlRoomReactWidget {
                   )}
                 </div>
               )}
-            </section>
+            </details>
 
-            <section className="gamecrafter-swarm-panel">
-              <h2>Task tree</h2>
+            <nav className="gamecrafter-section-nav" aria-label="Swarm views">
+              {(
+                [
+                  ['agents', 'Agents', tasks.length],
+                  ['approvals', 'Approvals', this.approvals.length],
+                  ['integrations', 'Integrations', this.integrations.length],
+                  ['locks', 'Resource locks', this.locks.length],
+                ] as const
+              ).map(([section, label, count]) => (
+                <button
+                  key={section}
+                  type="button"
+                  aria-pressed={this.activeSection === section}
+                  onClick={() => {
+                    this.activeSection = section;
+                    this.update();
+                  }}
+                >
+                  {label} <span className="gamecrafter-count">{count}</span>
+                </button>
+              ))}
+            </nav>
+
+            <section className="gamecrafter-swarm-panel" hidden={this.activeSection !== 'agents'}>
+              <h2>Agent hierarchy</h2>
               <div className="gamecrafter-swarm-form-row">
                 <label>
                   Change request
@@ -244,6 +334,9 @@ export class SwarmWidget extends ControlRoomReactWidget {
                     value={this.requestId}
                     onChange={(event) => {
                       this.requestId = event.currentTarget.value;
+                      this.taskTree = undefined;
+                      this.highlightedTaskId = undefined;
+                      this.questions = [];
                       void this.refresh();
                     }}
                   >
@@ -259,23 +352,57 @@ export class SwarmWidget extends ControlRoomReactWidget {
                   <button
                     type="button"
                     onClick={() =>
-                      void this.commands.executeCommand(DISCUSSION_BOARD_OPEN_COMMAND_ID)
+                      void this.commands.executeCommand(DISCUSSION_BOARD_OPEN_COMMAND_ID, {
+                        projectId: this.projectId,
+                        threadId: currentRequest.threadId,
+                      })
                     }
                   >
                     Open request thread
                   </button>
                 )}
               </div>
-              {this.taskTree ? (
-                <ul className="gamecrafter-swarm-task-tree">
-                  {this.renderTaskNode(this.taskTree)}
-                </ul>
+              {this.taskTree && selectedNode ? (
+                <>
+                  <div className="gamecrafter-swarm-summary" aria-label="Selected swarm summary">
+                    <span>
+                      <strong>{tasks.length}</strong> tasks
+                    </span>
+                    <span>
+                      <strong>{running.length}</strong> active
+                    </span>
+                    <span>
+                      <strong>{this.questions.length}</strong> questions
+                    </span>
+                    <span>
+                      <strong>{needsReview.length}</strong> to review
+                    </span>
+                  </div>
+                  <div className="gamecrafter-swarm-workspace">
+                    <nav className="gamecrafter-swarm-hierarchy" aria-label="Agents and sub-agents">
+                      <p>Each request is a swarm. Expand branches to follow delegated tasks.</p>
+                      <ul className="gamecrafter-swarm-task-tree">
+                        {this.renderTaskNode(this.taskTree)}
+                      </ul>
+                    </nav>
+                    <section
+                      className="gamecrafter-swarm-inspector"
+                      aria-label="Selected agent task"
+                    >
+                      {this.renderTaskDetails(selectedNode)}
+                    </section>
+                  </div>
+                </>
               ) : (
                 <p>Select or submit a change request to inspect its tasks.</p>
               )}
             </section>
 
-            <section className="gamecrafter-swarm-panel" aria-label="Pending approvals">
+            <section
+              className="gamecrafter-swarm-panel"
+              aria-label="Pending approvals"
+              hidden={this.activeSection !== 'approvals'}
+            >
               <h2>Approvals</h2>
               {this.approvals.length === 0 ? (
                 <p>No pending approvals.</p>
@@ -306,7 +433,7 @@ export class SwarmWidget extends ControlRoomReactWidget {
               )}
             </section>
 
-            <section className="gamecrafter-swarm-panel">
+            <section className="gamecrafter-swarm-panel" hidden={this.activeSection !== 'locks'}>
               <h2>Resource locks</h2>
               {this.locks.length === 0 ? (
                 <p>No active resource locks.</p>
@@ -344,7 +471,10 @@ export class SwarmWidget extends ControlRoomReactWidget {
               )}
             </section>
 
-            <section className="gamecrafter-swarm-panel">
+            <section
+              className="gamecrafter-swarm-panel"
+              hidden={this.activeSection !== 'integrations'}
+            >
               <h2>Integrations</h2>
               {this.integrations.length === 0 ? (
                 <p>No task integrations yet.</p>
@@ -379,8 +509,8 @@ export class SwarmWidget extends ControlRoomReactWidget {
                             <button
                               type="button"
                               onClick={() => {
-                                this.highlightedTaskId = integration.reconcileTaskId ?? undefined;
-                                this.update();
+                                if (integration.reconcileTaskId)
+                                  this.selectTask(integration.reconcileTaskId);
                               }}
                             >
                               Reconcile task {integration.reconcileTaskId}
@@ -421,82 +551,149 @@ export class SwarmWidget extends ControlRoomReactWidget {
 
   private renderTaskNode(node: SwarmTaskNode): React.ReactNode {
     const task = node.task;
-    const highlighted = this.highlightedTaskId === task.taskId;
+    const selected = (this.highlightedTaskId ?? this.taskTree?.task.taskId) === task.taskId;
+    const collapsed = this.collapsedTasks?.has(task.taskId) ?? false;
     return (
-      <li key={task.taskId} className={highlighted ? 'gamecrafter-swarm-highlight' : undefined}>
-        <article className="gamecrafter-swarm-task">
-          <header>
+      <li key={task.taskId}>
+        <div className="gamecrafter-swarm-tree-row">
+          {node.children.length > 0 ? (
+            <button
+              type="button"
+              className="gamecrafter-swarm-branch-toggle"
+              aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${task.title}`}
+              aria-expanded={!collapsed}
+              onClick={() => {
+                if (collapsed) this.collapsedTasks.delete(task.taskId);
+                else this.collapsedTasks.add(task.taskId);
+                this.update();
+              }}
+            >
+              <span
+                aria-hidden="true"
+                className={`codicon codicon-chevron-${collapsed ? 'right' : 'down'}`}
+              />
+            </button>
+          ) : (
+            <span className="gamecrafter-swarm-leaf" aria-hidden="true" />
+          )}
+          <button
+            type="button"
+            className="gamecrafter-swarm-node"
+            aria-current={selected ? 'true' : undefined}
+            onClick={() => this.selectTask(task.taskId)}
+          >
             <strong>{task.title}</strong>
-            <span>{task.state}</span>
-            {node.role && <span>role: {node.role}</span>}
-          </header>
-          <p>{task.goal}</p>
-          <div className="gamecrafter-swarm-form-row">
             <span>
-              Spent: ${task.spent.costUsd.toFixed(4)} · {task.spent.tokens} tokens
+              {node.role ?? 'Agent task'}
+              {node.children.length > 0 ? ` / ${node.children.length} sub-tasks` : ''}
             </span>
-            <label>
-              Progress
-              {node.progress !== null && <progress value={node.progress} max={100} />}
-              {node.progress === null ? task.state.replaceAll('_', ' ') : `${node.progress}%`}
-            </label>
-            {!['succeeded', 'failed', 'blocked', 'cancelled'].includes(task.state) && (
-              <button type="button" onClick={() => void this.cancelTask(task)} disabled={this.busy}>
-                Cancel
-              </button>
+            <span className={`gamecrafter-state is-${task.state}`}>
+              {task.state.replaceAll('_', ' ')}
+            </span>
+            {node.pendingQuestions.length > 0 && (
+              <small>{node.pendingQuestions.length} answer needed</small>
+            )}
+          </button>
+        </div>
+        {node.children.length > 0 && !collapsed && (
+          <ul>{node.children.map((child) => this.renderTaskNode(child))}</ul>
+        )}
+      </li>
+    );
+  }
+
+  private selectTask(taskId: string): void {
+    this.highlightedTaskId = taskId;
+    this.activeSection = 'agents';
+    const expandPath = (node: SwarmTaskNode): boolean => {
+      if (node.task.taskId === taskId) return true;
+      if (node.children.some(expandPath)) {
+        this.collapsedTasks.delete(node.task.taskId);
+        return true;
+      }
+      return false;
+    };
+    if (this.taskTree) expandPath(this.taskTree);
+    this.update();
+  }
+
+  private renderTaskDetails(node: SwarmTaskNode): React.ReactNode {
+    const task = node.task;
+    return (
+      <article className="gamecrafter-swarm-task">
+        <header>
+          <h3>{task.title}</h3>
+          <span className={`gamecrafter-state is-${task.state}`}>
+            {task.state.replaceAll('_', ' ')}
+          </span>
+        </header>
+        <p className="gamecrafter-swarm-task-identity">
+          {node.role ?? 'Agent task'} / <code>{task.taskId}</code>
+        </p>
+        <h4>Goal</h4>
+        <p>{task.goal}</p>
+        <div className="gamecrafter-swarm-form-row">
+          <span>
+            Spent: ${task.spent.costUsd.toFixed(4)} · {task.spent.tokens} tokens
+          </span>
+          <label>
+            Progress
+            {node.progress !== null && <progress value={node.progress} max={100} />}
+            {node.progress === null ? task.state.replaceAll('_', ' ') : `${node.progress}%`}
+          </label>
+          {!['succeeded', 'failed', 'blocked', 'cancelled'].includes(task.state) && (
+            <button type="button" onClick={() => void this.cancelTask(task)} disabled={this.busy}>
+              Cancel
+            </button>
+          )}
+        </div>
+        {task.error && (
+          <p className="gamecrafter-swarm-error" role="alert">
+            {task.error.message}
+          </p>
+        )}
+        {task.result && (
+          <div className="gamecrafter-swarm-result">
+            <p>{task.result.summary}</p>
+            {task.result.artifacts.length > 0 && (
+              <ul>
+                {task.result.artifacts.map((artifact, index) => (
+                  <li key={index}>{artifact.path}</li>
+                ))}
+              </ul>
             )}
           </div>
-          {task.error && (
-            <p className="gamecrafter-swarm-error" role="alert">
-              {task.error.message}
-            </p>
-          )}
-          {task.result && (
-            <div className="gamecrafter-swarm-result">
-              <p>{task.result.summary}</p>
-              {task.result.artifacts.length > 0 && (
-                <ul>
-                  {task.result.artifacts.map((artifact, index) => (
-                    <li key={index}>{artifact.path}</li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-          {node.pendingQuestions.map((question) => this.renderQuestion(task, question))}
-          {task.state === 'succeeded' && task.result?.reviewStatus !== 'accepted' && (
-            <div className="gamecrafter-swarm-feedback">
-              <label>
-                Feedback note
-                <input
-                  aria-label={`Feedback note for ${task.title}`}
-                  value={this.drafts.get(task.taskId) ?? ''}
-                  onChange={(event) => {
-                    this.drafts.set(task.taskId, event.currentTarget.value);
-                    this.update();
-                  }}
-                />
-              </label>
-              {(['accept', 'revise', 'reject'] as const).map((decision) => (
-                <button
-                  key={decision}
-                  type="button"
-                  onClick={() => void this.sendFeedback(task, decision)}
-                  disabled={
-                    this.busy || (decision !== 'accept' && !this.drafts.get(task.taskId)?.trim())
-                  }
-                >
-                  {decision[0]!.toUpperCase() + decision.slice(1)}
-                </button>
-              ))}
-              {task.result?.reviewStatus && <span>Review: {task.result.reviewStatus}</span>}
-            </div>
-          )}
-          {node.children.length > 0 && (
-            <ul>{node.children.map((child) => this.renderTaskNode(child))}</ul>
-          )}
-        </article>
-      </li>
+        )}
+        {node.pendingQuestions.map((question) => this.renderQuestion(task, question))}
+        {task.state === 'succeeded' && task.result?.reviewStatus !== 'accepted' && (
+          <div className="gamecrafter-swarm-feedback">
+            <label>
+              Feedback note
+              <input
+                aria-label={`Feedback note for ${task.title}`}
+                value={this.drafts.get(task.taskId) ?? ''}
+                onChange={(event) => {
+                  this.drafts.set(task.taskId, event.currentTarget.value);
+                  this.update();
+                }}
+              />
+            </label>
+            {(['accept', 'revise', 'reject'] as const).map((decision) => (
+              <button
+                key={decision}
+                type="button"
+                onClick={() => void this.sendFeedback(task, decision)}
+                disabled={
+                  this.busy || (decision !== 'accept' && !this.drafts.get(task.taskId)?.trim())
+                }
+              >
+                {decision[0]!.toUpperCase() + decision.slice(1)}
+              </button>
+            ))}
+            {task.result?.reviewStatus && <span>Review: {task.result.reviewStatus}</span>}
+          </div>
+        )}
+      </article>
     );
   }
 
@@ -541,6 +738,8 @@ export class SwarmWidget extends ControlRoomReactWidget {
         this.integrations = [];
         this.approvals = [];
         this.impactPreview = undefined;
+        this.highlightedTaskId = undefined;
+        this.collapsedTasks.clear();
         this.drafts.clear();
       }
       this.projectId = projectId;
@@ -654,6 +853,11 @@ export class SwarmWidget extends ControlRoomReactWidget {
             : {},
       });
       this.requestId = request.requestId;
+      this.requestText = '';
+      this.impactPreview = undefined;
+      this.requestComposerOpen = false;
+      this.activeSection = 'agents';
+      this.highlightedTaskId = undefined;
       this.notice = `Request created. Thread ${request.threadId}.`;
       await this.refreshAfterAction();
     });

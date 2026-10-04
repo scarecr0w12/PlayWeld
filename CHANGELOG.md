@@ -4,6 +4,10 @@ Generated from permanent [work records](docs/changes/README.md). Run `npm run ch
 
 ## Unreleased
 
+### Changed
+
+- **Streamlined navigation, discussion browsing, and Swarm hierarchy** (minor): Refined the Control Room's Project Home, Discussion Board, and Swarm layouts to make destinations, next actions, and delegated agent work easier to identify without reading every task's full details. [Full details and validation](docs/changes/2026-10-04-navigation-and-swarm-layout.md).
+
 ### Maintenance
 
 - **Build and deploy PlayWeld 0.6.0 locally** (none): Build, stage and install PlayWeld 0.6.0 over the existing local 0.5.0 installation, then verify the running desktop/service and preserved configuration. This post-commit evidence does not rewrite the committed release records or require rebuilding the completed installer. [Full details and validation](docs/changes/2026-10-03-local-0.6.0-deployment.md).
