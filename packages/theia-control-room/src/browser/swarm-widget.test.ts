@@ -2,7 +2,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { TaskRecord } from '@gamecrafter/contracts';
-import { buildTaskTree, type SwarmTaskNode } from '../common/swarm-view-model';
+import { buildTaskTree, taskDisplayTitle, type SwarmTaskNode } from '../common/swarm-view-model';
 
 vi.mock('@theia/core/shared/inversify', () => ({
   injectable: () => () => {},
@@ -18,6 +18,45 @@ vi.mock('./discussion-board-view-contribution', () => ({
 import { SwarmWidget } from './swarm-widget';
 
 describe('Swarm task rendering', () => {
+  it('uses a concise heading for automatically generated Markdown titles without changing the goal', () => {
+    const task = {
+      title: '## Acceptance criteria / **Preserve saves** / `player.gd`',
+      goal: '## Acceptance criteria\n\n- **Preserve saves**\n- Review `player.gd`',
+    };
+    expect(taskDisplayTitle(task)).toBe('Acceptance criteria');
+    expect(task.goal).toContain('**Preserve saves**');
+    expect(taskDisplayTitle({ title: 'Review gameplay', goal: 'Unrelated details' })).toBe(
+      'Review gameplay',
+    );
+  });
+  it('formats task goals and results as headings, lists and code instead of a flat paragraph', () => {
+    const task = {
+      taskId: 'root',
+      state: 'succeeded',
+      title: 'Review gameplay',
+      goal: '## Acceptance criteria\n\n- **Preserve saves**\n- Review `player.ts`\n\n```ts\nconst ready = true;\n```',
+      spent: { costUsd: 0.0012, tokens: 50 },
+      createdAt: '2026-10-04',
+      parentTaskId: null,
+      result: {
+        summary: '## Result\n\n1. Verified saves\n2. Checked movement',
+        artifacts: [],
+        reviewStatus: 'accepted',
+      },
+    } as unknown as TaskRecord;
+    const node = buildTaskTree([task], task.taskId)!;
+    const widget = Object.create(SwarmWidget.prototype) as {
+      renderTaskDetails(node: SwarmTaskNode): React.ReactNode;
+    };
+    const html = renderToStaticMarkup(widget.renderTaskDetails(node));
+    expect(html).toContain('<h2>Acceptance criteria</h2>');
+    expect(html).toContain('<strong>Preserve saves</strong>');
+    expect(html).toContain('<code>player.ts</code>');
+    expect(html).toContain('<pre>');
+    expect(html).toContain('<h2>Result</h2>');
+    expect(html).toContain('<ol>');
+  });
+
   it('refreshes pending approvals even when the resource-lock panel fails', async () => {
     const approvals = [{ approvalId: 'next-approval' }];
     const widget = Object.assign(Object.create(SwarmWidget.prototype), {

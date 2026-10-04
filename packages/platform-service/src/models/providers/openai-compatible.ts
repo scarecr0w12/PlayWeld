@@ -12,7 +12,14 @@ import type {
   ProviderCompletionHooks,
   ProviderRuntimeAccount,
 } from './provider';
-import { endpoint, modelUsage, providerFetch, providerJson, safeExcerpt } from './http-utils';
+import {
+  endpoint,
+  modelUsage,
+  optionalUsageCount,
+  providerFetch,
+  providerJson,
+  safeExcerpt,
+} from './http-utils';
 import { providerToolNames } from './tool-names';
 
 interface OpenAIModelList {
@@ -25,7 +32,11 @@ interface OpenAIChatResponse {
     message?: Record<string, unknown>;
     finish_reason?: string | null;
   }[];
-  usage?: { prompt_tokens?: number; completion_tokens?: number };
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    prompt_tokens_details?: { cached_tokens?: number };
+  };
 }
 
 export class OpenAICompatibleProvider implements ModelProvider {
@@ -108,7 +119,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
       .map((item) => item.embedding ?? []);
     return {
       vectors,
-      usage: modelUsage(model, response.usage?.prompt_tokens ?? 0, 0),
+      usage: modelUsage(model, optionalUsageCount(response.usage?.prompt_tokens), 0),
     };
   }
 
@@ -135,13 +146,21 @@ export class OpenAICompatibleProvider implements ModelProvider {
       );
     }
     const message = choice.message;
-    const inputTokens = response.usage?.prompt_tokens ?? 0;
-    const outputTokens = response.usage?.completion_tokens ?? 0;
+    const inputTokens = optionalUsageCount(response.usage?.prompt_tokens);
+    const outputTokens = optionalUsageCount(response.usage?.completion_tokens);
+    const promptDetails = objectValue(response.usage?.prompt_tokens_details)
+      ? response.usage.prompt_tokens_details
+      : {};
     return {
       content: contentText(message.content),
       toolCalls: openAiToolCalls(message.tool_calls),
       finishReason: finishReason(choice.finish_reason),
-      usage: modelUsage(model, inputTokens, outputTokens),
+      usage: modelUsage(
+        model,
+        inputTokens,
+        outputTokens,
+        optionalUsageCount(promptDetails.cached_tokens) ?? 0,
+      ),
       latencyMs: Date.now() - startedAt,
       modelId: model.modelId,
       decisionId: null,
@@ -181,8 +200,9 @@ export class OpenAICompatibleProvider implements ModelProvider {
     let buffer = '';
     let content = '';
     let finish = 'stop';
-    let inputTokens = 0;
-    let outputTokens = 0;
+    let inputTokens: number | undefined;
+    let outputTokens: number | undefined;
+    let cacheReadInputTokens = 0;
     let done = false;
 
     const consumeEvent = (event: string) => {
@@ -205,8 +225,13 @@ export class OpenAICompatibleProvider implements ModelProvider {
         );
       }
       const usage = objectValue(chunk.usage) ? (chunk.usage as Record<string, unknown>) : undefined;
-      inputTokens = numericValue(usage?.prompt_tokens, inputTokens);
-      outputTokens = numericValue(usage?.completion_tokens, outputTokens);
+      inputTokens = optionalUsageCount(usage?.prompt_tokens) ?? inputTokens;
+      outputTokens = optionalUsageCount(usage?.completion_tokens) ?? outputTokens;
+      const promptDetails = objectValue(usage?.prompt_tokens_details)
+        ? (usage.prompt_tokens_details as Record<string, unknown>)
+        : undefined;
+      cacheReadInputTokens =
+        optionalUsageCount(promptDetails?.cached_tokens) ?? cacheReadInputTokens;
       const choices = Array.isArray(chunk.choices) ? chunk.choices : [];
       const choice = objectValue(choices[0]) ? (choices[0] as Record<string, unknown>) : undefined;
       if (!choice) return;
@@ -256,7 +281,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
       content,
       toolCalls: calls,
       finishReason: finishReason(finish),
-      usage: modelUsage(model, inputTokens, outputTokens),
+      usage: modelUsage(model, inputTokens, outputTokens, cacheReadInputTokens),
       latencyMs: Date.now() - startedAt,
       modelId: model.modelId,
       decisionId: null,

@@ -4,6 +4,38 @@ import { RpcError, type ChatRequest, type Model } from '@gamecrafter/contracts';
 import type { ProviderRuntimeAccount } from './provider';
 import { AnthropicProvider } from './anthropic';
 import { OpenAICompatibleProvider } from './openai-compatible';
+import { modelUsage as calculateModelUsage } from './http-utils';
+
+describe('provider usage pricing', () => {
+  it('distinguishes omitted counts from explicit zero and zero-priced usage', () => {
+    const account = openAIAccount('http://localhost:5000/v1');
+    const unknownPricingModel = model(account, 'unknown-pricing');
+    unknownPricingModel.pricing = { inputPerMTokUsd: null, outputPerMTokUsd: null };
+    expect(calculateModelUsage(unknownPricingModel, undefined, undefined)).toMatchObject({
+      inputTokens: 0,
+      outputTokens: 0,
+      costUsd: null,
+      costStatus: 'unknown',
+    });
+    expect(calculateModelUsage(unknownPricingModel, 0, 0)).toMatchObject({
+      costUsd: 0,
+      costStatus: 'known',
+    });
+
+    const freeModel = model(account, 'free');
+    freeModel.pricing = { inputPerMTokUsd: 0, outputPerMTokUsd: 0 };
+    expect(calculateModelUsage(freeModel, undefined, undefined)).toMatchObject({
+      costUsd: null,
+      costStatus: 'unknown',
+    });
+    expect(calculateModelUsage(freeModel, 100, 50)).toMatchObject({
+      inputTokens: 100,
+      outputTokens: 50,
+      costUsd: 0,
+      costStatus: 'known',
+    });
+  });
+});
 
 describe('OpenAI-compatible provider', () => {
   it('reads provider capacities without guessing capacities for ID-only models', async () => {
@@ -337,6 +369,88 @@ describe('OpenAI-compatible provider', () => {
     }
   });
 
+  it('keeps missing usage unknown, one-sided usage partial, and explicit zero known for JSON and streams', async () => {
+    let usage: Record<string, unknown> | undefined;
+    const server = createServer((request, response) => {
+      let body = '';
+      request.on('data', (chunk) => (body += chunk.toString()));
+      request.on('end', () => {
+        const streaming = (JSON.parse(body) as { stream?: boolean }).stream === true;
+        response.writeHead(200, {
+          'content-type': streaming ? 'text/event-stream' : 'application/json',
+        });
+        if (streaming) {
+          response.write('data: {"choices":[{"delta":{"content":"ok"}}]}\n\n');
+          if (usage) response.write(`data: ${JSON.stringify({ choices: [], usage })}\n\n`);
+          response.end('data: [DONE]\n\n');
+          return;
+        }
+        response.end(
+          JSON.stringify({
+            choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }],
+            ...(usage === undefined ? {} : { usage }),
+          }),
+        );
+      });
+    });
+    const account = openAIAccount(await listen(server, '/v1'));
+    const provider = new OpenAICompatibleProvider();
+    const modelData = model(account, 'usage-fixture');
+    try {
+      for (const stream of [false, true]) {
+        const complete = () =>
+          provider.complete(
+            account,
+            modelData,
+            { ...chatRequest(), stream },
+            { signal: new AbortController().signal },
+          );
+        usage = undefined;
+        expect((await complete()).usage).toMatchObject({
+          inputTokens: 0,
+          outputTokens: 0,
+          costUsd: null,
+          costStatus: 'unknown',
+        });
+        usage = { prompt_tokens: 5 };
+        expect((await complete()).usage).toMatchObject({
+          inputTokens: 5,
+          outputTokens: 0,
+          costUsd: 0.000005,
+          costStatus: 'partial',
+        });
+        usage = { completion_tokens: 3 };
+        expect((await complete()).usage).toMatchObject({
+          inputTokens: 0,
+          outputTokens: 3,
+          costUsd: 0.000006,
+          costStatus: 'partial',
+        });
+        usage = { prompt_tokens: 0, completion_tokens: 0 };
+        expect((await complete()).usage).toMatchObject({
+          inputTokens: 0,
+          outputTokens: 0,
+          costUsd: 0,
+          costStatus: 'known',
+        });
+        usage = {
+          prompt_tokens: 1,
+          completion_tokens: 1,
+          prompt_tokens_details: { cached_tokens: 0 },
+        };
+        expect((await complete()).usage).toMatchObject({
+          inputTokens: 1,
+          outputTokens: 1,
+          cacheReadInputTokens: 0,
+          costUsd: 0.000003,
+          costStatus: 'known',
+        });
+      }
+    } finally {
+      await closeServer(server);
+    }
+  });
+
   it('streams deltas and redacts provider error bodies', async () => {
     let failRequest = false;
     const server = createServer((request, response) => {
@@ -450,7 +564,16 @@ describe('Anthropic provider', () => {
         });
         if (stream) {
           const events = [
-            { type: 'message_start', message: { usage: { input_tokens: 7 } } },
+            {
+              type: 'message_start',
+              message: {
+                usage: {
+                  input_tokens: 7,
+                  cache_read_input_tokens: 2,
+                  cache_creation_input_tokens: 1,
+                },
+              },
+            },
             { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
             { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'A' } },
             { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'B' } },
@@ -504,7 +627,14 @@ describe('Anthropic provider', () => {
         content: 'anthropic reply',
         finishReason: 'tool_calls',
         toolCalls: [{ id: 'tool-2', name: 'lookup', arguments: '{"id":2}' }],
-        usage: { inputTokens: 9, outputTokens: 4 },
+        usage: {
+          inputTokens: 9,
+          outputTokens: 4,
+          cacheReadInputTokens: 0,
+          cacheCreationInputTokens: 0,
+          costUsd: 0.000017,
+          costStatus: 'known',
+        },
       });
       expect(requestBody?.system).toBe('system prompt');
       expect(requestBody?.tools).toMatchObject([
@@ -525,10 +655,119 @@ describe('Anthropic provider', () => {
       expect(streamResponse.toolCalls).toEqual([
         { id: 'stream-tool', name: 'lookup', arguments: '{"q":"x"}' },
       ]);
-      expect(streamResponse.usage).toMatchObject({ inputTokens: 7, outputTokens: 2 });
+      expect(streamResponse.usage).toMatchObject({
+        inputTokens: 10,
+        outputTokens: 2,
+        cacheReadInputTokens: 2,
+        cacheCreationInputTokens: 1,
+        costUsd: 0.000011,
+        costStatus: 'partial',
+      });
       await expect(provider.embed(account, modelData, ['text'])).rejects.toMatchObject({
         code: -32046,
       });
+    } finally {
+      await closeServer(server);
+    }
+  });
+
+  it('keeps missing usage unknown, one-sided usage partial, and explicit zero known for JSON and streams', async () => {
+    let jsonUsage: Record<string, unknown> | undefined;
+    let streamStartUsage: Record<string, unknown> | undefined;
+    let streamEndUsage: Record<string, unknown> | undefined;
+    const server = createServer((request, response) => {
+      let body = '';
+      request.on('data', (chunk) => (body += chunk.toString()));
+      request.on('end', () => {
+        const streaming = (JSON.parse(body) as { stream?: boolean }).stream === true;
+        response.writeHead(200, {
+          'content-type': streaming ? 'text/event-stream' : 'application/json',
+        });
+        if (streaming) {
+          const events = [
+            {
+              type: 'message_start',
+              message: { ...(streamStartUsage === undefined ? {} : { usage: streamStartUsage }) },
+            },
+            {
+              type: 'message_delta',
+              delta: { stop_reason: 'end_turn' },
+              ...(streamEndUsage === undefined ? {} : { usage: streamEndUsage }),
+            },
+            { type: 'message_stop' },
+          ];
+          for (const event of events)
+            response.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+          response.end();
+          return;
+        }
+        response.end(
+          JSON.stringify({
+            content: [{ type: 'text', text: 'ok' }],
+            stop_reason: 'end_turn',
+            ...(jsonUsage === undefined ? {} : { usage: jsonUsage }),
+          }),
+        );
+      });
+    });
+    const account = anthropicAccount(await listen(server));
+    const provider = new AnthropicProvider();
+    const modelData = model(account, 'usage-fixture');
+    try {
+      for (const stream of [false, true]) {
+        const complete = () =>
+          provider.complete(
+            account,
+            modelData,
+            { ...chatRequest(), stream },
+            { signal: new AbortController().signal },
+          );
+        jsonUsage = undefined;
+        streamStartUsage = undefined;
+        streamEndUsage = undefined;
+        expect((await complete()).usage).toMatchObject({
+          inputTokens: 0,
+          outputTokens: 0,
+          costUsd: null,
+          costStatus: 'unknown',
+        });
+        jsonUsage = { input_tokens: 5 };
+        streamStartUsage = { input_tokens: 5 };
+        expect((await complete()).usage).toMatchObject({
+          inputTokens: 5,
+          outputTokens: 0,
+          costUsd: 0.000005,
+          costStatus: 'partial',
+        });
+        jsonUsage = { output_tokens: 3 };
+        streamStartUsage = undefined;
+        streamEndUsage = { output_tokens: 3 };
+        expect((await complete()).usage).toMatchObject({
+          inputTokens: 0,
+          outputTokens: 3,
+          costUsd: 0.000006,
+          costStatus: 'partial',
+        });
+        jsonUsage = { input_tokens: 0, output_tokens: 0 };
+        streamStartUsage = { input_tokens: 0 };
+        streamEndUsage = { output_tokens: 0 };
+        expect((await complete()).usage).toMatchObject({
+          inputTokens: 0,
+          outputTokens: 0,
+          costUsd: 0,
+          costStatus: 'known',
+        });
+        jsonUsage = { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0 };
+        streamStartUsage = { input_tokens: 1, cache_read_input_tokens: 0 };
+        streamEndUsage = { output_tokens: 1 };
+        expect((await complete()).usage).toMatchObject({
+          inputTokens: 1,
+          outputTokens: 1,
+          cacheReadInputTokens: 0,
+          costUsd: 0.000003,
+          costStatus: 'known',
+        });
+      }
     } finally {
       await closeServer(server);
     }

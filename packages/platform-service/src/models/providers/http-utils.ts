@@ -62,19 +62,65 @@ export async function providerJson<T>(
   }
 }
 
-export function modelCost(model: Model, inputTokens: number, outputTokens: number): number | null {
+export function modelCost(
+  model: Model,
+  inputTokens: number | undefined,
+  outputTokens: number | undefined,
+  cacheReadInputTokens = 0,
+  cacheCreationInputTokens = 0,
+): { costUsd: number | null; costStatus: 'known' | 'partial' | 'unknown' } {
   const inputRate = model.pricing.inputPerMTokUsd;
   const outputRate = model.pricing.outputPerMTokUsd;
-  if (inputRate === null || outputRate === null) return null;
-  return (inputRate * inputTokens + outputRate * outputTokens) / 1_000_000;
+  const regularInputTokens =
+    inputTokens === undefined
+      ? undefined
+      : Math.max(0, inputTokens - cacheReadInputTokens - cacheCreationInputTokens);
+  const pricedInput =
+    inputRate === null || regularInputTokens === undefined ? null : inputRate * regularInputTokens;
+  const pricedOutput =
+    outputRate === null || outputTokens === undefined ? null : outputRate * outputTokens;
+  const hasUnpricedUsage =
+    regularInputTokens === undefined ||
+    outputTokens === undefined ||
+    (inputRate === null && regularInputTokens > 0) ||
+    (outputRate === null && outputTokens > 0) ||
+    cacheReadInputTokens > 0 ||
+    cacheCreationInputTokens > 0;
+  const hasPricedUsage =
+    (regularInputTokens !== undefined && inputRate !== null) ||
+    (outputTokens !== undefined && outputRate !== null);
+  if (hasUnpricedUsage && !hasPricedUsage) return { costUsd: null, costStatus: 'unknown' };
+  return {
+    costUsd: ((pricedInput ?? 0) + (pricedOutput ?? 0)) / 1_000_000,
+    costStatus: hasUnpricedUsage ? 'partial' : 'known',
+  };
 }
 
-export function modelUsage(model: Model, inputTokens: number, outputTokens: number): ModelUsage {
-  return {
+export function modelUsage(
+  model: Model,
+  inputTokens: number | undefined,
+  outputTokens: number | undefined,
+  cacheReadInputTokens = 0,
+  cacheCreationInputTokens = 0,
+): ModelUsage {
+  const cost = modelCost(
+    model,
     inputTokens,
     outputTokens,
-    costUsd: modelCost(model, inputTokens, outputTokens),
+    cacheReadInputTokens,
+    cacheCreationInputTokens,
+  );
+  return {
+    inputTokens: inputTokens ?? 0,
+    outputTokens: outputTokens ?? 0,
+    cacheReadInputTokens,
+    cacheCreationInputTokens,
+    ...cost,
   };
+}
+
+export function optionalUsageCount(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
 }
 
 export function safeExcerpt(body: string, credential?: string): string {

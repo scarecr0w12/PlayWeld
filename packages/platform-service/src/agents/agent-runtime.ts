@@ -11,7 +11,7 @@ import {
   type TaskResult,
   type ToolDefinition,
 } from '@gamecrafter/contracts';
-import type { TaskHandlerContext } from '../workers/types';
+import type { ReportedUsage, TaskHandlerContext } from '../workers/types';
 import { modelContext, estimateRequestTokens, type AgentModelContext } from './model-context';
 
 const completionClaimValidator = compile<CompletionClaim>(CompletionClaimSchema);
@@ -152,8 +152,8 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
       toolDefinitions,
       roleName,
       (usage) => {
-        spentCost += usage.costUsd;
-        spentTokens += usage.tokens;
+        spentCost += usage.costUsd ?? 0;
+        spentTokens += usage.tokens ?? 0;
         const exhausted = exhaustedBudgets(context, spentCost, spentTokens);
         if (exhausted.length > 0)
           throw new RpcError(
@@ -180,9 +180,9 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
     );
     turn += 1;
     const usage = usageFrom(response);
-    spentCost += usage.costUsd;
+    spentCost += usage.costUsd ?? 0;
     spentTokens += usage.tokens;
-    await context.reportUsage({ costUsd: usage.costUsd, tokens: usage.tokens });
+    await context.reportUsage(usage);
     evidence.push({ kind: 'model-call', ref: requestId });
     if (response.finishReason === 'length') {
       throw new RpcError(
@@ -316,7 +316,7 @@ async function compactTranscript(
   capacity: AgentModelContext,
   tools: ChatRequest['tools'],
   role: string,
-  addUsage: (usage: { costUsd: number; tokens: number }) => void,
+  addUsage: (usage: ReportedUsage) => void,
   evidence: Array<{ kind: string; ref: string }>,
 ): Promise<number> {
   if (
@@ -392,7 +392,7 @@ async function compactTranscript(
       },
     );
     const usage = usageFrom(response);
-    await context.reportUsage({ costUsd: usage.costUsd, tokens: usage.tokens });
+    await context.reportUsage(usage);
     addUsage(usage);
     evidence.push({ kind: 'model-call', ref: requestId });
     if (response.finishReason === 'length')
@@ -506,10 +506,18 @@ function mergeToolDefinitions(
   return [...unique.values()];
 }
 
-function usageFrom(response: ChatResponse): { costUsd: number; tokens: number } {
+function usageFrom(response: ChatResponse): ReportedUsage & { tokens: number } {
   return {
-    costUsd: response.usage.costUsd ?? 0,
+    costUsd: response.usage.costUsd,
+    costStatus:
+      response.usage.costStatus ?? (response.usage.costUsd === null ? 'unknown' : 'known'),
     tokens: response.usage.inputTokens + response.usage.outputTokens,
+    inputTokens: response.usage.inputTokens,
+    outputTokens: response.usage.outputTokens,
+    cacheReadInputTokens: response.usage.cacheReadInputTokens ?? 0,
+    cacheCreationInputTokens: response.usage.cacheCreationInputTokens ?? 0,
+    modelId: response.modelId,
+    decisionId: response.decisionId,
   };
 }
 

@@ -155,7 +155,12 @@ export const ModelUsageSchema = Type.Object(
   {
     inputTokens: Type.Integer({ minimum: 0 }),
     outputTokens: Type.Integer({ minimum: 0 }),
+    cacheReadInputTokens: Type.Optional(Type.Integer({ minimum: 0 })),
+    cacheCreationInputTokens: Type.Optional(Type.Integer({ minimum: 0 })),
     costUsd: Type.Union([Type.Number({ minimum: 0 }), Type.Null()]),
+    costStatus: Type.Optional(
+      Type.Union([Type.Literal('known'), Type.Literal('partial'), Type.Literal('unknown')]),
+    ),
   },
   { additionalProperties: false },
 );
@@ -261,12 +266,49 @@ export const RouteOutcomeSchema = Type.Object(
       Type.Literal('reviewer'),
       Type.Literal('self'),
     ]),
-    costUsd: Type.Number({ minimum: 0 }),
+    costUsd: Type.Union([Type.Number({ minimum: 0 }), Type.Null()]),
+    costStatus: Type.Optional(
+      Type.Union([
+        Type.Literal('known'),
+        Type.Literal('partial'),
+        Type.Literal('unknown'),
+        Type.Literal('unverified'),
+      ]),
+    ),
     latencyMs: Type.Integer({ minimum: 0 }),
     inputTokens: Type.Integer({ minimum: 0 }),
     outputTokens: Type.Integer({ minimum: 0 }),
+    cacheReadInputTokens: Type.Optional(Type.Integer({ minimum: 0 })),
+    cacheCreationInputTokens: Type.Optional(Type.Integer({ minimum: 0 })),
     note: Type.Optional(Type.String()),
   },
   { additionalProperties: false },
 );
 export type RouteOutcome = Static<typeof RouteOutcomeSchema>;
+
+export const ModelUsageRecordSchema = Type.Object(
+  {
+    usageId: Type.String({ format: 'uuid' }),
+    requestId: Type.Union([Type.String(), Type.Null()]),
+    taskId: Type.Union([Type.String({ format: 'uuid' }), Type.Null()]),
+    decisionId: Type.Union([Type.String({ format: 'uuid' }), Type.Null()]),
+    modelId: Type.String(),
+    modelName: Type.Optional(Type.String()),
+    providerModelId: Type.Optional(Type.String()),
+    occurredAt: Type.String({ format: 'date-time' }),
+    source: Type.Literal('completion'),
+    inputTokens: Type.Integer({ minimum: 0 }),
+    outputTokens: Type.Integer({ minimum: 0 }),
+    cacheReadInputTokens: Type.Integer({ minimum: 0 }),
+    cacheCreationInputTokens: Type.Integer({ minimum: 0 }),
+    costUsd: Type.Union([Type.Number({ minimum: 0 }), Type.Null()]),
+    costStatus: Type.Union([
+      Type.Literal('known'),
+      Type.Literal('partial'),
+      Type.Literal('unknown'),
+      Type.Literal('unverified'),
+    ]),
+  },
+  { additionalProperties: false },
+);
+export type ModelUsageRecord = Static<typeof ModelUsageRecordSchema>;

@@ -105,13 +105,16 @@ describe('MCP sampling', () => {
     });
     expect(
       database
-        .prepare('SELECT connection_id, decision_id, model_id, cost_usd FROM mcp_usage')
+        .prepare(
+          'SELECT connection_id, decision_id, model_id, cost_usd, cost_status FROM mcp_usage',
+        )
         .get(),
     ).toEqual({
       connection_id: config.connectionId,
       decision_id: decisionId,
       model_id: 'fake-sampling-model',
       cost_usd: 0.025,
+      cost_status: 'known',
     });
     await manager.remove(config.connectionId);
   }, 60_000);

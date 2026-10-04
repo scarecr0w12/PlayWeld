@@ -1212,3 +1212,221 @@
     white-space: nowrap;
   }
 }
+
+/* Task prose stays structured without letting long goals dominate the inspector. */
+.gamecrafter-markdown-content {
+  font-size: 13px;
+  line-height: 1.65;
+  max-width: 76ch;
+  overflow-wrap: anywhere;
+}
+.gamecrafter-markdown-content > :first-child {
+  margin-top: 0;
+}
+.gamecrafter-markdown-content > :last-child {
+  margin-bottom: 0;
+}
+.gamecrafter-markdown-content :is(h1, h2, h3, h4, h5, h6) {
+  font-size: 15px;
+  line-height: 1.4;
+  margin: 18px 0 8px;
+}
+.gamecrafter-markdown-content h1 {
+  font-size: 18px;
+}
+.gamecrafter-markdown-content h2 {
+  font-size: 16px;
+}
+.gamecrafter-markdown-content p {
+  margin: 8px 0;
+}
+.gamecrafter-markdown-content :is(ul, ol) {
+  padding-left: 24px;
+  margin: 8px 0;
+}
+.gamecrafter-markdown-content li {
+  margin: 5px 0;
+}
+.gamecrafter-markdown-content blockquote {
+  border-left: 3px solid var(--gc-accent);
+  color: var(--theia-descriptionForeground);
+  margin: 12px 0;
+  padding-left: 14px;
+}
+.gamecrafter-markdown-content :is(pre, table) {
+  max-width: 100%;
+  overflow: auto;
+}
+.gamecrafter-markdown-content pre {
+  background: var(--gc-surface);
+  border: 1px solid var(--gc-border);
+  border-radius: 6px;
+  padding: 12px;
+  white-space: pre;
+}
+.gamecrafter-markdown-content code {
+  font-size: 12px;
+}
+.gamecrafter-markdown-content p code,
+.gamecrafter-markdown-content li code {
+  background: var(--gc-surface);
+  border: 1px solid var(--gc-border);
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+.gamecrafter-markdown-content table {
+  border-collapse: collapse;
+  display: block;
+}
+.gamecrafter-markdown-content :is(td, th) {
+  border-bottom: 1px solid var(--gc-border);
+  padding: 6px 12px;
+  text-align: left;
+}
+.gamecrafter-swarm-reading-panel {
+  background: var(--gc-panel);
+  border: 1px solid var(--gc-border);
+  border-radius: 8px;
+  margin: 12px 0;
+  padding: 14px;
+}
+.gamecrafter-swarm-reading-panel h4,
+.gamecrafter-swarm-result > h4 {
+  color: var(--theia-descriptionForeground);
+  font-size: 12px;
+  margin: 0 0 12px;
+}
+.gamecrafter-swarm-reading-body {
+  max-height: 26rem;
+  min-width: 0;
+  overflow: auto;
+  padding-right: 8px;
+  scrollbar-gutter: stable;
+}
+.gamecrafter-swarm-reading-body:focus-visible {
+  outline: 2px solid var(--gc-accent);
+  outline-offset: 2px;
+}
+.gamecrafter-swarm-cost-note {
+  color: var(--theia-descriptionForeground);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.gamecrafter-audit-stats {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 18px 0;
+}
+.gamecrafter-audit-stats > div {
+  background: var(--gc-surface);
+  border: 1px solid var(--gc-border);
+  border-radius: 8px;
+  min-width: 0;
+  padding: 14px;
+}
+.gamecrafter-audit-stats dt,
+.gamecrafter-audit-stats small {
+  color: var(--theia-descriptionForeground);
+  font-size: 11px;
+}
+.gamecrafter-audit-stats dd {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 6px 0;
+  overflow-wrap: anywhere;
+}
+.gamecrafter-audit-cost-warning {
+  background: var(--gc-surface);
+  border-left: 3px solid var(--theia-editorWarning-foreground, var(--gc-accent));
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 12px 14px;
+}
+.gamecrafter-audit-layout {
+  align-items: start;
+  display: grid;
+  gap: 18px;
+  grid-template-columns: minmax(230px, 0.85fr) minmax(0, 1.15fr);
+}
+.gamecrafter-audit-record-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 38rem;
+  min-width: 0;
+  overflow: auto;
+  padding: 2px;
+}
+.gamecrafter-audit-record-list button {
+  align-items: start;
+  background: var(--gc-panel);
+  border: 1px solid var(--gc-border);
+  border-radius: 7px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  gap: 6px;
+  padding: 12px;
+  text-align: left;
+  width: 100%;
+}
+.gamecrafter-audit-record-list button[aria-current='true'] {
+  background: color-mix(in srgb, var(--gc-accent) 7%, var(--gc-panel));
+  border-color: var(--gc-accent);
+  box-shadow: inset 2px 0 var(--gc-accent);
+}
+.gamecrafter-audit-record-list :is(span, time) {
+  color: var(--theia-descriptionForeground);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.gamecrafter-audit-inspector {
+  background: var(--gc-surface);
+  border: 1px solid var(--gc-border);
+  border-radius: 8px;
+  min-width: 0;
+  padding: 18px;
+}
+.gamecrafter-audit-inspector h3 {
+  font-size: 16px;
+  margin-top: 0;
+  overflow-wrap: anywhere;
+}
+.gamecrafter-audit-fields {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.gamecrafter-audit-fields dt {
+  color: var(--theia-descriptionForeground);
+  font-size: 11px;
+}
+.gamecrafter-audit-fields dd {
+  font-size: 12px;
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+.gamecrafter-audit .gamecrafter-audit-cost.is-known {
+  color: var(--gc-accent);
+}
+.gamecrafter-audit .gamecrafter-audit-cost:is(.is-unknown, .is-unverified, .is-partial) {
+  color: var(--theia-editorWarning-foreground, var(--theia-descriptionForeground));
+}
+@container gamecrafter-view (max-width: 850px) {
+  .gamecrafter-audit-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .gamecrafter-audit-record-list {
+    max-height: 22rem;
+  }
+  .gamecrafter-audit-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@container gamecrafter-view (max-width: 500px) {
+  .gamecrafter-audit-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

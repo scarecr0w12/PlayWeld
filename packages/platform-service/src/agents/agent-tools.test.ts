@@ -71,3 +71,37 @@ describe('agent delegation locks', () => {
     );
   });
 });
+
+describe('agent model cost reporting', () => {
+  it('preserves unknown model cost on the paid model tool result', async () => {
+    const registry = new ToolRegistry();
+    registerAgentTools(registry, {
+      tasks: { get: () => ({ taskId: 'task', role: 'programmer', budget: {} }) },
+      roles: { get: () => ({ workTypes: ['code'] }) },
+      completion: {
+        complete: vi.fn(async () => ({
+          content: 'Reply',
+          modelId: 'provider/model',
+          finishReason: 'stop',
+          toolCalls: [],
+          usage: {
+            inputTokens: 4,
+            outputTokens: 2,
+            costUsd: null,
+            costStatus: 'unknown',
+          },
+          latencyMs: 1,
+          decisionId: null,
+        })),
+      },
+    } as unknown as AgentToolOptions);
+
+    const result = await registry
+      .get('model/complete')!
+      .handler({ taskId: 'task', projectId: 'project', accessMode: 'restricted' } as ToolContext, {
+        request: { messages: [{ role: 'user', content: 'fixture' }] },
+      });
+
+    expect(result).toMatchObject({ costUsd: null, costStatus: 'unknown' });
+  });
+});

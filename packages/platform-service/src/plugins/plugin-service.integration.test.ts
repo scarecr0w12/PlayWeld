@@ -676,10 +676,10 @@ describe('plugin service integration', () => {
     try {
       const usage = database
         .prepare(
-          'SELECT model_id AS modelId, cost_usd AS costUsd FROM plugin_usage WHERE plugin_id = ?',
+          'SELECT model_id AS modelId, cost_usd AS costUsd, cost_status AS costStatus FROM plugin_usage WHERE plugin_id = ?',
         )
-        .get<{ modelId: string; costUsd: number }>('model-fixture');
-      expect(usage).toMatchObject({ modelId, costUsd: expect.any(Number) });
+        .get<{ modelId: string; costUsd: number; costStatus: string }>('model-fixture');
+      expect(usage).toMatchObject({ modelId, costUsd: expect.any(Number), costStatus: 'known' });
       expect(usage?.costUsd).toBeGreaterThan(0);
     } finally {
       database.close();

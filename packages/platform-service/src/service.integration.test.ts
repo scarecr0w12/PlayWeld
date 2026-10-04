@@ -14,6 +14,8 @@ import { connect } from '@gamecrafter/service-client';
 import { Database } from './db/database';
 import { resolvePaths } from './paths';
 import { PlatformService } from './service';
+import { profileMigrations } from './profile/migrations';
+import { projectMigrations } from './projects/migrations';
 
 const temporaryDirectories: string[] = [];
 let service: PlatformService | undefined;
@@ -47,8 +49,8 @@ describe('platform service integration', () => {
         },
       ],
       compatibility: {
-        profileSchemaVersion: 11,
-        projectSchemaVersion: 12,
+        profileSchemaVersion: Math.max(...profileMigrations.map((migration) => migration.id)),
+        projectSchemaVersion: Math.max(...projectMigrations.map((migration) => migration.id)),
         minUpgradeFromVersion: '0.1.0',
       },
       notes: 'Release test.',
@@ -176,7 +178,9 @@ describe('platform service integration', () => {
       path.join(project.path, '.gamecrafter', 'project.sqlite'),
     );
     try {
-      expect(projectDatabase.prepare('SELECT id FROM schema_migrations').all()).toHaveLength(12);
+      expect(projectDatabase.prepare('SELECT id FROM schema_migrations').all()).toHaveLength(
+        projectMigrations.length,
+      );
       expect(
         projectDatabase.prepare('SELECT kind FROM events WHERE kind = ?').all('project.created'),
       ).toHaveLength(1);

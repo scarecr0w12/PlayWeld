@@ -4,6 +4,7 @@ import {
   uuidv7,
   type Model,
   type ModelPool,
+  type ModelUsageRecord,
   type RouteCandidate,
   type RouteDecision,
   type RouteOutcome,
@@ -31,7 +32,7 @@ interface OutcomeRow {
   success: number;
   qualityScore: number | null;
   source: RouteOutcome['source'];
-  costUsd: number;
+  costUsd: number | null;
   latencyMs: number;
   inputTokens: number;
   outputTokens: number;
@@ -156,13 +157,20 @@ export class ModelRouter {
     let winner = scored[0]!;
     let explored = false;
     if (!request.manualModelId && this.shouldExplore(request.projectId, sessionId)) {
-      const leastObserved = [...scored].sort(
-        (left, right) =>
-          left.observations - right.observations || left.modelId.localeCompare(right.modelId),
-      )[0]!;
-      if (leastObserved.modelId !== winner.modelId) {
-        winner = leastObserved;
-        explored = true;
+      const remainingBudget = this.remainingExplorationBudget(request.projectId, sessionId);
+      const affordable = scored.filter(
+        (candidate) =>
+          candidate.estimatedCostUsd !== null && candidate.estimatedCostUsd <= remainingBudget,
+      );
+      if (affordable.length > 0) {
+        const leastObserved = [...affordable].sort(
+          (left, right) =>
+            left.observations - right.observations || left.modelId.localeCompare(right.modelId),
+        )[0]!;
+        if (leastObserved.modelId !== winner.modelId) {
+          winner = leastObserved;
+          explored = true;
+        }
       }
     }
 
@@ -224,13 +232,15 @@ export class ModelRouter {
       .prepare('SELECT decision_id FROM route_outcomes WHERE decision_id = ?')
       .get<{ decision_id: string }>(outcome.decisionId);
     const decision = JSON.parse(row.decision) as RouteDecision;
+    const costStatus = outcome.costStatus ?? (outcome.costUsd === null ? 'unknown' : 'known');
     this.options.database.transaction(() => {
       this.options.database
         .prepare(
           `INSERT INTO route_outcomes (
             decision_id, success, quality_score, source, cost_usd, latency_ms,
-            input_tokens, output_tokens, note, recorded_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            input_tokens, output_tokens, note, recorded_at, cost_status,
+            cache_read_input_tokens, cache_creation_input_tokens
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT(decision_id) DO UPDATE SET
             success = excluded.success,
             quality_score = excluded.quality_score,
@@ -240,22 +250,143 @@ export class ModelRouter {
             input_tokens = excluded.input_tokens,
             output_tokens = excluded.output_tokens,
             note = excluded.note,
-            recorded_at = excluded.recorded_at`,
+            recorded_at = excluded.recorded_at,
+            cost_status = excluded.cost_status,
+            cache_read_input_tokens = excluded.cache_read_input_tokens,
+            cache_creation_input_tokens = excluded.cache_creation_input_tokens`,
         )
         .run(
           outcome.decisionId,
           Number(outcome.success),
           outcome.qualityScore,
           outcome.source,
-          outcome.costUsd,
+          outcome.costUsd ?? 0,
           outcome.latencyMs,
           outcome.inputTokens,
           outcome.outputTokens,
           outcome.note ?? null,
           this.now().toISOString(),
+          costStatus,
+          outcome.cacheReadInputTokens ?? 0,
+          outcome.cacheCreationInputTokens ?? 0,
         );
-      if (!existing && decision.explored) this.addExplorationSpend(outcome.costUsd);
+      if (!existing && decision.explored && costStatus === 'known' && outcome.costUsd !== null)
+        this.addExplorationSpend(outcome.costUsd);
     });
+  }
+
+  recordModelUsage(record: ModelUsageRecord & { projectId: string | null }): void {
+    this.options.database
+      .prepare(
+        `INSERT INTO model_usage (
+          usage_id, request_id, project_id, task_id, decision_id, model_id, occurred_at,
+          input_tokens, output_tokens, cache_read_input_tokens,
+          cache_creation_input_tokens, cost_usd, cost_status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        record.usageId,
+        record.requestId,
+        record.projectId,
+        record.taskId,
+        record.decisionId,
+        record.modelId,
+        record.occurredAt,
+        record.inputTokens,
+        record.outputTokens,
+        record.cacheReadInputTokens,
+        record.cacheCreationInputTokens,
+        record.costUsd ?? 0,
+        record.costStatus,
+      );
+  }
+
+  modelUsage(projectId: string, limit: number): ModelUsageRecord[] {
+    const rows = this.options.database
+      .prepare(
+        `SELECT usage_id AS usageId, request_id AS requestId, project_id AS projectId,
+          task_id AS taskId, decision_id AS decisionId, model_id AS modelId,
+          occurred_at AS occurredAt, input_tokens AS inputTokens,
+          output_tokens AS outputTokens,
+          cache_read_input_tokens AS cacheReadInputTokens,
+          cache_creation_input_tokens AS cacheCreationInputTokens,
+          cost_usd AS storedCostUsd, cost_status AS costStatus
+         FROM model_usage WHERE project_id = ?
+         ORDER BY occurred_at DESC, usage_id DESC LIMIT ?`,
+      )
+      .all<{
+        usageId: string;
+        requestId: string | null;
+        projectId: string;
+        taskId: string | null;
+        decisionId: string | null;
+        modelId: string;
+        occurredAt: string;
+        inputTokens: number;
+        outputTokens: number;
+        cacheReadInputTokens: number;
+        cacheCreationInputTokens: number;
+        storedCostUsd: number;
+        costStatus: ModelUsageRecord['costStatus'];
+      }>(projectId, limit);
+    const current = rows.map((row) => ({
+      usageId: row.usageId,
+      requestId: row.requestId,
+      taskId: row.taskId,
+      decisionId: row.decisionId,
+      modelId: row.modelId,
+      ...modelLabels(this.options.registry, row.modelId),
+      occurredAt: row.occurredAt,
+      source: 'completion' as const,
+      inputTokens: row.inputTokens,
+      outputTokens: row.outputTokens,
+      cacheReadInputTokens: row.cacheReadInputTokens,
+      cacheCreationInputTokens: row.cacheCreationInputTokens,
+      costUsd: row.costStatus === 'unknown' ? null : row.storedCostUsd,
+      costStatus: row.costStatus,
+    }));
+    const legacy = this.options.database
+      .prepare(
+        `SELECT d.decision_id AS decisionId, d.model_id AS modelId,
+          o.recorded_at AS occurredAt, o.input_tokens AS inputTokens,
+          o.output_tokens AS outputTokens
+         FROM route_decisions d JOIN route_outcomes o ON o.decision_id = d.decision_id
+         WHERE d.project_id = ? AND o.source = 'self'
+           AND NOT EXISTS (
+             SELECT 1 FROM model_usage u WHERE u.decision_id = d.decision_id
+           )
+         ORDER BY o.recorded_at DESC, d.decision_id DESC LIMIT ?`,
+      )
+      .all<{
+        decisionId: string;
+        modelId: string;
+        occurredAt: string;
+        inputTokens: number;
+        outputTokens: number;
+      }>(projectId, limit)
+      .map((row) => ({
+        usageId: row.decisionId,
+        requestId: null,
+        taskId: null,
+        decisionId: row.decisionId,
+        modelId: row.modelId,
+        ...modelLabels(this.options.registry, row.modelId),
+        occurredAt: row.occurredAt,
+        source: 'completion' as const,
+        inputTokens: row.inputTokens,
+        outputTokens: row.outputTokens,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 0,
+        costUsd: null,
+        costStatus: 'unverified' as const,
+      }));
+    return [...current, ...legacy]
+      .sort(
+        (left, right) =>
+          right.occurredAt.localeCompare(left.occurredAt) ||
+          right.usageId.localeCompare(left.usageId),
+      )
+      .slice(0, limit);
   }
 
   decisions(
@@ -274,7 +405,10 @@ export class ModelRouter {
         `SELECT d.decision, o.decision_id AS outcomeDecisionId, o.success,
           o.quality_score AS qualityScore, o.source, o.cost_usd AS costUsd,
           o.latency_ms AS latencyMs, o.input_tokens AS inputTokens,
-          o.output_tokens AS outputTokens, o.note
+          o.output_tokens AS outputTokens, o.note, o.cost_status AS costStatus,
+          o.cache_read_input_tokens AS cacheReadInputTokens,
+          o.cache_creation_input_tokens AS cacheCreationInputTokens,
+          o.recorded_at AS recordedAt
          FROM route_decisions d LEFT JOIN route_outcomes o ON o.decision_id = d.decision_id
          ${where} ORDER BY d.decided_at DESC LIMIT ?`,
       )
@@ -290,7 +424,8 @@ export class ModelRouter {
     const rows = this.options.database
       .prepare(
         `SELECT d.model_id AS modelId, ${taskType ? 'd.task_type' : 'NULL'} AS taskType,
-          o.success, o.quality_score AS qualityScore, o.source, o.cost_usd AS costUsd,
+          o.success, o.quality_score AS qualityScore, o.source,
+          CASE WHEN o.cost_status = 'known' THEN o.cost_usd ELSE NULL END AS costUsd,
           o.latency_ms AS latencyMs
          FROM route_decisions d JOIN route_outcomes o ON o.decision_id = d.decision_id
          ${where}`,
@@ -453,7 +588,31 @@ export class ModelRouter {
       this.options.settings.resolve('models.exploration.budgetUsdPerDay', { projectId, sessionId })
         .value,
     );
-    return this.explorationSpend() < budget;
+    if (this.hasUnpricedExploration()) return false;
+    return this.explorationSpend() <= budget;
+  }
+
+  private remainingExplorationBudget(projectId?: string, sessionId?: string): number {
+    const budget = Number(
+      this.options.settings.resolve('models.exploration.budgetUsdPerDay', { projectId, sessionId })
+        .value,
+    );
+    return Math.max(0, budget - this.explorationSpend());
+  }
+
+  private hasUnpricedExploration(): boolean {
+    const day = this.now().toISOString().slice(0, 10);
+    return Boolean(
+      this.options.database
+        .prepare(
+          `SELECT 1 FROM route_decisions d
+           JOIN route_outcomes o ON o.decision_id = d.decision_id
+           WHERE d.explored = 1 AND substr(o.recorded_at, 1, 10) = ?
+             AND (o.cost_status IS NULL OR o.cost_status != 'known')
+           LIMIT 1`,
+        )
+        .get(day),
+    );
   }
 
   private explorationSpend(): number {
@@ -501,11 +660,12 @@ export class ModelRouter {
     return this.options.database
       .prepare(
         `SELECT d.model_id AS modelId, d.task_type AS taskType,
-          o.success, o.quality_score AS qualityScore, o.source, o.cost_usd AS costUsd,
+          o.success, o.quality_score AS qualityScore, o.source,
+          CASE WHEN o.cost_status = 'known' THEN o.cost_usd ELSE NULL END AS costUsd,
           o.latency_ms AS latencyMs, o.input_tokens AS inputTokens,
           o.output_tokens AS outputTokens
          FROM route_decisions d JOIN route_outcomes o ON o.decision_id = d.decision_id
-         WHERE d.model_id = ?`,
+          WHERE d.model_id = ?`,
       )
       .all<OutcomeRow>(modelId);
   }
@@ -546,10 +706,14 @@ interface DecisionOutcomeRow {
   qualityScore: number | null;
   source: RouteOutcome['source'] | null;
   costUsd: number | null;
+  costStatus: RouteOutcome['costStatus'] | null;
   latencyMs: number | null;
   inputTokens: number | null;
   outputTokens: number | null;
+  cacheReadInputTokens: number | null;
+  cacheCreationInputTokens: number | null;
   note: string | null;
+  recordedAt: string | null;
 }
 
 interface StatsOutcomeRow {
@@ -558,7 +722,7 @@ interface StatsOutcomeRow {
   success: number;
   qualityScore: number | null;
   source: RouteOutcome['source'];
-  costUsd: number;
+  costUsd: number | null;
   latencyMs: number;
 }
 
@@ -571,6 +735,14 @@ function noEligibleModel(stage: string, removedBy: string[]): RpcError {
       removedBy,
     },
   );
+}
+
+function modelLabels(
+  registry: ModelRegistry,
+  modelId: string,
+): { modelName?: string; providerModelId?: string } {
+  const model = registry.getModel(modelId);
+  return model ? { modelName: model.displayName, providerModelId: model.providerModelId } : {};
 }
 
 function unionPoolModelIds(pools: ModelPool[]): Set<string> {
@@ -604,9 +776,10 @@ function compareCandidates(left: ScoredCandidate, right: ScoredCandidate): numbe
   );
 }
 
-function mean(values: number[]): number | null {
-  if (values.length === 0) return null;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
+function mean(values: (number | null)[]): number | null {
+  const known = values.filter((value): value is number => value !== null);
+  if (known.length === 0) return null;
+  return known.reduce((sum, value) => sum + value, 0) / known.length;
 }
 
 function outcomeQuality(row: Pick<OutcomeRow, 'success' | 'qualityScore'>): number {
@@ -636,15 +809,19 @@ function statsFromRows(
 }
 
 function outcomeFromRow(row: DecisionOutcomeRow): RouteOutcome {
+  const costStatus = row.costStatus ?? 'unverified';
   return {
     decisionId: row.outcomeDecisionId!,
     success: row.success === 1,
     qualityScore: row.qualityScore,
     source: row.source!,
-    costUsd: row.costUsd!,
+    costUsd: costStatus === 'unknown' || costStatus === 'unverified' ? null : row.costUsd!,
+    costStatus,
     latencyMs: row.latencyMs!,
     inputTokens: row.inputTokens!,
     outputTokens: row.outputTokens!,
+    cacheReadInputTokens: row.cacheReadInputTokens ?? 0,
+    cacheCreationInputTokens: row.cacheCreationInputTokens ?? 0,
     ...(row.note === null ? {} : { note: row.note }),
   };
 }

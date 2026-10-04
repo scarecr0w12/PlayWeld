@@ -19900,6 +19900,30 @@
             "minimum": 0,
             "type": "number"
           },
+          "costStatus": {
+            "anyOf": [
+              {
+                "const": "known",
+                "type": "string"
+              },
+              {
+                "const": "partial",
+                "type": "string"
+              },
+              {
+                "const": "unknown",
+                "type": "string"
+              },
+              {
+                "const": "untracked",
+                "type": "string"
+              },
+              {
+                "const": "unverified",
+                "type": "string"
+              }
+            ]
+          },
           "startedAt": {
             "format": "date-time",
             "type": "string"
@@ -19949,7 +19973,8 @@
           "nextAfterSeq",
           "limit",
           "calls",
-          "events"
+          "events",
+          "modelUsage"
         ],
         "properties": {
           "schemaVersion": {
@@ -20145,6 +20170,30 @@
                   "minimum": 0,
                   "type": "number"
                 },
+                "costStatus": {
+                  "anyOf": [
+                    {
+                      "const": "known",
+                      "type": "string"
+                    },
+                    {
+                      "const": "partial",
+                      "type": "string"
+                    },
+                    {
+                      "const": "unknown",
+                      "type": "string"
+                    },
+                    {
+                      "const": "untracked",
+                      "type": "string"
+                    },
+                    {
+                      "const": "unverified",
+                      "type": "string"
+                    }
+                  ]
+                },
                 "startedAt": {
                   "format": "date-time",
                   "type": "string"
@@ -20200,6 +20249,130 @@
                   "type": "string"
                 },
                 "payload": {}
+              }
+            }
+          },
+          "modelUsage": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "usageId",
+                "requestId",
+                "taskId",
+                "decisionId",
+                "modelId",
+                "occurredAt",
+                "source",
+                "inputTokens",
+                "outputTokens",
+                "cacheReadInputTokens",
+                "cacheCreationInputTokens",
+                "costUsd",
+                "costStatus"
+              ],
+              "properties": {
+                "usageId": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "requestId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "taskId": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "decisionId": {
+                  "anyOf": [
+                    {
+                      "format": "uuid",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "modelId": {
+                  "type": "string"
+                },
+                "modelName": {
+                  "type": "string"
+                },
+                "providerModelId": {
+                  "type": "string"
+                },
+                "occurredAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "source": {
+                  "const": "completion",
+                  "type": "string"
+                },
+                "inputTokens": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "outputTokens": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "cacheReadInputTokens": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "cacheCreationInputTokens": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "costUsd": {
+                  "anyOf": [
+                    {
+                      "minimum": 0,
+                      "type": "number"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "costStatus": {
+                  "anyOf": [
+                    {
+                      "const": "known",
+                      "type": "string"
+                    },
+                    {
+                      "const": "partial",
+                      "type": "string"
+                    },
+                    {
+                      "const": "unknown",
+                      "type": "string"
+                    },
+                    {
+                      "const": "unverified",
+                      "type": "string"
+                    }
+                  ]
+                }
               }
             }
           }
@@ -20409,6 +20582,30 @@
                 "costUsd": {
                   "minimum": 0,
                   "type": "number"
+                },
+                "costStatus": {
+                  "anyOf": [
+                    {
+                      "const": "known",
+                      "type": "string"
+                    },
+                    {
+                      "const": "partial",
+                      "type": "string"
+                    },
+                    {
+                      "const": "unknown",
+                      "type": "string"
+                    },
+                    {
+                      "const": "untracked",
+                      "type": "string"
+                    },
+                    {
+                      "const": "unverified",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "startedAt": {
                   "format": "date-time",
@@ -22553,8 +22750,35 @@
             ]
           },
           "costUsd": {
-            "minimum": 0,
-            "type": "number"
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "costStatus": {
+            "anyOf": [
+              {
+                "const": "known",
+                "type": "string"
+              },
+              {
+                "const": "partial",
+                "type": "string"
+              },
+              {
+                "const": "unknown",
+                "type": "string"
+              },
+              {
+                "const": "unverified",
+                "type": "string"
+              }
+            ]
           },
           "latencyMs": {
             "minimum": 0,
@@ -22565,6 +22789,14 @@
             "type": "integer"
           },
           "outputTokens": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cacheReadInputTokens": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "cacheCreationInputTokens": {
             "minimum": 0,
             "type": "integer"
           },
@@ -22806,8 +23038,35 @@
                           ]
                         },
                         "costUsd": {
-                          "minimum": 0,
-                          "type": "number"
+                          "anyOf": [
+                            {
+                              "minimum": 0,
+                              "type": "number"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "costStatus": {
+                          "anyOf": [
+                            {
+                              "const": "known",
+                              "type": "string"
+                            },
+                            {
+                              "const": "partial",
+                              "type": "string"
+                            },
+                            {
+                              "const": "unknown",
+                              "type": "string"
+                            },
+                            {
+                              "const": "unverified",
+                              "type": "string"
+                            }
+                          ]
                         },
                         "latencyMs": {
                           "minimum": 0,
@@ -22818,6 +23077,14 @@
                           "type": "integer"
                         },
                         "outputTokens": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "cacheReadInputTokens": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "cacheCreationInputTokens": {
                           "minimum": 0,
                           "type": "integer"
                         },
@@ -23353,6 +23620,14 @@
                 "minimum": 0,
                 "type": "integer"
               },
+              "cacheReadInputTokens": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "cacheCreationInputTokens": {
+                "minimum": 0,
+                "type": "integer"
+              },
               "costUsd": {
                 "anyOf": [
                   {
@@ -23361,6 +23636,22 @@
                   },
                   {
                     "type": "null"
+                  }
+                ]
+              },
+              "costStatus": {
+                "anyOf": [
+                  {
+                    "const": "known",
+                    "type": "string"
+                  },
+                  {
+                    "const": "partial",
+                    "type": "string"
+                  },
+                  {
+                    "const": "unknown",
+                    "type": "string"
                   }
                 ]
               }
@@ -23604,6 +23895,14 @@
                           "minimum": 0,
                           "type": "integer"
                         },
+                        "cacheReadInputTokens": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "cacheCreationInputTokens": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
                         "costUsd": {
                           "anyOf": [
                             {
@@ -23612,6 +23911,22 @@
                             },
                             {
                               "type": "null"
+                            }
+                          ]
+                        },
+                        "costStatus": {
+                          "anyOf": [
+                            {
+                              "const": "known",
+                              "type": "string"
+                            },
+                            {
+                              "const": "partial",
+                              "type": "string"
+                            },
+                            {
+                              "const": "unknown",
+                              "type": "string"
                             }
                           ]
                         }
@@ -23690,6 +24005,14 @@
                     "minimum": 0,
                     "type": "integer"
                   },
+                  "cacheReadInputTokens": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "cacheCreationInputTokens": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
                   "costUsd": {
                     "anyOf": [
                       {
@@ -23698,6 +24021,22 @@
                       },
                       {
                         "type": "null"
+                      }
+                    ]
+                  },
+                  "costStatus": {
+                    "anyOf": [
+                      {
+                        "const": "known",
+                        "type": "string"
+                      },
+                      {
+                        "const": "partial",
+                        "type": "string"
+                      },
+                      {
+                        "const": "unknown",
+                        "type": "string"
                       }
                     ]
                   }
@@ -23785,6 +24124,14 @@
                     "minimum": 0,
                     "type": "integer"
                   },
+                  "cacheReadInputTokens": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "cacheCreationInputTokens": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
                   "costUsd": {
                     "anyOf": [
                       {
@@ -23793,6 +24140,22 @@
                       },
                       {
                         "type": "null"
+                      }
+                    ]
+                  },
+                  "costStatus": {
+                    "anyOf": [
+                      {
+                        "const": "known",
+                        "type": "string"
+                      },
+                      {
+                        "const": "partial",
+                        "type": "string"
+                      },
+                      {
+                        "const": "unknown",
+                        "type": "string"
                       }
                     ]
                   }
@@ -23881,6 +24244,14 @@
                 "minimum": 0,
                 "type": "integer"
               },
+              "cacheReadInputTokens": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "cacheCreationInputTokens": {
+                "minimum": 0,
+                "type": "integer"
+              },
               "costUsd": {
                 "anyOf": [
                   {
@@ -23889,6 +24260,22 @@
                   },
                   {
                     "type": "null"
+                  }
+                ]
+              },
+              "costStatus": {
+                "anyOf": [
+                  {
+                    "const": "known",
+                    "type": "string"
+                  },
+                  {
+                    "const": "partial",
+                    "type": "string"
+                  },
+                  {
+                    "const": "unknown",
+                    "type": "string"
                   }
                 ]
               }
@@ -39176,6 +39563,30 @@
               "costUsd": {
                 "minimum": 0,
                 "type": "number"
+              },
+              "costStatus": {
+                "anyOf": [
+                  {
+                    "const": "known",
+                    "type": "string"
+                  },
+                  {
+                    "const": "partial",
+                    "type": "string"
+                  },
+                  {
+                    "const": "unknown",
+                    "type": "string"
+                  },
+                  {
+                    "const": "untracked",
+                    "type": "string"
+                  },
+                  {
+                    "const": "unverified",
+                    "type": "string"
+                  }
+                ]
               },
               "startedAt": {
                 "format": "date-time",

@@ -44,6 +44,24 @@ export class CompletionService {
     context: CompletionContext = {},
     prepared?: PreparedCompletion,
   ): Promise<ChatResponse> {
+    const nestedProjectId = 'route' in params ? params.route.projectId : undefined;
+    if (
+      params.projectId !== undefined &&
+      nestedProjectId !== undefined &&
+      params.projectId !== nestedProjectId
+    ) {
+      throw new RpcError('projectId must match route.projectId', RpcErrorCode.InvalidParams);
+    }
+    if (
+      prepared &&
+      params.projectId !== undefined &&
+      params.projectId !== prepared.decision.context.projectId
+    ) {
+      throw new RpcError(
+        'projectId must match the prepared route project',
+        RpcErrorCode.InvalidParams,
+      );
+    }
     const route =
       prepared?.decision ??
       ('route' in params
@@ -74,6 +92,7 @@ export class CompletionService {
     };
     const requestId = request.stream ? (params.requestId ?? uuidv7()) : params.requestId;
     const startedAt = this.now().getTime();
+    let usageRecorded = false;
     try {
       const response = await provider.complete(account, model, request, {
         signal: context.signal ?? new AbortController().signal,
@@ -86,16 +105,52 @@ export class CompletionService {
           : {}),
       });
       const result: ChatResponse = { ...response, decisionId: route?.decisionId ?? null };
+      this.router.recordModelUsage({
+        usageId: uuidv7(),
+        requestId: requestId ?? params.requestId ?? null,
+        projectId: route?.context.projectId ?? params.projectId ?? null,
+        taskId: params.taskId ?? null,
+        decisionId: route?.decisionId ?? null,
+        modelId,
+        occurredAt: this.now().toISOString(),
+        source: 'completion',
+        inputTokens: response.usage.inputTokens,
+        outputTokens: response.usage.outputTokens,
+        cacheReadInputTokens: response.usage.cacheReadInputTokens ?? 0,
+        cacheCreationInputTokens: response.usage.cacheCreationInputTokens ?? 0,
+        costUsd: response.usage.costUsd,
+        costStatus:
+          response.usage.costStatus ?? (response.usage.costUsd === null ? 'unknown' : 'known'),
+      });
+      usageRecorded = true;
       if (route) this.reportSelfOutcome(route.decisionId, result, true, undefined);
       return result;
     } catch (error) {
+      if (!usageRecorded)
+        this.router.recordModelUsage({
+          usageId: uuidv7(),
+          requestId: requestId ?? params.requestId ?? null,
+          projectId: route?.context.projectId ?? params.projectId ?? null,
+          taskId: params.taskId ?? null,
+          decisionId: route?.decisionId ?? null,
+          modelId,
+          occurredAt: this.now().toISOString(),
+          source: 'completion',
+          inputTokens: 0,
+          outputTokens: 0,
+          cacheReadInputTokens: 0,
+          cacheCreationInputTokens: 0,
+          costUsd: null,
+          costStatus: 'unknown',
+        });
       if (route) {
         this.router.reportOutcome({
           decisionId: route.decisionId,
           success: false,
           qualityScore: null,
           source: 'self',
-          costUsd: 0,
+          costUsd: null,
+          costStatus: 'unknown',
           latencyMs: Math.max(0, this.now().getTime() - startedAt),
           inputTokens: 0,
           outputTokens: 0,
@@ -134,10 +189,14 @@ export class CompletionService {
       success,
       qualityScore: null,
       source: 'self',
-      costUsd: response.usage.costUsd ?? 0,
+      costUsd: response.usage.costUsd,
+      costStatus:
+        response.usage.costStatus ?? (response.usage.costUsd === null ? 'unknown' : 'known'),
       latencyMs: response.latencyMs,
       inputTokens: response.usage.inputTokens,
       outputTokens: response.usage.outputTokens,
+      cacheReadInputTokens: response.usage.cacheReadInputTokens ?? 0,
+      cacheCreationInputTokens: response.usage.cacheCreationInputTokens ?? 0,
       ...(note === undefined ? {} : { note }),
     };
     this.router.reportOutcome(outcome);

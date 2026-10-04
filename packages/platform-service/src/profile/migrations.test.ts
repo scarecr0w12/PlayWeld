@@ -4,7 +4,7 @@ import { migrate } from '../db/migrator';
 import { profileMigrations } from './migrations';
 
 describe('profile migrations', () => {
-  it('creates MCP, plugin, engine, asset, backup, and DCC persistence tables', () => {
+  it('creates model usage and MCP, plugin, engine, asset, backup, and DCC persistence tables', () => {
     const database = Database.open(':memory:');
     try {
       migrate(database, profileMigrations);
@@ -15,6 +15,7 @@ describe('profile migrations', () => {
       expect(tables).toContain('mcp_connections');
       expect(tables).toContain('mcp_tool_overrides');
       expect(tables).toContain('mcp_usage');
+      expect(tables).toContain('model_usage');
       expect(tables).toContain('installed_plugins');
       expect(tables).toContain('plugin_project_enablement');
       expect(tables).toContain('plugin_usage');
@@ -27,7 +28,13 @@ describe('profile migrations', () => {
       expect(tables).toContain('backup_runs');
       expect(tables).toContain('dcc_installations');
       expect(tables).toContain('update_states');
-      expect(database.prepare('SELECT id FROM schema_migrations').all()).toHaveLength(11);
+      expect(database.prepare('SELECT id FROM schema_migrations').all()).toHaveLength(14);
+      expect(
+        database
+          .prepare('PRAGMA table_info(model_usage)')
+          .all<{ name: string }>()
+          .map((row) => row.name),
+      ).toContain('cost_status');
     } finally {
       database.close();
     }

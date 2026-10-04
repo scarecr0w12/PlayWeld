@@ -77,6 +77,12 @@ Select the Project and expand **New request** to enter a **Change request**, coo
 
 Inspect the selected request's task tree, questions, approvals, resource locks, integrations, and feedback. Task execution uses leases and checkpoints in the service. Worktrees isolate source changes; locks coordinate declared resources such as shared editors or tool sessions.
 
+Goal, result and question text render as structured Markdown, including headings, lists and code; JSON content is indented. Long content stays in a bounded, keyboard-scrollable reader instead of expanding every task into a wall of text. Raw HTML, automatic image loading and executable/file links are not enabled. The task's known recorded spend is not a complete invoice or proof that unknown usage is free; Audit shows pricing coverage separately.
+
+![Structured goal and concise hierarchy labels in the pending source build](images/audit-detail-2026-10-04/formatted-goal-desktop.png)
+
+The [current reading/cost capture report](images/audit-detail-2026-10-04/capture-report.json) records an isolated rebuilt 0.7.0-version development browser with pending source changes, not the installed 0.7.0 release. See the [narrow-window reader](images/audit-detail-2026-10-04/formatted-goal-narrow.png) for stacked navigation/detail behavior.
+
 A task waiting for input needs a response. An approval needs a decision about the described tool and effect. A blocked task needs its recorded dependency resolved. For failures, keep the task ID and event trail. Cancelling requests should be checked against owned process/run records to see what stopped.
 
 A task reporting success does not by itself prove that its work is integrated or accepted. Review its evidence, files, conflict status, integration record, and applicable tests. Feedback should describe a reproducible problem or observed result. For example: “The reset test leaves the timer running after R; reproduce after collecting one lantern.”
@@ -189,9 +195,17 @@ A checksum proves agreement with the supplied digest. Signature verification add
 
 ## Audit and history
 
-![Project events and recent tool calls](images/lantern-workshop/18-audit.png)
+![Historical 0.6.0 Project-event and tool-call view](images/lantern-workshop/18-audit.png)
 
-Select the Project and inspect recent tool calls and Project events. Use identifiers, timestamps, effect classification, approval result, execution status, and errors to connect a visible symptom to the actual operation. Pagination/export shows the selected records; an export of one page is not a complete forensic history.
+![Model usage, pricing coverage and selected request inspector in pending source](images/audit-detail-2026-10-04/model-cost-desktop.png)
+
+Select the Project, then choose **Model usage**, **Tool calls**, or **Project events**. Search the loaded records and select a card to inspect its details. Structured event context is bounded; full redacted records remain available in disclosures. Use identifiers, timestamps, effect classification, approval result, execution status and errors to connect a visible symptom to the actual operation. Pagination/export shows the loaded page; it is not a complete forensic or billing history.
+
+Model usage records input/output and cache counters independently of tool charges. Small positive estimates remain visible rather than rounding to `$0.0000`. An explicitly priced zero is distinct from **Pricing unavailable**, **partial** usage and **Legacy cost unverified**. Legacy rows cannot establish missing prices, and older direct completions that were never persisted in the usage ledger may be absent. New routed/direct completion attempts are recorded at the shared boundary; failed attempts with unavailable usage remain unknown, not confirmed free.
+
+The cost summary covers the **loaded, filtered model page**. Its known subtotal excludes unverifiable amounts; partial estimates retain an unpriced remainder. Do not add a model request and its linked model-tool charge as separate independent expenses. Configure input/output rates in Models & Routing before relying on estimates. Cache usage without recorded cache pricing remains partial/unknown rather than silently charged at an invented rate. Estimates are not provider invoices, subscription fees or hardware costs; task monetary accumulators/budget comparisons track known amounts and cannot establish a real hard-dollar ceiling for unpriced usage.
+
+Current captures show [compact model-cost cards](images/audit-detail-2026-10-04/model-cost-narrow.png), [separate tool activity](images/audit-detail-2026-10-04/tool-history-desktop.png) and a [focused event timeline](images/audit-detail-2026-10-04/event-history-desktop.png). The fixture explicitly configures tiny, unknown and zero rates on localhost; those numbers are not production provider prices or private-profile screenshots.
 
 Useful failure report: “Project ID/path, task/run/call ID, operation, version, exact error, expected outcome, and sanitized reproduction.” Link logs and artifacts. Never include service tokens, encryption/recovery secrets, provider credentials, or private Project contents without reviewing them.
 

@@ -17,9 +17,9 @@ Keep work records pending while developing. Before preparation, review their det
 For example, prepare the next patch testing version (use a minor bump for new features or breaking changes before 1.0):
 
 ```bash
-npm run release:version -- 0.7.0
+npm run release:version -- 0.8.0
 npm install --package-lock-only --ignore-scripts
-node scripts/check-release-version.cjs v0.7.0
+node scripts/check-release-version.cjs v0.8.0
 npm run changelog:check -- --release --base HEAD
 npm ci
 npx turbo run build typecheck lint test
@@ -109,7 +109,7 @@ Configure `GAMECRAFTER_CDP_URL` and `GAMECRAFTER_SMOKE_ARTIFACT_DIR` for that ow
 The repeatable Electron runner can also launch a particular unpacked or installed executable with its own disposable profile, IDE configuration, Electron user data and local debugging port. In packaged mode it verifies the bundled service version rather than substituting the source service. For example, in PowerShell:
 
 ```powershell
-$env:GAMECRAFTER_ELECTRON_EXECUTABLE = (Resolve-Path 'Windows-Release/0.7.0/app/GameCrafter.exe').Path
+$env:GAMECRAFTER_ELECTRON_EXECUTABLE = (Resolve-Path 'Windows-Release/0.8.0/app/GameCrafter.exe').Path
 node scripts/verify-documentation-electron.cjs
 Remove-Item Env:GAMECRAFTER_ELECTRON_EXECUTABLE
 ```
@@ -121,6 +121,8 @@ Inspect the packaged service over authenticated RPC as well: check `service/info
 ## Release evidence and limitations
 
 The [0.7.0 local deployment record](changes/2026-10-04-local-0.7.0-deployment.md) tracks the interface/docs update, local Windows package, installer outcome, retained configuration checks and evidence limits. Documentation screenshots are real isolated development-browser captures labelled with their capture version; they are not installation screenshots or evidence of external provider/engine acceptance. No tag or public release is implied by a local installer or the staging tool's conventional tag field.
+
+The [0.8.0 hierarchy/cost deployment](changes/2026-10-04-local-0.8.0-deployment.md) is the later local installed version. It verifies structured goals and model-usage export in the package, backs up profile/Project databases before migration, checks installed hashes and compares retained pricing/configuration. Existing screenshot version labels and earlier installers are preserved. Use the next unused version when repeating preparation; these examples are not an instruction to overwrite or re-prepare 0.8.0.
 
 Keep quality logs, package logs, screenshots, UI reports, metadata/checksum verification and the exact GitHub workflow/tag IDs with each build. Source fixtures and sanitized records are versioned; generated artifacts live in ignored local output or GitHub release assets.
 

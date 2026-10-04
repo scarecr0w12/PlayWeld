@@ -535,4 +535,11 @@ export const projectMigrations: Migration[] = [
         ON chat_messages(conversation_id, created_at);
     `,
   },
+  {
+    id: 13,
+    name: 'record tool-call cost confidence',
+    up: `
+      ALTER TABLE tool_calls ADD COLUMN cost_status TEXT;
+    `,
+  },
 ];

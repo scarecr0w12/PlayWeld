@@ -14,6 +14,19 @@ export interface SwarmTaskNode {
   children: SwarmTaskNode[];
 }
 
+export function taskDisplayTitle(task: Pick<TaskRecord, 'title' | 'goal'>): string {
+  const title = task.title.trim();
+  const firstLine = /^#{1,6}\s/.test(title) ? task.goal.trim().split(/\r?\n/, 1)[0]! : title;
+  return (
+    firstLine
+      .replace(/^#{1,6}\s+/, '')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .trim()
+      .slice(0, 120) || 'Agent task'
+  );
+}
+
 export function parseImpactSeeds(text: string): ChangeNodeRef[] {
   const refs = new Set<string>();
   const fileRanges: Array<[number, number]> = [];

@@ -254,6 +254,23 @@ async function main() {
           checks.push('Skill reference reader remains contained at a narrow viewport');
         }
       }
+      if (suffix === 'swarm') {
+        const paths = resolvePaths();
+        const client = await connect({ socketPath: paths.socketPath, token: fs.readFileSync(paths.tokenPath, 'utf8').trim(), clientName: 'packaged-goal-smoke', clientVersion: require('../packages/platform-service/package.json').version });
+        try {
+          const project = (await client.call('project/list', {})).projects.find(item => item.name === projectName);
+          if (!project) throw new Error('Owned smoke Project is missing.');
+          const goal = '## Package acceptance\n\n- **Retain configuration**\n- Inspect `player.gd`\n\n```gdscript\nvar ready = true\n```';
+          const request = await client.call('change/request', { projectId: project.projectId, text: goal });
+          await client.call('task/create', { projectId: project.projectId, parentTaskId: request.rootTaskId, kind: 'noop.echo', title: 'Packaged formatted goal', role: 'validator', goal });
+          await page.select('.gamecrafter-swarm select[aria-label="Swarm Project"]', project.projectId);
+          await waitForUi(page, () => [...document.querySelectorAll('.gamecrafter-swarm-node')].some(node => node.textContent.includes('Packaged formatted goal')));
+          await clickText(page, '.gamecrafter-swarm-node', 'Packaged formatted goal');
+          await waitForUi(page, () => document.querySelector('[aria-label="Task goal"] h2')?.textContent === 'Package acceptance');
+          if (!(await page.$('[aria-label="Task goal"] li strong')) || !(await page.$('[aria-label="Task goal"] pre code'))) throw new Error('Packaged task Markdown was not structured.');
+          checks.push('Packaged hierarchy formats real task headings, lists and code without flattening the goal');
+        } finally { client.close(); }
+      }
       if (suffix === 'assets') {
         const paths = resolvePaths();
         const client = await connect({ socketPath: paths.socketPath, token: fs.readFileSync(paths.tokenPath, 'utf8').trim(), clientName: 'desktop-assets-smoke', clientVersion: require('../packages/platform-service/package.json').version });
@@ -296,8 +313,11 @@ async function main() {
         assert.equal(audit.projectId, projectId);
         assert(audit.events.some(event => event.kind === 'project.created'));
         assert(Array.isArray(audit.calls) && Array.isArray(audit.events));
+        assert(Array.isArray(audit.modelUsage), 'Packaged audit export includes model usage');
+        await clickText(page, '.gamecrafter-audit .gamecrafter-section-nav button', 'Model usage');
+        await waitForUi(page, () => document.querySelector('.gamecrafter-audit-stats')?.getClientRects().length > 0);
         await cdp.detach();
-        checks.push('Audit & History selects a real Project and downloads a versioned page');
+        checks.push('Audit & History downloads redacted usage and exposes a separate model-cost overview');
       }
       checks.push(`${label} opens with live service data`);
       await page.screenshot({ path: path.join(directory, `${suffix}.png`) });

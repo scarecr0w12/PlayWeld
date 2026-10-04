@@ -69,6 +69,7 @@ describe('Tool broker integration', () => {
     });
     expect(result.status).toBe('failed');
     expect(result.error?.code).toBe('ENOENT');
+    expect(result.costStatus).toBe('untracked');
     const records = await client!.call('tool/calls', { projectId, toolId: 'fs/write-file' });
     expect(records.calls[0]!.error?.code).toBe('ENOENT');
   });
@@ -147,7 +148,7 @@ describe('Tool broker integration', () => {
     const database = Database.open(path.join(projectPath, '.gamecrafter', 'project.sqlite'));
     try {
       database
-        .prepare('UPDATE tool_calls SET tool_id = ? WHERE call_id = ?')
+        .prepare('UPDATE tool_calls SET tool_id = ?, cost_status = NULL WHERE call_id = ?')
         .run('broken tool name', first.calls[0]!.callId);
     } finally {
       database.close();
@@ -157,6 +158,7 @@ describe('Tool broker integration', () => {
       toolId: 'broker/invalid-tool',
       input: { requestedToolId: 'broken tool name' },
       status: 'failed',
+      costStatus: 'unverified',
     });
   });
 

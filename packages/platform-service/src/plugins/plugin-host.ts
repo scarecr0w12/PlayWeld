@@ -568,8 +568,9 @@ export class PluginHost {
     this.options.database
       .prepare(
         `INSERT INTO plugin_usage
-          (usage_id, plugin_id, project_id, task_id, decision_id, model_id, cost_usd, recorded_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          (usage_id, plugin_id, project_id, task_id, decision_id, model_id, cost_usd,
+           recorded_at, cost_status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         uuidv7(),
@@ -580,6 +581,7 @@ export class PluginHost {
         response.modelId,
         response.usage.costUsd ?? 0,
         this.now().toISOString(),
+        response.usage.costStatus ?? (response.usage.costUsd === null ? 'unknown' : 'known'),
       );
     return response;
   }

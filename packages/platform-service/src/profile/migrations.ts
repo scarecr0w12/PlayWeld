@@ -329,4 +329,44 @@ export const profileMigrations: Migration[] = [
       );
     `,
   },
+  {
+    id: 12,
+    name: 'preserve model usage cost confidence and cache tokens',
+    up: `
+      ALTER TABLE route_outcomes ADD COLUMN cost_status TEXT;
+      ALTER TABLE route_outcomes ADD COLUMN cache_read_input_tokens INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE route_outcomes ADD COLUMN cache_creation_input_tokens INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
+  {
+    id: 13,
+    name: 'create model completion usage ledger',
+    up: `
+      CREATE TABLE model_usage (
+        usage_id TEXT PRIMARY KEY,
+        request_id TEXT,
+        project_id TEXT,
+        task_id TEXT,
+        decision_id TEXT,
+        model_id TEXT NOT NULL,
+        occurred_at TEXT NOT NULL,
+        input_tokens INTEGER NOT NULL,
+        output_tokens INTEGER NOT NULL,
+        cache_read_input_tokens INTEGER NOT NULL,
+        cache_creation_input_tokens INTEGER NOT NULL,
+        cost_usd REAL NOT NULL,
+        cost_status TEXT NOT NULL
+      );
+      CREATE INDEX model_usage_project_time_idx ON model_usage(project_id, occurred_at DESC);
+      CREATE INDEX model_usage_task_time_idx ON model_usage(task_id, occurred_at DESC);
+    `,
+  },
+  {
+    id: 14,
+    name: 'preserve cost confidence for plugin and MCP model usage',
+    up: `
+      ALTER TABLE plugin_usage ADD COLUMN cost_status TEXT;
+      ALTER TABLE mcp_usage ADD COLUMN cost_status TEXT;
+    `,
+  },
 ];

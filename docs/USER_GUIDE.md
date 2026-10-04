@@ -86,6 +86,8 @@ In Models & Routing, configure a provider account and its endpoint/credential, d
 
 Use quality, balance or cost policy deliberately. Define task budgets where needed. A model advertising text generation does not automatically support tools, embeddings, images or the context length required by a task. The router uses the recorded model capabilities and pool policies.
 
+Use Audit & History's **Model usage** view for recorded model estimates and token/cache counters, separately from **Tool calls** and the Project timeline. Missing prices are unavailable, not free. Known subtotals cover the loaded/filtered page and can exclude unknown or unverifiable history; they are not all-time spending or invoices. Set model rates in Models & Routing before relying on monetary estimates or known-cost budget comparisons. Agent goals/results use structured, bounded reading panels rather than unformatted expanded text.
+
 Live model-provider and embedding-provider acceptance is still outstanding. Existing repository tests use fake HTTP endpoints. A configured account or visible model list does not prove a successful live completion or embedding operation.
 
 ## Chat and agent work

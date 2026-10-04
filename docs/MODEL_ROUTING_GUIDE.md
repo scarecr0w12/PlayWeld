@@ -1,6 +1,6 @@
 # Models, routing and request failure diagnosis
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-04
 
 Use this guide when Models lists an account but Chat or an agent request cannot run. It explains the current repository's routing and completion behavior, with implementation links rather than provider marketing claims. The [user guide](USER_GUIDE.md), [settings reference](SETTINGS_REFERENCE.md), [workflow cookbook](WORKFLOW_COOKBOOK.md) and [glossary](GLOSSARY.md) supply the surrounding workflow.
 
@@ -57,11 +57,17 @@ Inspect effective values and source layers in Settings before changing routing p
 | `models.autoRouting.maxLatencyMs`    | Filters known latency estimates; zero removes that routing maximum            |
 | `models.budget.maxCostPerTaskUsd`    | Supplies a routing cost constraint; inspect actual usage separately           |
 | `models.exploration.rate`            | Controls exploration of eligible less-observed candidates                     |
-| `models.exploration.budgetUsdPerDay` | Limits the exploration policy using its recorded spend                        |
+| `models.exploration.budgetUsdPerDay` | Constrains exploration with recorded spend and the next candidate's known estimate |
 
 The router's constraint filter does not reject an unknown cost/latency estimate solely because it is unknown. A passing route therefore does not guarantee the future provider charge or latency. Compare actual usage and provider limits separately. A model choice and estimate are not an accepted spending invoice.
 
 Decision records expose candidate scores, quality estimates, observation counts, estimated cost/latency, reliability, reason, policy version and whether exploration occurred. Outcome records distinguish validation, user, reviewer and self assessment. Self-reported completion quality is not equivalent to native validation or user acceptance. The service owns those records; a UI refresh does not reset routing history.
+
+Audit's separate **Model usage** view records direct, routed and streamed completion attempts at the shared boundary. Cost confidence distinguishes known estimates, partial known amounts, unavailable pricing/usage and unverifiable older routed outcomes. Provider usage omissions or failed attempts with unavailable usage are not evidence of a free request. Token/cache counters and cost estimates are not a provider invoice, subscription or hardware-cost ledger; missing historical direct completions cannot be reconstructed from absent records.
+
+Set per-model input/output **$/MTok** under **Models > Edit routing metadata**. Blank rates mean unknown; an explicit zero is a deliberate zero-rate configuration. Cache counts without recorded cache rates remain partial/unknown. Loaded-page known cost is not an all-time total; linked model-tool and model-usage records must not be charged twice. Task monetary accumulators use known amounts and cannot establish a true hard-dollar ceiling for unpriced usage.
+
+Exploration does not choose an unknown-cost candidate or one whose known estimate exceeds the remaining daily exploration allowance. Unpriced/partial exploration outcomes also prevent further exploration that day. Ordinary baseline routing retains the unknown-estimate caveat above; estimates still cannot guarantee final provider charges.
 
 ## Diagnose the boundary that failed
 

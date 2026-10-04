@@ -12,7 +12,14 @@ import type {
   ProviderCompletionHooks,
   ProviderRuntimeAccount,
 } from './provider';
-import { endpoint, modelUsage, providerFetch, providerJson, safeExcerpt } from './http-utils';
+import {
+  endpoint,
+  modelUsage,
+  optionalUsageCount,
+  providerFetch,
+  providerJson,
+  safeExcerpt,
+} from './http-utils';
 
 interface AnthropicModelList {
   data?: Record<string, unknown>[];
@@ -21,7 +28,12 @@ interface AnthropicModelList {
 interface AnthropicMessage {
   content?: Record<string, unknown>[];
   stop_reason?: string | null;
-  usage?: { input_tokens?: number; output_tokens?: number };
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_read_input_tokens?: number;
+    cache_creation_input_tokens?: number;
+  };
 }
 
 export class AnthropicProvider implements ModelProvider {
@@ -97,6 +109,10 @@ export class AnthropicProvider implements ModelProvider {
       .filter((block) => block.type === 'text' && typeof block.text === 'string')
       .map((block) => String(block.text))
       .join('');
+    const baseInputTokens = optionalUsageCount(response.usage?.input_tokens);
+    const cacheReadInputTokens = optionalUsageCount(response.usage?.cache_read_input_tokens) ?? 0;
+    const cacheCreationInputTokens =
+      optionalUsageCount(response.usage?.cache_creation_input_tokens) ?? 0;
     return {
       content: text,
       toolCalls: content
@@ -109,8 +125,12 @@ export class AnthropicProvider implements ModelProvider {
       finishReason: finishReason(response.stop_reason),
       usage: modelUsage(
         model,
-        response.usage?.input_tokens ?? 0,
-        response.usage?.output_tokens ?? 0,
+        baseInputTokens === undefined
+          ? undefined
+          : baseInputTokens + cacheReadInputTokens + cacheCreationInputTokens,
+        optionalUsageCount(response.usage?.output_tokens),
+        cacheReadInputTokens,
+        cacheCreationInputTokens,
       ),
       latencyMs: Date.now() - startedAt,
       modelId: model.modelId,
@@ -144,8 +164,10 @@ export class AnthropicProvider implements ModelProvider {
     let buffer = '';
     let content = '';
     let stopReason: string | null = null;
-    let inputTokens = 0;
-    let outputTokens = 0;
+    let inputTokens: number | undefined;
+    let outputTokens: number | undefined;
+    let cacheReadInputTokens = 0;
+    let cacheCreationInputTokens = 0;
     let done = false;
 
     const consumeEvent = (eventText: string) => {
@@ -169,7 +191,14 @@ export class AnthropicProvider implements ModelProvider {
       const type = String(event.type ?? eventName ?? '');
       if (type === 'message_start' && objectValue(event.message)) {
         const usage = objectValue(event.message.usage) ? event.message.usage : {};
-        inputTokens = numericValue(usage.input_tokens, inputTokens);
+        cacheReadInputTokens =
+          optionalUsageCount(usage.cache_read_input_tokens) ?? cacheReadInputTokens;
+        cacheCreationInputTokens =
+          optionalUsageCount(usage.cache_creation_input_tokens) ?? cacheCreationInputTokens;
+        const baseInputTokens = optionalUsageCount(usage.input_tokens);
+        if (baseInputTokens !== undefined) {
+          inputTokens = baseInputTokens + cacheReadInputTokens + cacheCreationInputTokens;
+        }
       }
       if (type === 'content_block_start') {
         const block = objectValue(event.content_block) ? event.content_block : {};
@@ -201,7 +230,7 @@ export class AnthropicProvider implements ModelProvider {
         const delta = objectValue(event.delta) ? event.delta : {};
         if (typeof delta.stop_reason === 'string') stopReason = delta.stop_reason;
         const usage = objectValue(event.usage) ? event.usage : {};
-        outputTokens = numericValue(usage.output_tokens, outputTokens);
+        outputTokens = optionalUsageCount(usage.output_tokens) ?? outputTokens;
       }
       if (type === 'error' && objectValue(event.error)) {
         throw new RpcError(
@@ -234,7 +263,13 @@ export class AnthropicProvider implements ModelProvider {
       content,
       toolCalls: calls,
       finishReason: finishReason(stopReason),
-      usage: modelUsage(model, inputTokens, outputTokens),
+      usage: modelUsage(
+        model,
+        inputTokens,
+        outputTokens,
+        cacheReadInputTokens,
+        cacheCreationInputTokens,
+      ),
       latencyMs: Date.now() - startedAt,
       modelId: model.modelId,
       decisionId: null,

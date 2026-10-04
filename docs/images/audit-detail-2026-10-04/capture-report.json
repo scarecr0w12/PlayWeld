@@ -1,0 +1,28 @@
+{
+  "capturedAt": "2026-10-04T06:49:18.943Z",
+  "platformVersion": "0.7.0",
+  "checks": [
+    "Real completion ledger records tiny priced, unavailable and explicitly free fixture usage separately",
+    "Goal renders real Markdown structure inside a keyboard-accessible bounded reading panel",
+    "Formatted hierarchy details fit a narrow window",
+    "Audit exposes tiny real estimates, unknown pricing, genuine zero and selected model usage without conflating them",
+    "Audit cost cards and inspector fit a narrow window",
+    "Tool activity is separate, readable and does not pretend internal file listing is model spend",
+    "Project timeline selects a focused event with bounded structured context"
+  ],
+  "rendererErrors": [],
+  "screenshots": [
+    "formatted-goal-desktop.png",
+    "formatted-goal-narrow.png",
+    "model-cost-desktop.png",
+    "model-cost-narrow.png",
+    "tool-history-desktop.png",
+    "event-history-desktop.png"
+  ],
+  "target": "Rebuilt development browser and real isolated platform service",
+  "provider": "Deterministic localhost fixture; no paid provider, private profile or live engine calls",
+  "source": {
+    "commit": "78302587ae1bd4268787ba7eda9f2d99e5858044",
+    "captureScriptSha256": "0925974a61fd8b547b280439481a85d270c6b1267d421a20cca2e04a1208498c"
+  }
+}

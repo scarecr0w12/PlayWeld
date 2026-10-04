@@ -12,14 +12,18 @@ describe('prepared agent completion', () => {
       enabled: true,
       capabilities: { streaming: false },
     } as Model;
-    const decision = { decisionId: 'decision', modelId: model.modelId } as RouteDecision;
+    const decision = {
+      decisionId: 'decision',
+      modelId: model.modelId,
+      context: { taskType: 'test' },
+    } as RouteDecision;
     const route = vi.fn(() => decision);
     const providerComplete = vi.fn<(_account: unknown, _model: Model) => Promise<unknown>>(
       async () => ({
         content: 'Done',
         toolCalls: [],
         finishReason: 'stop',
-        usage: { inputTokens: 5, outputTokens: 2 },
+        usage: { inputTokens: 5, outputTokens: 2, costUsd: null, costStatus: 'unknown' },
         latencyMs: 1,
         modelId: model.modelId,
         decisionId: null,
@@ -31,7 +35,7 @@ describe('prepared agent completion', () => {
         getRuntimeAccount: () => ({ enabled: true, providerKind: 'fake' }),
         getProvider: () => ({ complete: providerComplete }),
       } as unknown as ModelRegistry,
-      { route, reportOutcome: vi.fn() } as unknown as ModelRouter,
+      { route, reportOutcome: vi.fn(), recordModelUsage: vi.fn() } as unknown as ModelRouter,
     );
     const prepared = service.prepare({ taskType: 'test' });
     const request = {

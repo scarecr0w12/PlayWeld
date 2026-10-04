@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { RouteOutcome } from '@gamecrafter/contracts';
+import { RpcErrorCode, type RouteOutcome } from '@gamecrafter/contracts';
 import { connect, type ServiceClient } from '@gamecrafter/service-client';
 import { resolvePaths, type ServicePaths } from '../paths';
 import { PlatformService } from '../service';
@@ -228,6 +228,201 @@ describe('model registry and adaptive routing integration', () => {
     ).rejects.toMatchObject({ code: -32042, data: { stage: 'capabilities' } });
   });
 
+  it('rejects conflicting project scopes before routing or recording usage', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'gc-model-project-scope-'));
+    temporaryDirectories.push(root);
+    projectsDirectory = path.join(root, 'projects');
+    mkdirSync(projectsDirectory, { recursive: true });
+    const paths = resolvePaths({ GAMECRAFTER_PROFILE_DIR: path.join(root, 'profile') });
+    service = await startService(paths);
+    client = await connectService(service.socketPath, paths);
+    const first = await client.call('project/create', {
+      name: 'First Project',
+      engine: { family: 'godot' },
+      parentDirectory: projectsDirectory,
+      folderName: 'first-project',
+    });
+    const second = await client.call('project/create', {
+      name: 'Second Project',
+      engine: { family: 'godot' },
+      parentDirectory: projectsDirectory,
+      folderName: 'second-project',
+    });
+    const account = await addAccount(await createFakeServer(), 'Scoped local', 'plain');
+    const discovered = await client.call('model/discover', { accountId: account.accountId });
+    const model = discovered.models[0]!;
+    const completionRequestsBefore = fakeRequests.filter(
+      (request) => request.path === '/v1/chat/completions',
+    ).length;
+
+    await expect(
+      client.call('model/complete', {
+        projectId: first.projectId,
+        route: { projectId: second.projectId, taskType: 'chat', manualModelId: model.modelId },
+        request: { messages: [{ role: 'user', content: 'scope fixture' }] },
+      }),
+    ).rejects.toMatchObject({ code: RpcErrorCode.InvalidParams });
+    expect(fakeRequests.filter((request) => request.path === '/v1/chat/completions')).toHaveLength(
+      completionRequestsBefore,
+    );
+    expect((await client.call('audit/read', { projectId: first.projectId })).modelUsage).toEqual(
+      [],
+    );
+    expect((await client.call('audit/read', { projectId: second.projectId })).modelUsage).toEqual(
+      [],
+    );
+
+    scriptedCompletions.push({
+      choices: [{ message: { content: 'Scoped reply' }, finish_reason: 'stop' }],
+      usage: { prompt_tokens: 5, completion_tokens: 2 },
+    });
+    await client.call('model/complete', {
+      projectId: second.projectId,
+      route: { projectId: second.projectId, taskType: 'chat', manualModelId: model.modelId },
+      request: { messages: [{ role: 'user', content: 'scope fixture' }] },
+    });
+    expect((await client.call('audit/read', { projectId: first.projectId })).modelUsage).toEqual(
+      [],
+    );
+    expect(
+      (await client.call('audit/read', { projectId: second.projectId })).modelUsage,
+    ).toHaveLength(1);
+  });
+
+  it('exposes model usage in audit without turning unknown, cached, or tiny costs into zero', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'gc-model-audit-cost-'));
+    temporaryDirectories.push(root);
+    projectsDirectory = path.join(root, 'projects');
+    mkdirSync(projectsDirectory, { recursive: true });
+    const paths = resolvePaths({ GAMECRAFTER_PROFILE_DIR: path.join(root, 'profile') });
+    service = await startService(paths);
+    client = await connectService(service.socketPath, paths);
+    const project = await client.call('project/create', {
+      name: 'Model Cost Audit Project',
+      engine: { family: 'godot' },
+      parentDirectory: projectsDirectory,
+      folderName: 'model-cost-audit-project',
+    });
+    projectId = project.projectId;
+    const account = await addAccount(await createFakeServer(), 'Unpriced local', 'plain');
+    const discovered = await client.call('model/discover', { accountId: account.accountId });
+    const model = discovered.models[0]!;
+
+    scriptedCompletions.push({
+      choices: [{ message: { content: 'Unpriced reply' }, finish_reason: 'stop' }],
+      usage: {
+        prompt_tokens: 20,
+        completion_tokens: 8,
+        prompt_tokens_details: { cached_tokens: 4 },
+      },
+    });
+    const unpriced = await client.call('model/complete', {
+      projectId,
+      route: { projectId, taskType: 'chat', manualModelId: model.modelId },
+      request: { messages: [{ role: 'user', content: 'fixture prompt' }] },
+    });
+    expect(unpriced.usage).toMatchObject({
+      inputTokens: 20,
+      outputTokens: 8,
+      cacheReadInputTokens: 4,
+      costUsd: null,
+      costStatus: 'unknown',
+    });
+
+    await client.call('model/update', {
+      modelId: model.modelId,
+      patch: { pricing: { inputPerMTokUsd: 0.1, outputPerMTokUsd: 0.2 } },
+    });
+    scriptedCompletions.push({
+      choices: [{ message: { content: 'Cached reply' }, finish_reason: 'stop' }],
+      usage: {
+        prompt_tokens: 20,
+        completion_tokens: 8,
+        prompt_tokens_details: { cached_tokens: 4 },
+      },
+    });
+    const cached = await client.call('model/complete', {
+      projectId,
+      route: { projectId, taskType: 'chat', manualModelId: model.modelId },
+      request: { messages: [{ role: 'user', content: 'fixture prompt' }] },
+    });
+    expect(cached.usage).toMatchObject({
+      cacheReadInputTokens: 4,
+      costStatus: 'partial',
+    });
+    expect(cached.usage.costUsd).toBeCloseTo(0.0000032, 14);
+
+    scriptedCompletions.push({
+      choices: [{ message: { content: 'Tiny-cost reply' }, finish_reason: 'stop' }],
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    });
+    const tiny = await client.call('model/complete', {
+      projectId,
+      route: { projectId, taskType: 'chat', manualModelId: model.modelId },
+      request: { messages: [{ role: 'user', content: 'fixture prompt' }] },
+    });
+    expect(tiny.usage.costUsd).toBeCloseTo(0.0000003, 14);
+
+    scriptedCompletions.push({
+      choices: [{ message: { content: 'Direct reply' }, finish_reason: 'stop' }],
+      usage: { prompt_tokens: 2, completion_tokens: 1 },
+    });
+    const direct = await client.call('model/complete', {
+      projectId,
+      modelId: model.modelId,
+      request: { messages: [{ role: 'user', content: 'fixture prompt' }] },
+    });
+    expect(direct.decisionId).toBeNull();
+
+    const audit = await client.call('audit/read', { projectId });
+    expect(audit).toMatchObject({
+      modelUsage: expect.arrayContaining([
+        expect.objectContaining({
+          modelId: model.modelId,
+          inputTokens: 20,
+          outputTokens: 8,
+          cacheReadInputTokens: 4,
+          costUsd: null,
+          costStatus: 'unknown',
+        }),
+        expect.objectContaining({
+          modelId: model.modelId,
+          inputTokens: 20,
+          outputTokens: 8,
+          cacheReadInputTokens: 4,
+          costStatus: 'partial',
+        }),
+        expect.objectContaining({
+          modelId: model.modelId,
+          inputTokens: 1,
+          outputTokens: 1,
+          costStatus: 'known',
+        }),
+        expect.objectContaining({
+          modelId: model.modelId,
+          decisionId: null,
+          inputTokens: 2,
+          outputTokens: 1,
+          costStatus: 'known',
+        }),
+      ]),
+    });
+    expect(
+      audit.modelUsage.find(
+        (usage) => usage.cacheReadInputTokens === 4 && usage.costStatus === 'partial',
+      )?.costUsd,
+    ).toBeCloseTo(0.0000032, 14);
+    expect(
+      audit.modelUsage.find((usage) => usage.inputTokens === 1 && usage.outputTokens === 1)
+        ?.costUsd,
+    ).toBeCloseTo(0.0000003, 14);
+    expect(audit.modelUsage.find((usage) => usage.decisionId === null)?.costUsd).toBeCloseTo(
+      0.0000004,
+      14,
+    );
+    expect(JSON.stringify(audit)).not.toContain('fixture prompt');
+  });
+
   it('discovers, routes, streams, records outcomes, applies constraints, and unlinks removed models', async () => {
     const root = mkdtempSync(path.join(tmpdir(), 'gc-model-integration-'));
     temporaryDirectories.push(root);
@@ -377,6 +572,11 @@ describe('model registry and adaptive routing integration', () => {
       decisionId: expect.any(String),
       usage: { inputTokens: 20, outputTokens: 8 },
     });
+    expect(
+      (await client.call('audit/read', { projectId })).modelUsage.filter(
+        (usage) => usage.requestId === 'route-stream-1',
+      ),
+    ).toHaveLength(1);
     const decisions = await client.call('router/decisions', { projectId, limit: 50 });
     const selfOutcome = decisions.decisions.find(
       ({ decision, outcome }) =>

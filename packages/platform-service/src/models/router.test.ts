@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { uuidv7 } from '@gamecrafter/contracts';
 import type {
   EffectiveSetting,
   ModelCapabilities,
@@ -130,6 +131,157 @@ describe('ModelRouter', () => {
       });
       const afterBudget = fixture.router.route({ taskType: 'code', agentRole: 'programmer' });
       expect(afterBudget.explored).toBe(false);
+    } finally {
+      fixture.close();
+    }
+  });
+
+  it('stops daily exploration after an outcome with unpriced usage', async () => {
+    const fixture = await createFixture();
+    try {
+      for (let index = 0; index < 3; index += 1) {
+        await recordOutcome(fixture.router, fixture.modelIds.good, 'code', true, 1);
+      }
+      fixture.setSetting('models.exploration.rate', 1);
+      const decision = fixture.router.route({
+        taskType: 'code',
+        agentRole: 'programmer',
+      });
+      expect(decision.explored).toBe(true);
+      fixture.router.reportOutcome({
+        decisionId: decision.decisionId,
+        success: true,
+        qualityScore: null,
+        source: 'self',
+        costUsd: null,
+        costStatus: 'unknown',
+        latencyMs: 100,
+        inputTokens: 100,
+        outputTokens: 20,
+      });
+
+      expect(fixture.router.route({ taskType: 'code', agentRole: 'programmer' }).explored).toBe(
+        false,
+      );
+    } finally {
+      fixture.close();
+    }
+  });
+
+  it('falls back to baseline routing when every exploration candidate exceeds the remaining budget', async () => {
+    const fixture = await createFixture();
+    try {
+      for (let index = 0; index < 3; index += 1) {
+        await recordOutcome(fixture.router, fixture.modelIds.good, 'code', true, 1);
+      }
+      fixture.setSetting('models.exploration.rate', 1);
+      fixture.setSetting('models.exploration.budgetUsdPerDay', 0.0005);
+      const first = fixture.router.route({ taskType: 'code', agentRole: 'programmer' });
+      expect(first).toMatchObject({ modelId: fixture.modelIds.cheap, explored: true });
+      fixture.router.reportOutcome({
+        decisionId: first.decisionId,
+        success: false,
+        qualityScore: 0.1,
+        source: 'self',
+        costUsd: 0.00045,
+        latencyMs: 100,
+        inputTokens: 100,
+        outputTokens: 20,
+      });
+
+      fixture.setSetting('models.exploration.rate', 0);
+      const baseline = fixture.router.route({ taskType: 'code', agentRole: 'programmer' });
+      fixture.setSetting('models.exploration.rate', 1);
+      const afterRemainingBudget = fixture.router.route({
+        taskType: 'code',
+        agentRole: 'programmer',
+      });
+      expect(afterRemainingBudget.modelId).toBe(baseline.modelId);
+      expect(afterRemainingBudget.explored).toBe(false);
+    } finally {
+      fixture.close();
+    }
+  });
+
+  it('falls back to baseline routing instead of exploring an unknown-cost model', async () => {
+    const fixture = await createFixture();
+    try {
+      fixture.registry.updateModel(fixture.modelIds.cheap, {
+        pricing: { inputPerMTokUsd: null, outputPerMTokUsd: null },
+      });
+      for (let index = 0; index < 3; index += 1) {
+        await recordOutcome(fixture.router, fixture.modelIds.good, 'code', true, 1);
+      }
+      fixture.setSetting('models.exploration.rate', 0);
+      const baseline = fixture.router.route({ taskType: 'code', agentRole: 'programmer' });
+      fixture.setSetting('models.exploration.rate', 1);
+
+      const decision = fixture.router.route({ taskType: 'code', agentRole: 'programmer' });
+      expect(decision.modelId).toBe(baseline.modelId);
+      expect(decision.explored).toBe(false);
+      expect(
+        decision.candidates.find((candidate) => candidate.modelId === fixture.modelIds.cheap)
+          ?.estimatedCostUsd,
+      ).toBeNull();
+    } finally {
+      fixture.close();
+    }
+  });
+
+  it('allows an explicitly free model to be explored with no remaining budget', async () => {
+    const fixture = await createFixture();
+    try {
+      fixture.registry.updateModel(fixture.modelIds.cheap, {
+        pricing: { inputPerMTokUsd: 0, outputPerMTokUsd: 0 },
+      });
+      for (let index = 0; index < 3; index += 1) {
+        await recordOutcome(fixture.router, fixture.modelIds.good, 'code', true, 1);
+      }
+      fixture.setSetting('models.exploration.rate', 1);
+      fixture.setSetting('models.exploration.budgetUsdPerDay', 0);
+
+      const decision = fixture.router.route({ taskType: 'code', agentRole: 'programmer' });
+      expect(decision).toMatchObject({ modelId: fixture.modelIds.cheap, explored: true });
+      expect(
+        decision.candidates.find((candidate) => candidate.modelId === fixture.modelIds.cheap),
+      )?.toMatchObject({ estimatedCostUsd: 0 });
+    } finally {
+      fixture.close();
+    }
+  });
+
+  it('marks pre-confidence routed outcomes unverified instead of exposing their stored zero', async () => {
+    const fixture = await createFixture();
+    const projectId = uuidv7();
+    try {
+      const decision = fixture.router.route({
+        projectId,
+        taskType: 'code',
+        agentRole: 'programmer',
+        manualModelId: fixture.modelIds.good,
+      });
+      fixture.router.reportOutcome({
+        decisionId: decision.decisionId,
+        success: true,
+        qualityScore: null,
+        source: 'self',
+        costUsd: 0,
+        latencyMs: 50,
+        inputTokens: 10,
+        outputTokens: 2,
+      });
+      fixture.database
+        .prepare('UPDATE route_outcomes SET cost_status = NULL WHERE decision_id = ?')
+        .run(decision.decisionId);
+
+      expect(fixture.router.modelUsage(projectId, 10)).toContainEqual(
+        expect.objectContaining({
+          usageId: decision.decisionId,
+          decisionId: decision.decisionId,
+          costUsd: null,
+          costStatus: 'unverified',
+        }),
+      );
     } finally {
       fixture.close();
     }

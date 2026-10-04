@@ -17,9 +17,16 @@ import {
   ControlRoomService,
   type ControlRoomService as ControlRoomServiceApi,
 } from '../common/control-room-protocol';
-import { buildTaskTree, parseImpactSeeds, type SwarmTaskNode } from '../common/swarm-view-model';
+import {
+  buildTaskTree,
+  parseImpactSeeds,
+  taskDisplayTitle,
+  type SwarmTaskNode,
+} from '../common/swarm-view-model';
 import { ControlRoomClientEvents } from './control-room-client';
 import { DISCUSSION_BOARD_OPEN_COMMAND_ID } from './discussion-board-view-contribution';
+import { MarkdownContent } from './markdown-content';
+import { formatCostUsd } from '../common/cost-display';
 
 @injectable()
 export class SwarmWidget extends ControlRoomReactWidget {
@@ -343,7 +350,11 @@ export class SwarmWidget extends ControlRoomReactWidget {
                     <option value="">Select a request</option>
                     {this.requests.map((request) => (
                       <option key={request.requestId} value={request.requestId}>
-                        {request.text}
+                        {request.text
+                          .trim()
+                          .split(/\r?\n/, 1)[0]
+                          ?.replace(/^#+\s*/, '')
+                          .slice(0, 100) || 'Untitled request'}
                       </option>
                     ))}
                   </select>
@@ -551,6 +562,7 @@ export class SwarmWidget extends ControlRoomReactWidget {
 
   private renderTaskNode(node: SwarmTaskNode): React.ReactNode {
     const task = node.task;
+    const displayTitle = taskDisplayTitle(task);
     const selected = (this.highlightedTaskId ?? this.taskTree?.task.taskId) === task.taskId;
     const collapsed = this.collapsedTasks?.has(task.taskId) ?? false;
     return (
@@ -560,7 +572,7 @@ export class SwarmWidget extends ControlRoomReactWidget {
             <button
               type="button"
               className="gamecrafter-swarm-branch-toggle"
-              aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${task.title}`}
+              aria-label={`${collapsed ? 'Expand' : 'Collapse'} ${displayTitle}`}
               aria-expanded={!collapsed}
               onClick={() => {
                 if (collapsed) this.collapsedTasks.delete(task.taskId);
@@ -582,7 +594,7 @@ export class SwarmWidget extends ControlRoomReactWidget {
             aria-current={selected ? 'true' : undefined}
             onClick={() => this.selectTask(task.taskId)}
           >
-            <strong>{task.title}</strong>
+            <strong>{displayTitle}</strong>
             <span>
               {node.role ?? 'Agent task'}
               {node.children.length > 0 ? ` / ${node.children.length} sub-tasks` : ''}
@@ -622,7 +634,7 @@ export class SwarmWidget extends ControlRoomReactWidget {
     return (
       <article className="gamecrafter-swarm-task">
         <header>
-          <h3>{task.title}</h3>
+          <h3>{taskDisplayTitle(task)}</h3>
           <span className={`gamecrafter-state is-${task.state}`}>
             {task.state.replaceAll('_', ' ')}
           </span>
@@ -630,11 +642,22 @@ export class SwarmWidget extends ControlRoomReactWidget {
         <p className="gamecrafter-swarm-task-identity">
           {node.role ?? 'Agent task'} / <code>{task.taskId}</code>
         </p>
-        <h4>Goal</h4>
-        <p>{task.goal}</p>
+        <section className="gamecrafter-swarm-reading-panel" aria-label="Task goal">
+          <h4>Goal</h4>
+          <div
+            className="gamecrafter-swarm-reading-body"
+            role="region"
+            tabIndex={0}
+            aria-label="Goal content"
+          >
+            <MarkdownContent text={task.goal} />
+          </div>
+        </section>
         <div className="gamecrafter-swarm-form-row">
           <span>
-            Spent: ${task.spent.costUsd.toFixed(4)} · {task.spent.tokens} tokens
+            Known recorded spend:{' '}
+            {task.spent.costUsd > 0 ? formatCostUsd(task.spent.costUsd) : 'No charge recorded'} /{' '}
+            {task.spent.tokens.toLocaleString()} tokens
           </span>
           <label>
             Progress
@@ -647,18 +670,39 @@ export class SwarmWidget extends ControlRoomReactWidget {
             </button>
           )}
         </div>
+        <p className="gamecrafter-swarm-cost-note">
+          Known amounts only. Unpriced usage may be excluded; Audit &amp; History shows cost
+          coverage.
+        </p>
         {task.error && (
-          <p className="gamecrafter-swarm-error" role="alert">
-            {task.error.message}
-          </p>
+          <div className="gamecrafter-swarm-error" role="alert">
+            <div
+              className="gamecrafter-swarm-reading-body"
+              role="region"
+              tabIndex={0}
+              aria-label="Failure details"
+            >
+              <MarkdownContent text={task.error.message} />
+            </div>
+          </div>
         )}
         {task.result && (
           <div className="gamecrafter-swarm-result">
-            <p>{task.result.summary}</p>
+            <h4>Result</h4>
+            <div
+              className="gamecrafter-swarm-reading-body"
+              role="region"
+              tabIndex={0}
+              aria-label="Result content"
+            >
+              <MarkdownContent text={task.result.summary} />
+            </div>
             {task.result.artifacts.length > 0 && (
               <ul>
                 {task.result.artifacts.map((artifact, index) => (
-                  <li key={index}>{artifact.path}</li>
+                  <li key={index}>
+                    <code>{artifact.path}</code>
+                  </li>
                 ))}
               </ul>
             )}
@@ -701,7 +745,14 @@ export class SwarmWidget extends ControlRoomReactWidget {
     const value = this.drafts.get(question.questionId) ?? '';
     return (
       <div className="gamecrafter-swarm-question" key={question.questionId}>
-        <p>{question.prompt}</p>
+        <div
+          className="gamecrafter-swarm-reading-body"
+          role="region"
+          tabIndex={0}
+          aria-label="Question content"
+        >
+          <MarkdownContent text={question.prompt} />
+        </div>
         <label>
           Answer
           <input

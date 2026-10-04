@@ -30,8 +30,15 @@ export interface BoardMaintenanceServiceOptions {
 
 interface MaintenanceRunResult {
   summary: string;
-  costUsd: number;
+  costUsd: number | null;
+  costStatus: 'known' | 'partial' | 'unknown';
   tokens: number;
+}
+
+interface CostAccumulator {
+  totalUsd: number;
+  hasPricedUsage: boolean;
+  hasUnpricedUsage: boolean;
 }
 
 export class BoardMaintenanceService {
@@ -68,6 +75,7 @@ export class BoardMaintenanceService {
       return {
         output: result,
         costUsd: result.costUsd,
+        costStatus: result.costStatus,
         evidence: [{ kind: 'board-maintenance', ref: `${mode}:${task.taskId}` }],
       };
     } catch (error) {
@@ -109,6 +117,7 @@ export class BoardMaintenanceService {
         ? `Synchronized ${decisions.length} binding decision(s).`
         : 'No binding decisions need synchronization.',
       costUsd: 0,
+      costStatus: 'known',
       tokens: 0,
     };
   }
@@ -122,7 +131,7 @@ export class BoardMaintenanceService {
       .threads(context.projectId, { status: 'open' })
       .filter((thread) => thread.messageCount >= minimumMessages);
     const verdicts: Array<{ thread: BoardThread; verdict: BoardMaintenanceVerdict }> = [];
-    let costUsd = 0;
+    const cost = createCostAccumulator();
     let tokens = 0;
     for (const thread of threads) {
       const detail = this.options.board.thread(context.projectId, thread.threadId, {
@@ -137,7 +146,7 @@ export class BoardMaintenanceService {
         context.signal,
       );
       verdicts.push({ thread, verdict: result.verdict });
-      costUsd += result.costUsd;
+      addCost(cost, result.costUsd, result.costStatus);
       tokens += result.tokens;
     }
     for (const { thread, verdict } of verdicts) {
@@ -192,7 +201,7 @@ export class BoardMaintenanceService {
     }
     return {
       summary: `Audited ${threads.length} open thread(s).`,
-      costUsd,
+      ...summarizeCost(cost),
       tokens,
     };
   }
@@ -207,7 +216,7 @@ export class BoardMaintenanceService {
       .threads(context.projectId, { status: 'resolved' })
       .filter((thread) => thread.lastMessageAt < cutoff);
     const summaries: Array<{ thread: BoardThread; summary: string }> = [];
-    let costUsd = 0;
+    const cost = createCostAccumulator();
     let tokens = 0;
     for (const thread of threads) {
       const messages = this.options.board.thread(context.projectId, thread.threadId, {
@@ -222,7 +231,7 @@ export class BoardMaintenanceService {
         context.signal,
       );
       summaries.push({ thread, summary: result.verdict.summary });
-      costUsd += result.costUsd;
+      addCost(cost, result.costUsd, result.costStatus);
       tokens += result.tokens;
     }
     for (const { thread, summary } of summaries) {
@@ -233,7 +242,7 @@ export class BoardMaintenanceService {
     }
     return {
       summary: `Summarized and archived ${threads.length} resolved thread(s).`,
-      costUsd,
+      ...summarizeCost(cost),
       tokens,
     };
   }
@@ -244,7 +253,12 @@ export class BoardMaintenanceService {
     thread: BoardThread,
     messages: unknown[],
     signal?: AbortSignal,
-  ): Promise<{ verdict: BoardMaintenanceVerdict; costUsd: number; tokens: number }> {
+  ): Promise<{
+    verdict: BoardMaintenanceVerdict;
+    costUsd: number | null;
+    costStatus: 'known' | 'partial' | 'unknown';
+    tokens: number;
+  }> {
     const project = this.options.projects.getById(projectId);
     if (!project)
       throw new RpcError(`Project not found: ${projectId}`, RpcErrorCode.ProjectNotFound);
@@ -295,7 +309,9 @@ export class BoardMaintenanceService {
     );
     return {
       verdict,
-      costUsd: response.usage.costUsd ?? 0,
+      costUsd: response.usage.costUsd,
+      costStatus:
+        response.usage.costStatus ?? (response.usage.costUsd === null ? 'unknown' : 'known'),
       tokens: response.usage.inputTokens + response.usage.outputTokens,
     };
   }
@@ -311,6 +327,34 @@ export class BoardMaintenanceService {
   private nowIsoDate(milliseconds: number): string {
     return new Date(milliseconds).toISOString();
   }
+}
+
+function createCostAccumulator(): CostAccumulator {
+  return { totalUsd: 0, hasPricedUsage: false, hasUnpricedUsage: false };
+}
+
+function addCost(
+  accumulator: CostAccumulator,
+  costUsd: number | null,
+  costStatus: 'known' | 'partial' | 'unknown',
+): void {
+  if (costUsd !== null) accumulator.totalUsd += costUsd;
+  if (costStatus === 'unknown' || costStatus === 'partial') accumulator.hasUnpricedUsage = true;
+  if (costStatus !== 'unknown') accumulator.hasPricedUsage = true;
+}
+
+function summarizeCost(
+  accumulator: CostAccumulator,
+): Pick<MaintenanceRunResult, 'costUsd' | 'costStatus'> {
+  const costStatus = accumulator.hasUnpricedUsage
+    ? accumulator.hasPricedUsage
+      ? 'partial'
+      : 'unknown'
+    : 'known';
+  return {
+    costUsd: costStatus === 'unknown' ? null : accumulator.totalUsd,
+    costStatus,
+  };
 }
 
 function readCanonFrontmatter(

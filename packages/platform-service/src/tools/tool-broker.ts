@@ -277,6 +277,7 @@ export class ToolBroker {
         },
         evidence: [],
         costUsd: 0,
+        costStatus: 'untracked',
         startedAt,
         finishedAt: this.now().toISOString(),
       });
@@ -299,6 +300,7 @@ export class ToolBroker {
       error: null,
       evidence: [],
       costUsd: 0,
+      costStatus: 'untracked',
       startedAt,
       finishedAt: null,
     };
@@ -497,12 +499,22 @@ export class ToolBroker {
         signal: controller.signal,
       };
       const result: ToolExecutionResult = await tool.handler(context, input);
+      const costUsd = result.costUsd === null ? null : (result.costUsd ?? null);
+      const costStatus =
+        result.costStatus ??
+        (result.costUsd === undefined
+          ? 'untracked'
+          : result.costUsd === null
+            ? 'unknown'
+            : 'known');
       const outputErrors = this.options.registry.validateOutput(tool, result.output);
       if (outputErrors.length > 0) {
         return this.finishRecord(store, {
           ...record,
           status: 'failed',
           error: { message: 'Tool output does not match its schema', code: 'invalid_output' },
+          costUsd: costUsd === null ? 0 : Math.max(0, costUsd),
+          costStatus,
           finishedAt: this.now().toISOString(),
         });
       }
@@ -511,19 +523,22 @@ export class ToolBroker {
         status: 'completed',
         output: result.output,
         evidence: result.evidence ?? [],
-        costUsd: Math.max(0, result.costUsd ?? 0),
+        costUsd: costUsd === null ? 0 : Math.max(0, costUsd),
+        costStatus,
         finishedAt: this.now().toISOString(),
       });
     } catch (error) {
       const abortReason = String(controller.signal.reason ?? '');
+      const failedCostStatus = tool.definition.sideEffects === 'paid' ? 'unknown' : 'untracked';
       if (abortReason === 'service_stop') {
-        return {
+        return this.finishRecord(store, {
           ...record,
           decisionReason: 'service_stop',
           status: 'failed',
+          costStatus: failedCostStatus,
           error: { message: 'Tool call interrupted by service stop', code: 'service_stop' },
           finishedAt: this.now().toISOString(),
-        };
+        });
       }
       const timedOut = abortReason === 'tool_timeout' || isTimeoutError(error);
       const callError = asToolError(error);
@@ -531,6 +546,7 @@ export class ToolBroker {
         ...record,
         status: timedOut ? 'timed-out' : 'failed',
         decisionReason: timedOut ? 'tool_timeout' : record.decisionReason,
+        costStatus: failedCostStatus,
         error: timedOut ? { message: 'Tool execution timed out', code: 'tool_timeout' } : callError,
         finishedAt: this.now().toISOString(),
       });

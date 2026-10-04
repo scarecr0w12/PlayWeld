@@ -704,15 +704,26 @@ export class PlatformService {
           afterSeq: afterSeq ?? 0,
           limit: pageLimit,
         });
-        return redact({
-          schemaVersion: 1 as const,
-          projectId,
-          exportedAt: new Date().toISOString(),
-          limit: pageLimit,
-          nextAfterSeq: events.at(-1)?.seq ?? afterSeq ?? 0,
-          calls: toolBroker.listCalls(projectId, { limit: pageLimit }),
-          events,
-        });
+        const modelUsage = modelRouter.modelUsage(projectId, pageLimit).map((usage) => ({
+          ...usage,
+          requestId: usage.requestId === null ? null : redact(usage.requestId),
+          ...(usage.modelName === undefined ? {} : { modelName: redact(usage.modelName) }),
+          ...(usage.providerModelId === undefined
+            ? {}
+            : { providerModelId: redact(usage.providerModelId) }),
+        }));
+        return {
+          ...redact({
+            schemaVersion: 1 as const,
+            projectId,
+            exportedAt: new Date().toISOString(),
+            limit: pageLimit,
+            nextAfterSeq: events.at(-1)?.seq ?? afterSeq ?? 0,
+            calls: toolBroker.listCalls(projectId, { limit: pageLimit }),
+            events,
+          }),
+          modelUsage,
+        };
       },
       'tool/calls': ({ projectId, taskId, toolId, limit }) => ({
         calls: toolBroker.listCalls(projectId, { taskId, toolId, limit: limit ?? 200 }),

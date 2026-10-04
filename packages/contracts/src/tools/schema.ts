@@ -84,6 +84,15 @@ export const ToolCallStatusSchema = Type.Union([
 ]);
 export type ToolCallStatus = Static<typeof ToolCallStatusSchema>;
 
+export const ToolCallCostStatusSchema = Type.Union([
+  Type.Literal('known'),
+  Type.Literal('partial'),
+  Type.Literal('unknown'),
+  Type.Literal('untracked'),
+  Type.Literal('unverified'),
+]);
+export type ToolCallCostStatus = Static<typeof ToolCallCostStatusSchema>;
+
 export const ToolCallErrorSchema = Type.Object(
   {
     message: Type.String(),
@@ -118,6 +127,7 @@ export const ToolCallRecordSchema = Type.Object(
     error: Type.Union([ToolCallErrorSchema, Type.Null()]),
     evidence: Type.Array(ToolEvidenceSchema),
     costUsd: Type.Number({ minimum: 0 }),
+    costStatus: Type.Optional(ToolCallCostStatusSchema),
     startedAt: Type.String({ format: 'date-time' }),
     finishedAt: Type.Union([Type.String({ format: 'date-time' }), Type.Null()]),
   },

@@ -26,9 +26,16 @@ async function runMaintenance(
       ...(input.force === true ? { force: true } : {}),
     }),
   );
-  if (typeof result.costUsd === 'number' || typeof result.tokens === 'number') {
+  if ('costUsd' in result || typeof result.tokens === 'number') {
     await context.reportUsage({
-      ...(typeof result.costUsd === 'number' ? { costUsd: result.costUsd } : {}),
+      ...(typeof result.costUsd === 'number' || result.costUsd === null
+        ? { costUsd: result.costUsd }
+        : {}),
+      ...(result.costStatus === 'known' ||
+      result.costStatus === 'partial' ||
+      result.costStatus === 'unknown'
+        ? { costStatus: result.costStatus }
+        : {}),
       ...(typeof result.tokens === 'number' ? { tokens: result.tokens } : {}),
     });
   }

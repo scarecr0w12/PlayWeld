@@ -22,7 +22,8 @@ export interface ToolContext {
 export interface ToolExecutionResult {
   output: unknown;
   evidence?: ToolEvidence[];
-  costUsd?: number;
+  costUsd?: number | null;
+  costStatus?: 'known' | 'partial' | 'unknown' | 'untracked';
 }
 
 export type ToolHandler = (

@@ -34,6 +34,7 @@ interface ToolCallRow {
   errorJson: string | null;
   evidenceJson: string;
   costUsd: number;
+  costStatus: ToolCallRecord['costStatus'] | null;
   startedAt: string;
   finishedAt: string | null;
 }
@@ -67,6 +68,7 @@ const toolCallColumns = `
   error AS errorJson,
   evidence AS evidenceJson,
   cost_usd AS costUsd,
+  cost_status AS costStatus,
   started_at AS startedAt,
   finished_at AS finishedAt`;
 
@@ -240,8 +242,9 @@ export class ToolStore {
       .prepare(
         `INSERT INTO tool_calls (
           call_id, project_id, task_id, agent_id, tool_id, input, access_mode, decision,
-          decision_reason, status, output, error, evidence, cost_usd, started_at, finished_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          decision_reason, status, output, error, evidence, cost_usd, cost_status,
+          started_at, finished_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(call_id) DO UPDATE SET
           task_id = excluded.task_id,
           agent_id = excluded.agent_id,
@@ -254,6 +257,7 @@ export class ToolStore {
           error = excluded.error,
           evidence = excluded.evidence,
           cost_usd = excluded.cost_usd,
+          cost_status = excluded.cost_status,
           finished_at = excluded.finished_at`,
       )
       .run(
@@ -271,6 +275,7 @@ export class ToolStore {
         record.error === null ? null : JSON.stringify(record.error),
         JSON.stringify(record.evidence),
         record.costUsd,
+        record.costStatus ?? 'unverified',
         record.startedAt,
         record.finishedAt,
       );
@@ -293,6 +298,7 @@ function callFromRow(row: ToolCallRow): ToolCallRecord {
     error: row.errorJson === null ? null : JSON.parse(row.errorJson),
     evidence: JSON.parse(row.evidenceJson) as ToolCallRecord['evidence'],
     costUsd: row.costUsd,
+    costStatus: row.costStatus ?? 'unverified',
     startedAt: row.startedAt,
     finishedAt: row.finishedAt,
   });
@@ -302,9 +308,11 @@ const toolIdValidator = compile<string>(ToolIdSchema);
 
 /** Keep malformed model requests auditable without violating the RPC record contract. */
 export function normalizeRecordedCall(record: ToolCallRecord): ToolCallRecord {
-  if (toolIdValidator.check(record.toolId)) return record;
+  const costStatus = record.costStatus ?? 'unverified';
+  if (toolIdValidator.check(record.toolId)) return { ...record, costStatus };
   return {
     ...record,
+    costStatus,
     toolId: 'broker/invalid-tool',
     input: { requestedToolId: record.toolId, input: record.input },
   };

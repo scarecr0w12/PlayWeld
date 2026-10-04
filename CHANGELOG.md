@@ -6,6 +6,21 @@ Generated from permanent [work records](docs/changes/README.md). Run `npm run ch
 
 No pending work records.
 
+## 0.8.0
+
+### Changed
+
+- **Separate model usage from tool charges in Audit and History** (minor): Improve Audit visibility and cost evidence instead of treating zero-valued tool charges or absent model pricing as complete model spending. [Full details and validation](docs/changes/2026-10-04-audit-usage-and-costs.md).
+
+### Fixed
+
+- **Format agent hierarchy goals and related task text** (patch): Replace flat task-goal/result paragraphs with structured, bounded reading panels in the agent hierarchy while keeping untrusted text inert and all task actions available. [Full details and validation](docs/changes/2026-10-04-hierarchy-content-formatting.md).
+
+### Maintenance
+
+- **Deploy hierarchy formatting and cost accounting locally** (none): Deploy the user-authorized local 0.8.0 upgrade for formatted hierarchy details and confidence-aware model usage, verifying installation and retained data before the source commit/push. [Full details and validation](docs/changes/2026-10-04-local-0.8.0-deployment.md).
+- **Prepare version 0.8.0** (none): Prepare version 0.8.0 from 0.7.0, retaining all pending work records in the changelog and detailed release notes. [Full details and validation](docs/changes/2026-10-04-release-0.8.0.md).
+
 ## 0.7.0
 
 ### Added

@@ -140,6 +140,7 @@ export function registerAgentTools(registry: ToolRegistry, options: AgentToolOpt
         const response = await options.completion.complete(
           {
             projectId: context.projectId,
+            taskId: context.taskId ?? undefined,
             requestId,
             route: {
               projectId: context.projectId,
@@ -156,7 +157,9 @@ export function registerAgentTools(registry: ToolRegistry, options: AgentToolOpt
         );
         return {
           output: response,
-          costUsd: response.usage.costUsd ?? 0,
+          costUsd: response.usage.costUsd,
+          costStatus:
+            response.usage.costStatus ?? (response.usage.costUsd === null ? 'unknown' : 'known'),
           evidence: [{ kind: 'model-call', ref: requestId }],
         };
       } finally {

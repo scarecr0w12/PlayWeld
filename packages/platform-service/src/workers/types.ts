@@ -16,7 +16,19 @@ export interface TaskHandlerContext {
   checkpoint(data: unknown): Promise<void>;
   ask(prompt: string, options?: string[]): Promise<unknown>;
   tool(toolId: string, input: unknown): Promise<unknown>;
-  reportUsage(usage: { costUsd?: number; tokens?: number }): Promise<void>;
+  reportUsage(usage: ReportedUsage): Promise<void>;
+}
+
+export interface ReportedUsage {
+  costUsd?: number | null;
+  costStatus?: 'known' | 'partial' | 'unknown';
+  tokens?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadInputTokens?: number;
+  cacheCreationInputTokens?: number;
+  modelId?: string;
+  decisionId?: string | null;
 }
 
 export type TaskHandler = (context: TaskHandlerContext) => Promise<TaskResult> | TaskResult;
@@ -53,7 +65,7 @@ export type WorkerMessage =
       type: 'progress';
       message: string;
       percent?: number;
-      usage?: { costUsd?: number; tokens?: number };
+      usage?: ReportedUsage;
     }
   | { type: 'checkpoint'; requestId: string; checkpoint: unknown }
   | { type: 'question'; questionId: string; prompt: string; options: string[] | null }
