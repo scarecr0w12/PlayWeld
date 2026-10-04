@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { uuidv7, type EmbeddingProfile } from '@gamecrafter/contracts';
 import { QdrantVectorStore } from './qdrant-vector-store';
 
@@ -18,6 +18,21 @@ afterEach(async () => {
 });
 
 describe('QdrantVectorStore', () => {
+  it('refuses API keys over non-loopback HTTP even for legacy configurations', async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    const store = new QdrantVectorStore({
+      url: 'http://remote.example.com:6333',
+      apiKey: 'private-key',
+      collectionPrefix: 'test',
+      timeoutMs: 5000,
+      fetcher,
+    });
+    expect(await store.health()).toMatchObject({
+      reachable: false,
+      error: expect.stringContaining('Use HTTPS'),
+    });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
   it('ensures, upserts, searches, counts, and deletes with project filters and API key auth', async () => {
     const recorded: RecordedRequest[] = [];
     const collections = new Set<string>();
@@ -82,12 +97,7 @@ describe('QdrantVectorStore', () => {
     await store.upsert(profile, [
       { id: 'point-a', vector: [1, 0, 0], payload: { projectId, chunkId: 'chunk-a' } },
     ]);
-    const hits = await store.search(
-      profile,
-      [1, 0, 0],
-      { must: [{ key: 'source', match: { value: 'canon' } }] },
-      5,
-    );
+    const hits = await store.search(profile, [1, 0, 0], { sources: ['canon'] }, 5);
     const count = await store.count(profile, {});
     await store.delete(profile, ['point-a']);
     const health = await store.health();
@@ -105,7 +115,7 @@ describe('QdrantVectorStore', () => {
     expect(searchBody.filter).toMatchObject({
       must: expect.arrayContaining([
         { key: 'projectId', match: { value: projectId } },
-        { key: 'source', match: { value: 'canon' } },
+        { key: 'source', match: { any: ['canon'] } },
       ]),
     });
     const deleteRequest = recorded.find((request) =>
@@ -119,7 +129,10 @@ describe('QdrantVectorStore', () => {
     });
     const countRequest = recorded.find((request) => request.url.endsWith('/points/count'))!;
     expect(countRequest.body?.filter).toMatchObject({
-      must: [{ key: 'projectId', match: { value: projectId } }],
+      must: [
+        { key: 'projectId', match: { value: projectId } },
+        { key: 'active', match: { value: true } },
+      ],
     });
   });
 

@@ -16,9 +16,16 @@ apps/*/gen-esbuild*.mjs
 .kilo/kilo.jsonc
 .kilo/opencode.json
 .kilo/agent-manager.json
+.kilo/worktrees/
+.kilo/node_modules/
+.kilo/package.json
+.kilo/package-lock.json
+.kilo/bun.lock
+.kilo/.gitignore
 
 # Generated desktop installers and Python bytecode.
 /Windows-Release/
 /Windows-Release-Hosted/
+/apps/control-room/resources/qdrant/
 __pycache__/
 *.py[cod]

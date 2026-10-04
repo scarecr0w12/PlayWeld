@@ -152,14 +152,22 @@ export const EmbeddingProfileSchema = Type.Object(
 );
 export type EmbeddingProfile = Static<typeof EmbeddingProfileSchema>;
 
-export const VectorStoreKindSchema = Type.Union([Type.Literal('qdrant'), Type.Literal('none')]);
+export const VectorStoreKindSchema = Type.String({ minLength: 1, pattern: '^[a-z][a-z0-9-]*$' });
 export type VectorStoreKind = Static<typeof VectorStoreKindSchema>;
+
+export const VectorStoreDeploymentSchema = Type.Union([
+  Type.Literal('embedded'),
+  Type.Literal('managed-local'),
+  Type.Literal('external'),
+  Type.Literal('local'),
+  Type.Literal('remote'),
+]);
+export type VectorStoreDeployment = Static<typeof VectorStoreDeploymentSchema>;
 
 export const VectorStoreConfigSchema = Type.Object(
   {
-    kind: Type.Optional(
-      Type.Union([Type.Literal('qdrant'), Type.Literal('none')], { default: 'none' }),
-    ),
+    kind: Type.Optional(VectorStoreKindSchema),
+    deployment: Type.Optional(VectorStoreDeploymentSchema),
     url: Type.Optional(Type.String({ format: 'uri', default: 'http://127.0.0.1:6333' })),
     apiKeyRef: Type.Optional(Type.String()),
     collectionPrefix: Type.Optional(Type.String({ minLength: 1, default: 'gamecrafter' })),

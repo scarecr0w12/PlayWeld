@@ -12499,16 +12499,9 @@
             "required": ["kind", "reachable", "collection", "error"],
             "properties": {
               "kind": {
-                "anyOf": [
-                  {
-                    "const": "qdrant",
-                    "type": "string"
-                  },
-                  {
-                    "const": "none",
-                    "type": "string"
-                  }
-                ]
+                "minLength": 1,
+                "pattern": "^[a-z][a-z0-9-]*$",
+                "type": "string"
               },
               "reachable": {
                 "type": "boolean"
@@ -12874,16 +12867,9 @@
         "required": ["kind", "reachable", "collection", "error"],
         "properties": {
           "kind": {
-            "anyOf": [
-              {
-                "const": "qdrant",
-                "type": "string"
-              },
-              {
-                "const": "none",
-                "type": "string"
-              }
-            ]
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "type": "string"
           },
           "reachable": {
             "type": "boolean"
@@ -42471,16 +42457,9 @@
                 "required": ["kind", "reachable", "collection", "error"],
                 "properties": {
                   "kind": {
-                    "anyOf": [
-                      {
-                        "const": "qdrant",
-                        "type": "string"
-                      },
-                      {
-                        "const": "none",
-                        "type": "string"
-                      }
-                    ]
+                    "minLength": 1,
+                    "pattern": "^[a-z][a-z0-9-]*$",
+                    "type": "string"
                   },
                   "reachable": {
                     "type": "boolean"

@@ -30,8 +30,13 @@ import {
   type KnowledgeIndexFileState,
   type KnowledgeVectorMapping,
 } from './knowledge-store';
-import { QdrantVectorStore } from './qdrant-vector-store';
-import { NullVectorStore, type VectorPoint, type VectorStore } from './vector-store';
+import { VectorStoreRegistry, type VectorStoreAdapter } from './vector-store-registry';
+import {
+  NullVectorStore,
+  unavailableVectorStore,
+  type VectorPoint,
+  type VectorStore,
+} from './vector-store';
 
 const manifestValidator = compile<ProjectManifest>(ProjectManifestSchema);
 const statusValidator = compile<KnowledgeIndexState>(IndexStatusSchema);
@@ -76,6 +81,8 @@ export interface KnowledgeIndexerOptions {
   plugins: PluginRegistry;
   now?: () => Date;
   vectorStoreFactory?: (projectId: string) => VectorStore;
+  vectorStoreAdapters?: VectorStoreAdapter[];
+  qdrantBinaryPath?: string;
 }
 
 interface SourceFile {
@@ -99,9 +106,18 @@ export class KnowledgeIndexer {
   private readonly parser = new CanonParser();
   private readonly chunker = new Chunker();
   private readonly running = new Map<string, Promise<ReconcileResult>>();
+  private readonly registry: VectorStoreRegistry;
+  private readonly identities = new WeakMap<VectorStore, string>();
 
   constructor(private readonly options: KnowledgeIndexerOptions) {
     this.now = options.now ?? (() => new Date());
+    this.registry = new VectorStoreRegistry(options.qdrantBinaryPath);
+    for (const adapter of options.vectorStoreAdapters ?? []) this.registry.register(adapter);
+  }
+
+  async close(): Promise<void> {
+    await Promise.allSettled(this.running.values());
+    await this.registry.close();
   }
 
   reconcile(projectId: string, full = true): Promise<ReconcileResult> {
@@ -136,14 +152,16 @@ export class KnowledgeIndexer {
       chunks: counts.chunks,
       records: counts.records,
       vectors:
-        profile && health.kind === 'qdrant'
-          ? store.vectorMappings(projectId, profile.version).length
+        profile && health.kind !== 'none'
+          ? store.vectorMappings(projectId, profile.version).filter((mapping) => {
+              const identity = this.identities.get(vectorStore);
+              return !identity || mapping.collection.startsWith(`${identity}:`);
+            }).length
           : null,
       vectorStore: {
         kind: health.kind,
         reachable: health.reachable,
-        collection:
-          profile && health.kind === 'qdrant' ? this.collectionName(profile, vectorStore) : null,
+        collection: health.collection,
         error: health.error ?? meta.degraded,
       },
       embeddingProfile: profile,
@@ -188,7 +206,7 @@ export class KnowledgeIndexer {
     const vectorStore = this.vectorStore(projectId);
     const profiles = store.embeddingProfiles(projectId);
 
-    if (profile && vectorStore.kind === 'qdrant') {
+    if (profile && vectorStore.kind !== 'none') {
       degraded = await this.removeOldProfileVectors(
         projectId,
         profile,
@@ -198,13 +216,48 @@ export class KnowledgeIndexer {
       );
     }
 
+    if (profile && vectorStore.kind !== 'none') {
+      const mappings = store.vectorMappings(projectId, profile.version);
+      const live = new Set(
+        batches(
+          mappings.map((mapping) => mapping.chunkId),
+          256,
+        )
+          .flatMap((ids) => store.chunksByIds(projectId, ids))
+          .map((chunk) => chunk.chunkId),
+      );
+      const orphaned = mappings.filter((mapping) => !live.has(mapping.chunkId));
+      const cleanupError = await this.deleteVectorMappings(
+        projectId,
+        orphaned.map((mapping) => mapping.chunkId),
+        profiles,
+        store,
+        vectorStore,
+      );
+      degraded = cleanupError ?? degraded;
+    }
+
     const activeMappings = new Map<string, KnowledgeVectorMapping>(
-      profile && vectorStore.kind === 'qdrant'
+      profile && vectorStore.kind !== 'none'
         ? store
             .vectorMappings(projectId, profile.version)
             .map((mapping) => [mapping.chunkId, mapping])
         : [],
     );
+    const existingPointIds = new Set<string>();
+    let checkedPoints = false;
+    if (profile && vectorStore.existingIds) {
+      try {
+        for (const batch of batches(
+          [...activeMappings.values()].map((mapping) => mapping.pointId),
+          256,
+        ))
+          for (const id of await vectorStore.existingIds(profile, batch)) existingPointIds.add(id);
+        checkedPoints = true;
+      } catch (error) {
+        degraded = error instanceof Error ? error.message : String(error);
+      }
+    }
     for (const source of sources) {
       seenPaths.add(source.path);
       const revision =
@@ -248,8 +301,18 @@ export class KnowledgeIndexer {
         store.replaceIndexedPath({ ...state, record: parsed.record, body: parsed.body, chunks });
         changedPaths.push(source.path);
       }
-      if (profile && vectorStore.kind === 'qdrant') {
-        const pending = chunks.filter((chunk) => changed || !activeMappings.has(chunk.chunkId));
+      if (profile && vectorStore.kind !== 'none') {
+        const collection = await vectorStore.ensureCollection(profile).catch(() => null);
+        const target = this.mappingCollection(vectorStore, collection);
+        const pending = chunks.filter((chunk) => {
+          const mapping = activeMappings.get(chunk.chunkId);
+          return (
+            changed ||
+            !mapping ||
+            mapping.collection !== target ||
+            (checkedPoints && !existingPointIds.has(mapping.pointId))
+          );
+        });
         const error = await this.embedChunks(
           projectId,
           profile,
@@ -476,7 +539,7 @@ export class KnowledgeIndexer {
             projectId,
             profileVersion: profile.version,
             pointId: point.id,
-            collection: collection ?? '',
+            collection: this.mappingCollection(vectorStore, collection),
             createdAt: this.now().toISOString(),
           });
         }
@@ -513,7 +576,10 @@ export class KnowledgeIndexer {
           );
         } catch (error) {
           degraded ??= error instanceof Error ? error.message : String(error);
+          continue;
         }
+      } else {
+        continue;
       }
       store.removeVectorMappings(projectId, chunkIds, profileVersion);
     }
@@ -535,7 +601,7 @@ export class KnowledgeIndexer {
         (mapping) => mapping.profileVersion === profileVersion,
       );
       const profile = profiles.find((candidate) => candidate.version === profileVersion);
-      if (profile && vectorStore.kind === 'qdrant') {
+      if (profile && vectorStore.kind !== 'none') {
         try {
           await vectorStore.delete(
             profile,
@@ -543,7 +609,10 @@ export class KnowledgeIndexer {
           );
         } catch (error) {
           degraded ??= error instanceof Error ? error.message : String(error);
+          continue;
         }
+      } else {
+        continue;
       }
       store.removeVectorMappings(
         projectId,
@@ -555,10 +624,23 @@ export class KnowledgeIndexer {
   }
 
   private vectorStore(projectId: string): VectorStore {
+    try {
+      return this.configuredVectorStore(projectId);
+    } catch (error) {
+      const kind = String(
+        this.options.settings.resolve('knowledge.vectorStore.kind', { projectId }).value,
+      );
+      return unavailableVectorStore(kind, error);
+    }
+  }
+
+  private configuredVectorStore(projectId: string): VectorStore {
     if (this.options.vectorStoreFactory) return this.options.vectorStoreFactory(projectId);
     const context = { projectId };
     const kind = this.options.settings.resolve('knowledge.vectorStore.kind', context).value;
-    if (kind !== 'qdrant') return new NullVectorStore();
+    if (kind === 'none') return new NullVectorStore();
+    const deployment = this.options.settings.resolve('knowledge.vectorStore.deployment', context)
+      .value as import('@gamecrafter/contracts').VectorStoreDeployment;
     const url = String(
       this.options.settings.resolve('knowledge.vectorStore.url', context).value ??
         'http://127.0.0.1:6333',
@@ -567,7 +649,12 @@ export class KnowledgeIndexer {
       this.options.settings.resolve('knowledge.vectorStore.apiKeyRef', context).value ?? '',
     ).trim();
     let apiKey: string | undefined;
-    if (apiKeyRef) {
+    if (
+      apiKeyRef &&
+      kind !== 'lancedb' &&
+      kind !== 'sqlite' &&
+      !(kind === 'qdrant' && deployment === 'managed-local')
+    ) {
       const match = /^\$\{cred:([^}]+)\}$/.exec(apiKeyRef);
       if (!match)
         throw new RpcError(
@@ -581,25 +668,34 @@ export class KnowledgeIndexer {
           RpcErrorCode.VectorStoreUnavailable,
         );
     }
-    return QdrantVectorStore.fromConfig(
+    const resolved = this.registry.resolve(
       {
-        kind: 'qdrant',
-        url,
-        apiKeyRef,
-        collectionPrefix: String(
-          this.options.settings.resolve('knowledge.vectorStore.collectionPrefix', context).value ??
-            'gamecrafter',
-        ),
-        timeoutMs: Number(
-          this.options.settings.resolve('knowledge.vectorStore.timeoutMs', context).value ?? 5000,
-        ),
+        projectId,
+        projectPath: this.requireProject(projectId).path,
+        config: {
+          kind: String(kind),
+          deployment,
+          url,
+          apiKeyRef,
+          collectionPrefix: String(
+            this.options.settings.resolve('knowledge.vectorStore.collectionPrefix', context)
+              .value ?? 'gamecrafter',
+          ),
+          timeoutMs: Number(
+            this.options.settings.resolve('knowledge.vectorStore.timeoutMs', context).value ?? 5000,
+          ),
+        },
+        apiKey,
       },
-      apiKey,
+      this.options.settings.resolve('knowledge.vectorStore.allowRemote', context).value === true,
     );
+    this.identities.set(resolved.store, resolved.identity);
+    return resolved.store;
   }
 
-  private collectionName(profile: EmbeddingProfile, vectorStore: VectorStore): string | null {
-    return vectorStore instanceof QdrantVectorStore ? vectorStore.collectionName(profile) : null;
+  private mappingCollection(vectorStore: VectorStore, collection: string | null): string {
+    const identity = this.identities.get(vectorStore);
+    return identity ? `${identity}:${collection ?? ''}` : (collection ?? '');
   }
 
   private requireProject(projectId: string) {
@@ -608,6 +704,13 @@ export class KnowledgeIndexer {
       throw new RpcError(`Project not found: ${projectId}`, RpcErrorCode.ProjectNotFound);
     return project;
   }
+}
+
+function batches<T>(items: T[], size: number): T[][] {
+  const result: T[][] = [];
+  for (let offset = 0; offset < items.length; offset += size)
+    result.push(items.slice(offset, offset + size));
+  return result;
 }
 
 function diskSource(

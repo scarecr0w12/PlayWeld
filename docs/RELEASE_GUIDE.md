@@ -1,6 +1,6 @@
 # PlayWeld versioning, releases and local Windows testing
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-04
 
 This guide defines the current release tooling and the local testing handoff. The complete release lifecycle remains in progress in [WP19](DEVELOPMENT_PLAN.md#wp19--packaging-and-release); installer upgrade/rollback and signing acceptance are separate from producing a test build.
 
@@ -69,6 +69,8 @@ node scripts/stage-windows-release.cjs
 Electron Builder writes to `apps/control-room/dist/<version>/`. This preserves previous version outputs and avoids packaging over a running app's directory. Close the owned application from that version before rebuilding the same directory; Windows can lock native modules.
 
 The Windows verifier checks the Electron main entry, PE native module, matching application/service versions, all thirty current bundled skills and their reference content, and Apache license/notice files. It rejects missing or stale skill assets, so a test package cannot silently substitute an older skill library.
+
+Desktop packaging first prepares the checksum-pinned Qdrant 1.19.1 native executable for the host Windows/Linux x64 target and its license, then copies these resources beside the application. Build-time downloads require network access; installed managed Qdrant does not download itself or require Docker. The Windows contents verifier also checks the LanceDB addon and Qdrant executable are x64 PE binaries. Development preparation is `npm run prepare:qdrant -w @gamecrafter/control-room`. Cross-host packaging is not supported by this preparation step; use native target-host builds. Embeddings are configured separately and no inference runtime is bundled with the selected LanceDB release.
 
 Future PlayWeld packages use the names below. Previously staged GameCrafter builds keep their original names. Use a new release version when packaging the rebrand; existing staging destinations are preserved. See [branding and compatibility](BRANDING.md).
 

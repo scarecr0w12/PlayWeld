@@ -41,6 +41,19 @@ if (header[0] !== 0x4d || header[1] !== 0x5a) {
 
 process.stdout.write('Windows drivelist native addon verified.\n');
 
+for (const nativePath of [
+  path.join(unpackedDir, 'resources', 'qdrant', 'qdrant.exe'),
+  path.join(appDir, 'node_modules', '@lancedb', 'lancedb-win32-x64-msvc', 'lancedb.win32-x64-msvc.node'),
+]) {
+  const bytes = fs.readFileSync(nativePath);
+  const offset = bytes.readUInt32LE(0x3c);
+  if (bytes.toString('ascii', 0, 2) !== 'MZ' || bytes.readUInt32LE(offset) !== 0x00004550 || bytes.readUInt16LE(offset + 4) !== 0x8664)
+    throw new Error(`Vector storage native dependency must be Windows x64 PE: ${nativePath}`);
+}
+if (!fs.existsSync(path.join(unpackedDir, 'resources', 'qdrant', 'LICENSE')))
+  throw new Error('Missing Qdrant redistribution license.');
+process.stdout.write('Windows LanceDB and managed Qdrant native dependencies verified.\n');
+
 if (appPackage.version !== expectedVersion)
   throw new Error('Packaged application version is stale.');
 const serviceDir = path.join(appDir, 'node_modules', '@gamecrafter', 'platform-service');

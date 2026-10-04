@@ -1,6 +1,6 @@
 # PlayWeld user guide
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-04
 
 **Audience:** People creating and maintaining games with the current PlayWeld workspace. [Documentation index](README.md).
 
@@ -145,7 +145,13 @@ DCC follows similar installation, capability and run-history flows. Blender has 
 
 ## Knowledge and search
 
-Knowledge maintains canon records and indexes Project material for retrieval with citations. The implementation supports FTS5 and a Qdrant vector adapter. Embeddings require a configured provider; Qdrant stores vectors and does not itself prove that live embedding generation works.
+Knowledge maintains canon records and indexes Project material for retrieval with citations. Choose lexical-only, embedded LanceDB, embedded SQLite exact vector search, managed local Qdrant, an existing local Qdrant instance, or remote Qdrant in the Knowledge view. SQLite exact search is intended as a lightweight alternative, not an ANN index. Managed Qdrant is supplied by desktop packaging; development checkouts prepare it with `npm run prepare:qdrant -w @gamecrafter/control-room`.
+
+Remote mode requires an HTTPS URL and explicit permission to send embeddings and indexed metadata. Put API keys in the encrypted credential store and configure their `${cred:KEY}` reference. Legacy Qdrant configurations retain their external-endpoint behavior; migrate remote connections to explicit remote mode for the stronger checks. Changing storage schedules reconciliation and re-embeds sources for the new destination; old backend data is retained. Additional trusted adapters use their registered ID, but marketplace installation of vector adapters is not yet supported.
+
+Embeddings still require a configured provider and embedding profile. Selecting a vector database does not install an embedding model or certify live model generation. Storage remains lexical-only by default.
+
+API keys are never sent over non-loopback cleartext HTTP, including in legacy external mode. Built-in vector storage is ignored by Project Git and not copied into clones; indexes rebuild from source. If a backend loses points or a source deletion fails, run reconciliation to repair missing points or retry deletion. Switching backends does not erase old remote data; removing that retained data remains an explicit operation at the old service.
 
 After editing source documents, inspect indexing state before relying on retrieved results. Keep cited source paths and record identities with important conclusions. An index is derived data; the authoritative design records remain the actual Project documents.
 

@@ -12,6 +12,28 @@ export interface VectorSearchHit {
   payload: Record<string, unknown>;
 }
 
+export interface VectorFilter {
+  sources?: string[];
+  recordTypes?: string[];
+  statuses?: string[];
+  includeInactive?: boolean;
+}
+
+export function validateVectorFilter(filter: VectorFilter): void {
+  const allowed = new Set(['sources', 'recordTypes', 'statuses', 'includeInactive']);
+  if (Object.keys(filter).some((key) => !allowed.has(key)))
+    throw new Error('Unsupported vector filter.');
+  for (const values of [filter.sources, filter.recordTypes, filter.statuses]) {
+    if (
+      values !== undefined &&
+      (!Array.isArray(values) || values.some((v) => typeof v !== 'string'))
+    )
+      throw new Error('Vector filters must contain string arrays.');
+  }
+  if (filter.includeInactive !== undefined && typeof filter.includeInactive !== 'boolean')
+    throw new Error('Invalid inactive-record vector filter.');
+}
+
 export interface VectorStoreHealth {
   kind: VectorStoreKind;
   reachable: boolean;
@@ -28,11 +50,30 @@ export interface VectorStore {
   search(
     profile: EmbeddingProfile,
     vector: number[],
-    filter: Record<string, unknown>,
+    filter: VectorFilter,
     limit: number,
   ): Promise<VectorSearchHit[]>;
-  count(profile: EmbeddingProfile, filter: Record<string, unknown>): Promise<number | null>;
+  count(profile: EmbeddingProfile, filter: VectorFilter): Promise<number | null>;
   health(profile?: EmbeddingProfile): Promise<VectorStoreHealth>;
+  existingIds?(profile: EmbeddingProfile, pointIds: string[]): Promise<string[]>;
+  collectionName?(profile: EmbeddingProfile): string;
+  close?(): Promise<void>;
+}
+
+export function unavailableVectorStore(kind: string, error: unknown): VectorStore {
+  const message = error instanceof Error ? error.message : String(error);
+  const fail = async (): Promise<never> => {
+    throw new Error(message);
+  };
+  return {
+    kind,
+    ensureCollection: fail,
+    upsert: fail,
+    delete: fail,
+    search: fail,
+    count: fail,
+    health: async () => ({ kind, reachable: false, collection: null, error: message }),
+  };
 }
 
 export class NullVectorStore implements VectorStore {
@@ -56,7 +97,7 @@ export class NullVectorStore implements VectorStore {
   async search(
     profile: EmbeddingProfile,
     vector: number[],
-    filter: Record<string, unknown>,
+    filter: VectorFilter,
     limit: number,
   ): Promise<VectorSearchHit[]> {
     void profile;
@@ -66,7 +107,7 @@ export class NullVectorStore implements VectorStore {
     return [];
   }
 
-  async count(profile: EmbeddingProfile, filter: Record<string, unknown>): Promise<null> {
+  async count(profile: EmbeddingProfile, filter: VectorFilter): Promise<null> {
     void profile;
     void filter;
     return null;

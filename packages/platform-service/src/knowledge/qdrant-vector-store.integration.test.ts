@@ -106,6 +106,7 @@ function points(projectId: string, prefix: string) {
       projectId,
       chunkId: `${prefix}-${index === 0 ? 'unique' : index}`,
       source: 'canon',
+      active: true,
     },
   }));
 }

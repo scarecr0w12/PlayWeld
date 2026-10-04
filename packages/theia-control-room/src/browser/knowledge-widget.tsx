@@ -62,7 +62,10 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
   private query = '';
   private modelId = '';
   private providerAccountId = '';
-  private vectorKind: 'none' | 'qdrant' = 'none';
+  private vectorKind = 'none';
+  private vectorDeployment: 'embedded' | 'managed-local' | 'local' | 'remote' | 'external' =
+    'external';
+  private allowRemoteVectorStore = false;
   private vectorUrl = 'http://127.0.0.1:6333';
   private collectionPrefix = 'gamecrafter';
   private vectorTimeoutMs = 5000;
@@ -258,6 +261,9 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
   }
 
   private renderVectorSettings(): React.ReactNode {
+    const vectorStoreSelection = this.vectorStoreSelection();
+    const isRemoteDeployment =
+      this.vectorDeployment === 'remote' || this.vectorDeployment === 'external';
     return (
       <details className="gamecrafter-knowledge-section">
         <summary>Vector store and embedding profile</summary>
@@ -265,60 +271,127 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
           <label>
             Vector store
             <select
-              value={this.vectorKind}
+              value={vectorStoreSelection}
               onChange={(event) => {
-                this.vectorKind = event.currentTarget.value as 'none' | 'qdrant';
+                this.selectVectorStore(event.currentTarget.value);
                 this.update();
               }}
             >
               <option value="none">Lexical only</option>
-              <option value="qdrant">Qdrant</option>
+              <option value="lancedb-embedded">LanceDB Embedded</option>
+              <option value="sqlite-embedded">SQLite Embedded</option>
+              <option value="qdrant-managed-local">Qdrant Managed Local</option>
+              <option value="qdrant-local">Qdrant Existing Local</option>
+              <option value="qdrant-remote">Qdrant Remote</option>
+              <option value="qdrant-external">Qdrant Legacy External</option>
+              <option value="custom">Custom registered adapter</option>
             </select>
           </label>
-          <label>
-            Qdrant URL
-            <input
-              value={this.vectorUrl}
-              onChange={(event) => {
-                this.vectorUrl = event.currentTarget.value;
-                this.update();
-              }}
-            />
-          </label>
-          <label>
-            Collection prefix
-            <input
-              value={this.collectionPrefix}
-              onChange={(event) => {
-                this.collectionPrefix = event.currentTarget.value;
-                this.update();
-              }}
-            />
-          </label>
-          <label>
-            Request timeout (ms)
-            <input
-              type="number"
-              min="1"
-              value={this.vectorTimeoutMs}
-              onChange={(event) => {
-                this.vectorTimeoutMs = Number(event.currentTarget.value);
-                this.update();
-              }}
-            />
-          </label>
-          <label>
-            API key credential reference
-            <input
-              value={this.apiKeyRef}
-              onChange={(event) => {
-                this.apiKeyRef = event.currentTarget.value;
-                this.update();
-              }}
-              placeholder="${cred:KEY}"
-            />
-          </label>
-          <button type="button" disabled={this.busy} onClick={() => void this.saveVectorSettings()}>
+          {vectorStoreSelection === 'custom' && (
+            <>
+              <label>
+                Registered adapter ID
+                <input
+                  value={this.vectorKind === 'none' ? '' : this.vectorKind}
+                  onChange={(event) => {
+                    this.vectorKind = event.currentTarget.value;
+                    this.update();
+                  }}
+                  placeholder="adapter-id"
+                />
+              </label>
+              <label>
+                Deployment
+                <select
+                  value={this.vectorDeployment}
+                  onChange={(event) => {
+                    this.vectorDeployment = event.currentTarget
+                      .value as typeof this.vectorDeployment;
+                    this.update();
+                  }}
+                >
+                  <option value="embedded">Embedded</option>
+                  <option value="managed-local">Managed local</option>
+                  <option value="local">Existing local</option>
+                  <option value="remote">Remote</option>
+                  <option value="external">Legacy external</option>
+                </select>
+              </label>
+            </>
+          )}
+          {(vectorStoreSelection.startsWith('qdrant-') || vectorStoreSelection === 'custom') && (
+            <>
+              <label>
+                Vector store URL
+                <input
+                  value={this.vectorUrl}
+                  onChange={(event) => {
+                    this.vectorUrl = event.currentTarget.value;
+                    this.update();
+                  }}
+                />
+              </label>
+              <label>
+                Collection prefix
+                <input
+                  value={this.collectionPrefix}
+                  onChange={(event) => {
+                    this.collectionPrefix = event.currentTarget.value;
+                    this.update();
+                  }}
+                />
+              </label>
+              <label>
+                Request timeout (ms)
+                <input
+                  type="number"
+                  min="1"
+                  value={this.vectorTimeoutMs}
+                  onChange={(event) => {
+                    this.vectorTimeoutMs = Number(event.currentTarget.value);
+                    this.update();
+                  }}
+                />
+              </label>
+              <label>
+                API key credential reference
+                <input
+                  value={this.apiKeyRef}
+                  onChange={(event) => {
+                    this.apiKeyRef = event.currentTarget.value;
+                    this.update();
+                  }}
+                  placeholder="${cred:KEY}"
+                />
+              </label>
+            </>
+          )}
+          {isRemoteDeployment && vectorStoreSelection !== 'none' && (
+            <>
+              <label className="gamecrafter-knowledge-checkbox">
+                <input
+                  type="checkbox"
+                  checked={this.allowRemoteVectorStore}
+                  onChange={(event) => {
+                    this.allowRemoteVectorStore = event.currentTarget.checked;
+                    this.update();
+                  }}
+                />
+                Allow remote vector storage
+              </label>
+              <p className="gamecrafter-knowledge-warning">
+                {this.vectorDeployment === 'external'
+                  ? 'Legacy external mode retains the old endpoint policy, without enforcing this consent flag or HTTPS. Use Remote mode for those checks. '
+                  : 'With consent enabled, embeddings and indexed source metadata may be sent to the remote vector service. '}
+                Qdrant stores vectors and metadata, not source text.
+              </p>
+            </>
+          )}
+          <button
+            type="button"
+            disabled={this.busy || (vectorStoreSelection === 'custom' && !this.vectorKind.trim())}
+            onClick={() => void this.saveVectorSettings()}
+          >
             Save vector settings
           </button>
         </div>
@@ -698,7 +771,22 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
     const prefix = byKey.get('knowledge.vectorStore.collectionPrefix');
     const timeout = byKey.get('knowledge.vectorStore.timeoutMs');
     const ref = byKey.get('knowledge.vectorStore.apiKeyRef');
-    if (kind === 'none' || kind === 'qdrant') this.vectorKind = kind;
+    const deployment = byKey.get('knowledge.vectorStore.deployment');
+    const allowRemote = byKey.get('knowledge.vectorStore.allowRemote');
+    if (typeof kind === 'string') this.vectorKind = kind;
+    if (
+      deployment === 'embedded' ||
+      deployment === 'managed-local' ||
+      deployment === 'local' ||
+      deployment === 'remote' ||
+      deployment === 'external'
+    ) {
+      this.vectorDeployment = deployment;
+    } else {
+      // Older Qdrant settings did not persist a deployment and used an external endpoint.
+      this.vectorDeployment = 'external';
+    }
+    if (typeof allowRemote === 'boolean') this.allowRemoteVectorStore = allowRemote;
     if (typeof url === 'string') this.vectorUrl = url;
     if (typeof prefix === 'string') this.collectionPrefix = prefix;
     if (typeof timeout === 'number') this.vectorTimeoutMs = timeout;
@@ -768,40 +856,90 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
 
   private async saveVectorSettings(): Promise<void> {
     if (!this.projectId) return;
+    const projectId = this.projectId;
+    // Settings notifications refresh this form while each write is in flight.
+    const changes: Array<[string, string | number | boolean]> = [
+      ['knowledge.vectorStore.deployment', this.vectorDeployment],
+      ['knowledge.vectorStore.allowRemote', this.allowRemoteVectorStore],
+      ['knowledge.vectorStore.url', this.vectorUrl.trim()],
+      ['knowledge.vectorStore.collectionPrefix', this.collectionPrefix.trim()],
+      ['knowledge.vectorStore.timeoutMs', this.vectorTimeoutMs],
+      ['knowledge.vectorStore.apiKeyRef', this.apiKeyRef.trim()],
+      ['knowledge.vectorStore.kind', this.vectorKind],
+    ];
     await this.withBusy(async () => {
-      await this.service.setSetting(
-        'knowledge.vectorStore.kind',
-        'project',
-        this.vectorKind,
-        this.projectId,
-      );
-      await this.service.setSetting(
-        'knowledge.vectorStore.url',
-        'project',
-        this.vectorUrl.trim(),
-        this.projectId,
-      );
-      await this.service.setSetting(
-        'knowledge.vectorStore.collectionPrefix',
-        'project',
-        this.collectionPrefix.trim(),
-        this.projectId,
-      );
-      await this.service.setSetting(
-        'knowledge.vectorStore.timeoutMs',
-        'project',
-        this.vectorTimeoutMs,
-        this.projectId,
-      );
-      await this.service.setSetting(
-        'knowledge.vectorStore.apiKeyRef',
-        'project',
-        this.apiKeyRef.trim(),
-        this.projectId,
-      );
+      await this.service.importSettings({
+        scope: 'project',
+        projectId,
+        document: {
+          schemaVersion: 1,
+          exportedAt: new Date().toISOString(),
+          projectId,
+          settings: changes.map(([key, value]) => ({
+            key,
+            value,
+            source: 'project',
+            layers: { default: value, project: value },
+          })),
+        },
+      });
       this.resultMessage = 'Project vector store settings saved.';
       await this.refreshStatus();
     });
+  }
+
+  private vectorStoreSelection(): string {
+    if (this.vectorKind === 'none') return 'none';
+    if (this.vectorKind === 'lancedb' && this.vectorDeployment === 'embedded')
+      return 'lancedb-embedded';
+    if (this.vectorKind === 'sqlite' && this.vectorDeployment === 'embedded')
+      return 'sqlite-embedded';
+    if (
+      this.vectorKind === 'qdrant' &&
+      (this.vectorDeployment === 'managed-local' ||
+        this.vectorDeployment === 'local' ||
+        this.vectorDeployment === 'remote' ||
+        this.vectorDeployment === 'external')
+    ) {
+      return `qdrant-${this.vectorDeployment}`;
+    }
+    return 'custom';
+  }
+
+  private selectVectorStore(selection: string): void {
+    switch (selection) {
+      case 'none':
+        this.vectorKind = 'none';
+        this.vectorDeployment = 'external';
+        break;
+      case 'lancedb-embedded':
+        this.vectorKind = 'lancedb';
+        this.vectorDeployment = 'embedded';
+        break;
+      case 'sqlite-embedded':
+        this.vectorKind = 'sqlite';
+        this.vectorDeployment = 'embedded';
+        break;
+      case 'qdrant-managed-local':
+        this.vectorKind = 'qdrant';
+        this.vectorDeployment = 'managed-local';
+        break;
+      case 'qdrant-local':
+        this.vectorKind = 'qdrant';
+        this.vectorDeployment = 'local';
+        break;
+      case 'qdrant-remote':
+        this.vectorKind = 'qdrant';
+        this.vectorDeployment = 'remote';
+        break;
+      case 'qdrant-external':
+        this.vectorKind = 'qdrant';
+        this.vectorDeployment = 'external';
+        break;
+      case 'custom':
+        if (this.vectorKind === 'none' || this.vectorKind === 'qdrant') this.vectorKind = '';
+        break;
+    }
   }
 
   private async saveEmbeddingProfile(): Promise<void> {

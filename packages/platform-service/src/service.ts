@@ -76,6 +76,7 @@ import { AssetService } from './assets/asset-service';
 import { BackupService } from './backup/backup-service';
 import { KnowledgeService } from './knowledge/knowledge-service';
 import type { VectorStore } from './knowledge/vector-store';
+import type { VectorStoreAdapter } from './knowledge/vector-store-registry';
 import { UpdateStore } from './updates/update-store';
 import { UpdateService } from './updates/update-service';
 import { SqliteUpdateDismissalStore } from './updates/update-dismissal-store';
@@ -103,6 +104,8 @@ export interface PlatformServiceOptions {
     unisolated?: IsolationLauncher;
   };
   knowledgeVectorStoreFactory?: (projectId: string) => VectorStore;
+  knowledgeVectorStoreAdapters?: VectorStoreAdapter[];
+  qdrantBinaryPath?: string;
 }
 
 export class PlatformService {
@@ -1101,6 +1104,8 @@ export class PlatformService {
           server.broadcast('knowledge/recordChanged', { projectId, record }),
       },
       vectorStoreFactory: options.knowledgeVectorStoreFactory,
+      vectorStoreAdapters: options.knowledgeVectorStoreAdapters,
+      qdrantBinaryPath: options.qdrantBinaryPath,
     });
     changeGraphRef.service = new ChangeGraph({
       storeForProject: (projectId) => new ChangeGraphStore(projectDatabases.get(projectId)),
@@ -1254,7 +1259,7 @@ export class PlatformService {
     if (this.updateTimer) clearInterval(this.updateTimer);
     await this.assetService.stop();
     await this.backupService.stop();
-    this.knowledgeService.stop();
+    await this.knowledgeService.stop();
     this.boardMaintenanceScheduler.stop();
     await this.pluginHost.stopAll();
     await this.workerSupervisor.stopAll({ checkpoint });

@@ -1,7 +1,7 @@
 # Game Development Platform: Living Design
 
 **Status:** Working design, not an implementation claim.  
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-04
 **Purpose:** Preserve decisions and open questions as we design the complete platform.
 
 **Implementation status:** [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) tracks which work packages are implemented; nothing in this document is an implementation claim.
@@ -55,7 +55,7 @@ A free, open-source system that runs locally and coordinates game development fr
 - Use CLI and MCP connectors for Unity, Unreal Engine, and Godot integration in the chosen system design. In-editor companion plugins may be considered as a later expansion, but are not required for the current connector contract.
 - MCP connections support three setup modes: launch a configured local server command, connect to an already-running server endpoint, or launch a configured MCP server in a local Docker container. Docker is optional and is not required by the platform or its plugin runtime.
 - Keep design records and any enabled story canon as readable Markdown files for direct access, editing, review, and version control.
-- Support a **local vector database connection** for semantic search. Also support codebase search and reference discovery. The vector index is a derived retrieval aid; Markdown and source files remain accessible without it. The particular vector database has not been selected.
+- Support selectable **local and remote vector database storage** for semantic search: embedded LanceDB, local Qdrant, remote Qdrant, and additional local or remote adapters. Also support codebase search and reference discovery. The vector index is derived; Markdown and source files remain accessible without it.
 - The vector database connection is **read/write**: the platform creates and updates embeddings with source metadata, removes stale entries, and queries them for semantic search. Support Qdrant or another compatible local vector database through adapters. Keep each Project's indexed content logically separate and allow indexes to be rebuilt from its files and records.
 - Agents author new long-term Project knowledge in reviewable Markdown or structured Project records. The indexing service then writes corresponding embeddings to the connected vector database; vectors are not the sole or primary record of authored knowledge.
 - Track concepts supplied by enabled modules, including story, backstory, quests, characters, and gameplay systems where relevant, alongside assets, decisions, and dependencies so a requested change can reveal effects across disciplines.
@@ -149,7 +149,6 @@ Sources reviewed: [Theia extension types](https://theia-ide.org/docs/extensions/
 Use the delegated best-practice judgment for these details, record the choice, and bring back only a genuine user-owned creative or consequential product decision. The [technical architecture](TECHNICAL_ARCHITECTURE.md) now records defaults for the main technology choices.
 
 - Which specific Autodesk game-art applications should be included beyond Maya and 3ds Max, if any?
-- Which local vector databases beyond Qdrant should receive first-party read/write adapters?
 - After an application or machine restart, should checkpointed agent work resume automatically or wait for the user's command? Could this also be a setting?
 - How should concurrent edits to the same game files or design records be coordinated and merged?
 - Which backup controls should be required: schedule, retention, compression, encryption, incremental snapshots, integrity checks, and restore testing?
@@ -217,6 +216,7 @@ Use the delegated best-practice judgment for these details, record the choice, a
 | MCP server setup supports local commands, existing endpoints, and app-launched local Docker containers; Docker remains optional | Confirmed | User discussion |
 | Readable Markdown canon and design records with optional local vector retrieval and code search | Confirmed | User discussion |
 | Read from and write to a connected local vector database such as Qdrant, with Project separation and index synchronization | Confirmed | User discussion |
+| Offer LanceDB, local Qdrant, remote Qdrant, and additional local or remote vector storage options | Confirmed | User discussion, 2026-10-04 |
 | Agents author durable knowledge in Markdown or structured Project records; the indexer writes derived vectors | Confirmed | User discussion |
 | Full access really permits high-risk actions; Restricted and Ask always are also available | Confirmed | User discussion |
 | Multiple providers, accounts, selectable models, agent/work eligibility, dynamic routing using provider and local feedback data | Confirmed | User discussion |

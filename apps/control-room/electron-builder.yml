@@ -21,6 +21,10 @@ files:
   - '!node_modules/**/examples{,/**/*}'
   - '!node_modules/**/src{,/**/*}'
 extraResources:
+  - from: resources/qdrant
+    to: qdrant
+    filter:
+      - '**/*'
   - from: ../../LICENSE
     to: LICENSE.GameCrafter.txt
   - from: ../../NOTICE

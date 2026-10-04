@@ -580,13 +580,39 @@
     {
       "key": "knowledge.vectorStore.kind",
       "title": "Vector store kind",
-      "description": "Select Qdrant for semantic retrieval or none for lexical-only search.",
+      "description": "Select lancedb, qdrant, a registered adapter ID, or none for lexical-only search.",
       "group": "knowledge",
       "schema": {
         "type": "string",
-        "enum": ["none", "qdrant"]
+        "minLength": 1,
+        "pattern": "^[a-z][a-z0-9-]*$"
       },
       "default": "none",
+      "scopes": ["platform", "project"],
+      "source": "builtin"
+    },
+    {
+      "key": "knowledge.vectorStore.deployment",
+      "title": "Vector store deployment",
+      "description": "LanceDB is embedded. Qdrant supports managed-local, existing local, remote, or legacy external endpoints.",
+      "group": "knowledge",
+      "schema": {
+        "type": "string",
+        "enum": ["embedded", "managed-local", "external", "local", "remote"]
+      },
+      "default": "external",
+      "scopes": ["platform", "project"],
+      "source": "builtin"
+    },
+    {
+      "key": "knowledge.vectorStore.allowRemote",
+      "title": "Allow remote vector storage",
+      "description": "Allow embeddings and indexed source metadata to leave this machine. Remote endpoints require HTTPS.",
+      "group": "knowledge",
+      "schema": {
+        "type": "boolean"
+      },
+      "default": false,
       "scopes": ["platform", "project"],
       "source": "builtin"
     },

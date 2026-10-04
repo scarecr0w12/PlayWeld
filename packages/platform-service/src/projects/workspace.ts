@@ -141,7 +141,7 @@ export class ProjectWorkspace {
       );
       writeFileSync(
         path.join(projectPath, '.gitignore'),
-        '.gamecrafter/cache/\n.gamecrafter/logs/\n.gamecrafter/engine-runs/\n.gamecrafter/worktrees/\n.gamecrafter/agent-memory/\n.gamecrafter/*.sqlite\n*.sqlite-wal\n*.sqlite-shm\n*.sqlite-journal\n',
+        '.gamecrafter/cache/\n.gamecrafter/logs/\n.gamecrafter/engine-runs/\n.gamecrafter/worktrees/\n.gamecrafter/agent-memory/\n.gamecrafter/vectors.lancedb/\n.gamecrafter/qdrant/\n.gamecrafter/*.sqlite\n*.sqlite-wal\n*.sqlite-shm\n*.sqlite-journal\n',
         'utf8',
       );
       mkdirSync(path.join(projectPath, 'docs'), { recursive: true });
@@ -255,6 +255,11 @@ export class ProjectWorkspace {
             relative.startsWith('.git/worktrees/') ||
             relative === '.gamecrafter/cache' ||
             relative.startsWith('.gamecrafter/cache/') ||
+            relative === '.gamecrafter/vectors.lancedb' ||
+            relative.startsWith('.gamecrafter/vectors.lancedb/') ||
+            relative === '.gamecrafter/qdrant' ||
+            relative.startsWith('.gamecrafter/qdrant/') ||
+            relative === '.gamecrafter/vectors.sqlite' ||
             relative === '.gamecrafter/logs' ||
             relative.startsWith('.gamecrafter/logs/')
           ) {
@@ -450,6 +455,8 @@ function ensureProjectOperationalGitignore(projectPath: string): void {
     '.gamecrafter/engine-runs/',
     '.gamecrafter/worktrees/',
     '.gamecrafter/agent-memory/',
+    '.gamecrafter/vectors.lancedb/',
+    '.gamecrafter/qdrant/',
     '.gamecrafter/*.sqlite',
     '*.sqlite-wal',
     '*.sqlite-shm',

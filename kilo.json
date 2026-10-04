@@ -1,0 +1,54 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+  "share": "disabled",
+  "permission": {
+    "external_directory": "ask",
+    "bash": {
+      "*": "ask",
+      "git status": "allow",
+      "git status --short": "allow",
+      "git diff": "allow",
+      "git diff --check": "allow",
+      "git diff --stat": "allow",
+      "git log --oneline -10": "allow",
+      "npm test*": "allow",
+      "npm run test*": "allow",
+      "npm run typecheck*": "allow",
+      "npm run lint*": "allow",
+      "npm run build*": "allow",
+      "npm run format:check": "allow",
+      "npm run changelog:update": "allow",
+      "npm run changelog:check*": "allow"
+    },
+    "context7_*": "allow",
+    "exa_*": "ask",
+    "exa_web_search_exa": "allow",
+    "exa_web_fetch_exa": "allow",
+    "firecrawl_*": "ask",
+    "firecrawl_firecrawl_search": "allow",
+    "firecrawl_firecrawl_developer_search": "allow",
+    "firecrawl_firecrawl_research_search": "allow",
+    "firecrawl_firecrawl_research_read_paper": "allow",
+    "unityMCP_*": "ask"
+  },
+  "mcp": {
+    "context7": {
+      "type": "local",
+      "command": ["npx", "-y", "@upstash/context7-mcp@4.1.1"],
+      "enabled": true,
+      "timeout": 30000
+    },
+    "exa": {
+      "type": "local",
+      "command": ["npx", "-y", "exa-mcp-server@3.4.1"],
+      "enabled": false,
+      "timeout": 30000
+    },
+    "firecrawl": {
+      "type": "local",
+      "command": ["npx", "-y", "firecrawl-mcp@3.25.5"],
+      "enabled": false,
+      "timeout": 30000
+    }
+  }
+}

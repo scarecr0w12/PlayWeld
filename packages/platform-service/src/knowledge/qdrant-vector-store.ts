@@ -4,7 +4,14 @@ import {
   type EmbeddingProfile,
   type VectorStoreConfig,
 } from '@gamecrafter/contracts';
-import type { VectorPoint, VectorSearchHit, VectorStore, VectorStoreHealth } from './vector-store';
+import {
+  validateVectorFilter,
+  type VectorFilter,
+  type VectorPoint,
+  type VectorSearchHit,
+  type VectorStore,
+  type VectorStoreHealth,
+} from './vector-store';
 
 export interface QdrantVectorStoreOptions {
   url: string;
@@ -12,6 +19,7 @@ export interface QdrantVectorStoreOptions {
   timeoutMs: number;
   apiKey?: string;
   fetcher?: typeof fetch;
+  endpoint?: () => Promise<{ url: string; apiKey: string }>;
 }
 
 export class QdrantVectorStore implements VectorStore {
@@ -66,7 +74,6 @@ export class QdrantVectorStore implements VectorStore {
 
   async upsert(profile: EmbeddingProfile, points: VectorPoint[]): Promise<void> {
     if (points.length === 0) return;
-    const collection = await this.ensureCollection(profile);
     const normalized = points.map((point) => {
       const payloadProjectId = point.payload.projectId;
       if (payloadProjectId !== undefined && payloadProjectId !== profile.projectId) {
@@ -75,11 +82,20 @@ export class QdrantVectorStore implements VectorStore {
           RpcErrorCode.VectorStoreUnavailable,
         );
       }
+      if (
+        point.vector.length !== profile.dimensions ||
+        point.vector.some((value) => !Number.isFinite(value))
+      )
+        throw new RpcError(
+          'Invalid vector dimensions or values.',
+          RpcErrorCode.VectorStoreUnavailable,
+        );
       return {
         ...point,
         payload: { ...point.payload, projectId: profile.projectId },
       };
     });
+    const collection = await this.ensureCollection(profile);
     const response = await this.request(
       'PUT',
       `/collections/${encodeURIComponent(collection)}/points?wait=true`,
@@ -106,11 +122,16 @@ export class QdrantVectorStore implements VectorStore {
   async search(
     profile: EmbeddingProfile,
     vector: number[],
-    filter: Record<string, unknown>,
+    filter: VectorFilter,
     limit: number,
   ): Promise<VectorSearchHit[]> {
+    validateVectorFilter(filter);
     const collection = await this.ensureCollection(profile);
-    if (vector.length !== profile.dimensions) {
+    if (
+      vector.length !== profile.dimensions ||
+      vector.some((value) => !Number.isFinite(value)) ||
+      vector.every((value) => value === 0)
+    ) {
       throw new RpcError(
         `Embedding dimensions mismatch: expected ${profile.dimensions}, received ${vector.length}.`,
         RpcErrorCode.VectorStoreUnavailable,
@@ -141,7 +162,8 @@ export class QdrantVectorStore implements VectorStore {
     });
   }
 
-  async count(profile: EmbeddingProfile, filter: Record<string, unknown>): Promise<number> {
+  async count(profile: EmbeddingProfile, filter: VectorFilter): Promise<number> {
+    validateVectorFilter(filter);
     const collection = await this.ensureCollection(profile);
     const response = await this.request(
       'POST',
@@ -156,6 +178,37 @@ export class QdrantVectorStore implements VectorStore {
       );
     }
     return result.count;
+  }
+
+  async existingIds(profile: EmbeddingProfile, pointIds: string[]): Promise<string[]> {
+    if (pointIds.length === 0) return [];
+    const collection = await this.ensureCollection(profile);
+    const response = await this.request(
+      'POST',
+      `/collections/${encodeURIComponent(collection)}/points`,
+      {
+        ids: pointIds,
+        with_payload: true,
+        with_vector: false,
+      },
+      true,
+    );
+    if (response.status === 404) {
+      this.ensured.delete(collection);
+      await this.ensureCollection(profile);
+      return [];
+    }
+    const result = await this.jsonResult(response);
+    return Array.isArray(result)
+      ? result.flatMap((point) =>
+          isRecord(point) &&
+          typeof point.id === 'string' &&
+          isRecord(point.payload) &&
+          point.payload.projectId === profile.projectId
+            ? [point.id]
+            : [],
+        )
+      : [];
   }
 
   async health(profile?: EmbeddingProfile): Promise<VectorStoreHealth> {
@@ -180,17 +233,18 @@ export class QdrantVectorStore implements VectorStore {
     }
   }
 
-  private projectFilter(
-    projectId: string,
-    filter: Record<string, unknown>,
-  ): Record<string, unknown> {
-    const must = Array.isArray(filter.must)
-      ? filter.must.filter((condition) => !isProjectCondition(condition))
-      : [];
-    return {
-      ...filter,
-      must: [{ key: 'projectId', match: { value: projectId } }, ...must],
-    };
+  private projectFilter(projectId: string, filter: VectorFilter): Record<string, unknown> {
+    validateVectorFilter(filter);
+    const must: unknown[] = [{ key: 'projectId', match: { value: projectId } }];
+    for (const [key, values] of [
+      ['source', filter.sources],
+      ['recordType', filter.recordTypes],
+      ['recordStatus', filter.statuses],
+    ] as const) {
+      if (values !== undefined) must.push({ key, match: { any: values } });
+    }
+    if (filter.includeInactive !== true) must.push({ key: 'active', match: { value: true } });
+    return { must };
   }
 
   private async request(
@@ -200,15 +254,28 @@ export class QdrantVectorStore implements VectorStore {
     allowNotFound = false,
   ): Promise<Response> {
     const headers: Record<string, string> = {};
+    const endpoint = await this.options.endpoint?.();
     if (body !== undefined) headers['content-type'] = 'application/json';
-    if (this.options.apiKey) headers['api-key'] = this.options.apiKey;
+    const apiKey = endpoint?.apiKey ?? this.options.apiKey;
+    const destination = new URL(endpoint?.url ?? this.baseUrl);
+    if (
+      apiKey &&
+      destination.protocol !== 'https:' &&
+      !['127.0.0.1', '[::1]', 'localhost'].includes(destination.hostname)
+    )
+      throw new RpcError(
+        'Qdrant credentials cannot be sent over non-loopback HTTP. Use HTTPS.',
+        RpcErrorCode.VectorStoreUnavailable,
+      );
+    if (apiKey) headers['api-key'] = apiKey;
     let response: Response;
     try {
-      response = await this.fetcher(`${this.baseUrl}${pathname}`, {
+      response = await this.fetcher(`${endpoint?.url ?? this.baseUrl}${pathname}`, {
         method,
         headers,
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
         signal: AbortSignal.timeout(this.options.timeoutMs),
+        redirect: 'error',
       });
     } catch (error) {
       throw new RpcError(
@@ -250,10 +317,6 @@ export class QdrantVectorStore implements VectorStore {
       throw new RpcError('Qdrant returned invalid JSON.', RpcErrorCode.VectorStoreUnavailable);
     }
   }
-}
-
-function isProjectCondition(value: unknown): boolean {
-  return isRecord(value) && value.key === 'projectId';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -10,7 +10,17 @@ describe('SettingsRegistry', () => {
 
     const description = registry.describe();
     expect(description.groups).toHaveLength(17);
-    expect(description.definitions).toHaveLength(75);
+    expect(description.definitions).toHaveLength(77);
+    expect(
+      description.definitions.find(
+        (definition) => definition.key === 'knowledge.vectorStore.deployment',
+      ),
+    ).toMatchObject({ default: 'external', scopes: ['platform', 'project'] });
+    expect(
+      description.definitions.find(
+        (definition) => definition.key === 'knowledge.vectorStore.allowRemote',
+      ),
+    ).toMatchObject({ default: false, scopes: ['platform', 'project'] });
     expect(
       description.definitions.find((definition) => definition.key === 'mcp.autoConnect'),
     ).toMatchObject({

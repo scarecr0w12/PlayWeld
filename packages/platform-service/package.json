@@ -17,12 +17,14 @@
   },
   "dependencies": {
     "@gamecrafter/contracts": "0.6.0",
+    "@gamecrafter/service-client": "0.6.0",
+    "@lancedb/lancedb": "0.29.0",
+    "apache-arrow": "18.1.0",
     "cross-spawn": "7.0.6",
     "semver": "7.8.5",
     "tar": "7.5.22",
     "vscode-jsonrpc": "9.0.2",
-    "yaml": "2.9.1",
-    "@gamecrafter/service-client": "0.6.0"
+    "yaml": "2.9.1"
   },
   "devDependencies": {
     "@gamecrafter/plugin-sample-hello": "0.6.0",

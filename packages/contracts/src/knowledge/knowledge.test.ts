@@ -7,6 +7,7 @@ import {
   KnowledgeChunkSchema,
   SearchHitSchema,
   SearchRequestSchema,
+  VectorStoreConfigSchema,
 } from './schema';
 
 const validateCanonRecord = compile(CanonRecordSchema);
@@ -38,6 +39,20 @@ const record = {
 };
 
 describe('knowledge contracts', () => {
+  it('supports embedded, managed, external and registered vector backends without breaking old Qdrant configurations', () => {
+    const validate = compile(VectorStoreConfigSchema);
+    for (const config of [
+      { kind: 'qdrant', url: 'http://127.0.0.1:6333' },
+      { kind: 'qdrant', deployment: 'managed-local' },
+      { kind: 'qdrant', deployment: 'remote', url: 'https://vectors.example.com' },
+      { kind: 'lancedb', deployment: 'embedded' },
+      { kind: 'sqlite', deployment: 'embedded' },
+      { kind: 'custom-store', deployment: 'remote' },
+    ])
+      expect(validate.check(config)).toBe(true);
+    expect(validate.check({ kind: '../arbitrary-code' })).toBe(false);
+    expect(validate.check({ kind: 'qdrant', deployment: 'unknown' })).toBe(false);
+  });
   it('accepts canon records, typed references, provenance, and inactive records', () => {
     expect(validateCanonRecord.check(record)).toBe(true);
     expect(validateCanonRecord.check({ ...record, active: false, status: 'deprecated' })).toBe(

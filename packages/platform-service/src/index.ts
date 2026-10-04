@@ -18,3 +18,5 @@ export * from './tasks';
 export * from './tools';
 export * from './workers';
 export * from './service';
+export * from './knowledge/vector-store';
+export * from './knowledge/vector-store-registry';

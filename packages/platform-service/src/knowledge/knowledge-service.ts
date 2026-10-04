@@ -37,6 +37,7 @@ import { KnowledgeStore } from './knowledge-store';
 import { registerKnowledgeTools } from './knowledge-tools';
 import { KnowledgeRetriever } from './retriever';
 import type { VectorStore } from './vector-store';
+import type { VectorStoreAdapter } from './vector-store-registry';
 
 const canonInputValidator = compile<CanonRecordInput>(CanonRecordInputSchema);
 
@@ -60,6 +61,8 @@ export interface KnowledgeServiceOptions {
   events: KnowledgeServiceEvents;
   now?: () => Date;
   vectorStoreFactory?: (projectId: string) => VectorStore;
+  vectorStoreAdapters?: VectorStoreAdapter[];
+  qdrantBinaryPath?: string;
 }
 
 export class KnowledgeService {
@@ -68,6 +71,7 @@ export class KnowledgeService {
   private readonly now: () => Date;
   private readonly watchers = new Map<string, FSWatcher[]>();
   private readonly watcherFailures = new Set<string>();
+  private readonly settingsRevisions = new Map<string, number>();
   private readonly debounceTimers = new Map<string, NodeJS.Timeout>();
   private reconcileTimer?: NodeJS.Timeout;
   private started = false;
@@ -85,6 +89,8 @@ export class KnowledgeService {
       plugins: options.plugins,
       now: this.now,
       ...(options.vectorStoreFactory ? { vectorStoreFactory: options.vectorStoreFactory } : {}),
+      vectorStoreAdapters: options.vectorStoreAdapters,
+      qdrantBinaryPath: options.qdrantBinaryPath,
     });
     registerKnowledgeTools(options.toolRegistry, {
       search: (context, input) => this.searchTool(context, input),
@@ -108,7 +114,7 @@ export class KnowledgeService {
     this.reconcileTimer.unref();
   }
 
-  stop(): void {
+  async stop(): Promise<void> {
     this.stopped = true;
     if (this.reconcileTimer) clearInterval(this.reconcileTimer);
     this.reconcileTimer = undefined;
@@ -116,6 +122,7 @@ export class KnowledgeService {
     this.debounceTimers.clear();
     for (const watchers of this.watchers.values()) for (const watcher of watchers) watcher.close();
     this.watchers.clear();
+    await this.indexer.close();
   }
 
   onProjectCreated(projectId: string): void {
@@ -131,7 +138,10 @@ export class KnowledgeService {
     const projectIds = event.projectId
       ? [event.projectId]
       : this.options.projects.list().map((project) => project.projectId);
-    for (const projectId of projectIds) this.scheduleReindex(projectId, true);
+    for (const projectId of projectIds) {
+      this.settingsRevisions.set(projectId, (this.settingsRevisions.get(projectId) ?? 0) + 1);
+      this.scheduleReindex(projectId, true);
+    }
   }
 
   async onCanonFilesWritten(projectId: string, paths: string[]): Promise<void> {
@@ -432,7 +442,12 @@ export class KnowledgeService {
       );
     }
     const full = args.full === true || task.kind === 'knowledge.reconcile';
-    const result = await this.indexer.reconcile(context.projectId, full);
+    let revision = this.settingsRevisions.get(context.projectId) ?? 0;
+    let result = await this.indexer.reconcile(context.projectId, full);
+    while (!this.stopped && revision !== (this.settingsRevisions.get(context.projectId) ?? 0)) {
+      revision = this.settingsRevisions.get(context.projectId) ?? 0;
+      result = await this.indexer.reconcile(context.projectId, true);
+    }
     this.options.events.indexChanged(context.projectId, result.status);
     return {
       output: {

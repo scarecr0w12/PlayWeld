@@ -1,16 +1,17 @@
 import { createServer } from 'node:http';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Database } from '../db/database';
 import { resolvePaths } from '../paths';
 import { PlatformService } from '../service';
+import { SqliteVectorStore } from './sqlite-vector-store';
 import { connect, type ServiceClient } from '@gamecrafter/service-client';
 import { RpcErrorCode, uuidv7 } from '@gamecrafter/contracts';
 import { KnowledgeStore } from './knowledge-store';
-import type { VectorPoint, VectorSearchHit, VectorStore } from './vector-store';
+import type { VectorFilter, VectorPoint, VectorSearchHit, VectorStore } from './vector-store';
 
 const temporaryDirectories: string[] = [];
 let service: PlatformService | undefined;
@@ -19,6 +20,7 @@ let closeFakeProvider: (() => Promise<void>) | undefined;
 let fakeEmbeddingRequests = 0;
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await client?.close();
   client = undefined;
   await service?.stop();
@@ -31,6 +33,139 @@ afterEach(async () => {
 });
 
 describe('knowledge service integration', () => {
+  it('uses real embedded backends and rebuilds unchanged sources after switching storage', async () => {
+    const provider = await startFakeEmbeddingProvider();
+    closeFakeProvider = provider.close;
+    await startService();
+    const account = await client!.call('provider/addAccount', {
+      providerKind: 'openai-compatible',
+      displayName: 'Embedded storage test',
+      baseUrl: provider.baseUrl,
+      apiKey: 'test-key',
+      isLocal: true,
+    });
+    const models = await client!.call('model/discover', { accountId: account.accountId });
+    const model = models.models.find((candidate) => candidate.capabilities.embeddings)!;
+    const project = await client!.call('project/create', {
+      name: 'Embedded vectors',
+      engine: { family: 'godot' },
+      parentDirectory: path.join(temporaryDirectories[0]!, 'embedded-projects'),
+    });
+    await client!.call('project/trust', { projectId: project.projectId, trusted: true });
+    await client!.call('settings/set', {
+      projectId: project.projectId,
+      scope: 'project',
+      key: 'access.mode',
+      value: 'full',
+    });
+    await client!.call('knowledge/write', {
+      projectId: project.projectId,
+      record: {
+        id: 'loc.embedded',
+        type: 'location',
+        title: 'Embedded harbor',
+        status: 'accepted',
+      },
+      body: 'alpha-jade-3176',
+    });
+    await client!.call('knowledge/embeddingProfile/set', {
+      projectId: project.projectId,
+      modelId: model.modelId,
+      providerAccountId: account.accountId,
+    });
+    const nativeQdrant = path.resolve(
+      __dirname,
+      '../../../../apps/control-room/resources/qdrant',
+      process.platform === 'win32' ? 'qdrant.exe' : 'qdrant',
+    );
+    const backends = existsSync(nativeQdrant)
+      ? ['sqlite', 'lancedb', 'qdrant', 'sqlite']
+      : ['sqlite', 'lancedb', 'sqlite'];
+    for (const kind of backends) {
+      if (kind === 'qdrant')
+        await client!.call('settings/set', {
+          projectId: project.projectId,
+          scope: 'project',
+          key: 'knowledge.vectorStore.deployment',
+          value: 'managed-local',
+        });
+      await client!.call('settings/set', {
+        projectId: project.projectId,
+        scope: 'project',
+        key: 'knowledge.vectorStore.kind',
+        value: kind,
+      });
+      const task = await client!.call('knowledge/index/reconcile', {
+        projectId: project.projectId,
+      });
+      await waitForTask(project.projectId, task.taskId);
+      const status = await client!.call('knowledge/index/status', { projectId: project.projectId });
+      expect(status.vectorStore).toMatchObject({ kind, reachable: true, error: null });
+      expect(status.vectors).toBeGreaterThan(0);
+      const result = await client!.call('knowledge/search', {
+        projectId: project.projectId,
+        query: 'alpha-jade-3176',
+        mode: 'semantic',
+        statuses: ['accepted'],
+        recordTypes: ['location'],
+      });
+      expect(result.degraded).toBeNull();
+      expect(result.hits[0]?.recordId).toBe('loc.embedded');
+      const requests = fakeEmbeddingRequests;
+      const noOp = await client!.call('knowledge/index/reconcile', {
+        projectId: project.projectId,
+      });
+      await waitForTask(project.projectId, noOp.taskId);
+      expect(fakeEmbeddingRequests).toBe(requests);
+    }
+    const backendPath = path.join(project.path, '.gamecrafter', 'vectors.sqlite');
+    const backend = Database.open(backendPath);
+    backend.exec('DELETE FROM vector_points');
+    backend.close();
+    const lostIndexRequests = fakeEmbeddingRequests;
+    const repair = await client!.call('knowledge/index/reconcile', {
+      projectId: project.projectId,
+    });
+    await waitForTask(project.projectId, repair.taskId);
+    expect(fakeEmbeddingRequests).toBeGreaterThan(lostIndexRequests);
+    const recovered = await client!.call('knowledge/search', {
+      projectId: project.projectId,
+      query: 'alpha-jade-3176',
+      mode: 'semantic',
+    });
+    expect(recovered.hits[0]?.recordId).toBe('loc.embedded');
+    const record = await client!.call('knowledge/record', {
+      projectId: project.projectId,
+      recordId: 'loc.embedded',
+    });
+    const failingDelete = vi
+      .spyOn(SqliteVectorStore.prototype, 'delete')
+      .mockRejectedValue(new Error('Temporary delete failure'));
+    rmSync(path.join(project.path, record.record.path));
+    const deletion = await client!.call('knowledge/index/reconcile', {
+      projectId: project.projectId,
+    });
+    await waitForTask(project.projectId, deletion.taskId);
+    expect(failingDelete).toHaveBeenCalled();
+    failingDelete.mockRestore();
+    const retryDelete = vi.spyOn(SqliteVectorStore.prototype, 'delete');
+    const retry = await client!.call('knowledge/index/reconcile', { projectId: project.projectId });
+    await waitForTask(project.projectId, retry.taskId);
+    expect(retryDelete).toHaveBeenCalled();
+    const checked = Database.open(backendPath);
+    try {
+      expect(
+        checked
+          .prepare(
+            "SELECT COUNT(*) AS count FROM vector_points WHERE json_extract(payload_json, '$.path') = ?",
+          )
+          .get<{ count: number }>(record.record.path)?.count,
+      ).toBe(0);
+    } finally {
+      checked.close();
+    }
+  }, 60_000);
+
   it('lets the narrative role draft canon without overwriting reviewed records or identities', async () => {
     await startService();
     const project = await client!.call('project/create', {
@@ -385,6 +520,17 @@ describe('knowledge service integration', () => {
         filePath,
         `---\nschemaVersion: 1\nid: loc.${slug}-secret\ntype: location\ntitle: ${title}\nstatus: accepted\ntags: []\nreferences: []\nprovenance: []\n---\n${phrase}`,
       );
+      const codePath = path.join(project.path, 'game', 'settings-race.ts');
+      mkdirSync(path.dirname(codePath), { recursive: true });
+      writeFileSync(codePath, 'const settings_race_marker_4782 = true;');
+      vectors.beforeUpsert = async () => {
+        await client!.call('settings/set', {
+          projectId: project.projectId,
+          scope: 'project',
+          key: 'knowledge.indexCode',
+          value: false,
+        });
+      };
       await client!.call('knowledge/embeddingProfile/set', {
         projectId: project.projectId,
         modelId: model!.modelId,
@@ -398,6 +544,18 @@ describe('knowledge service integration', () => {
 
     expect(fakeEmbeddingRequests).toBeGreaterThan(0);
     const alphaId = projects[0]!.projectId;
+    for (const project of projects) {
+      expect(
+        (
+          await client!.call('knowledge/search', {
+            projectId: project.projectId,
+            query: 'settings_race_marker_4782',
+            sources: ['code'],
+            mode: 'lexical',
+          })
+        ).hits,
+      ).toEqual([]);
+    }
     const betaId = projects[1]!.projectId;
     const lexicalLeak = await client!.call('knowledge/search', {
       projectId: alphaId,
@@ -573,6 +731,7 @@ async function startFakeEmbeddingProvider(): Promise<{ baseUrl: string; close():
 
 class SharedFakeVectorStore implements VectorStore {
   readonly kind = 'qdrant' as const;
+  beforeUpsert?: () => Promise<void>;
   private readonly points = new Map<string, VectorPoint>();
 
   async ensureCollection(profile: { projectId: string; version: number }): Promise<string> {
@@ -580,6 +739,9 @@ class SharedFakeVectorStore implements VectorStore {
   }
 
   async upsert(_profile: { projectId: string }, points: VectorPoint[]): Promise<void> {
+    const beforeUpsert = this.beforeUpsert;
+    this.beforeUpsert = undefined;
+    await beforeUpsert?.();
     for (const point of points) this.points.set(point.id, point);
   }
 
@@ -590,7 +752,7 @@ class SharedFakeVectorStore implements VectorStore {
   async search(
     _profile: { projectId: string },
     vector: number[],
-    _filter: Record<string, unknown>,
+    _filter: VectorFilter,
     limit: number,
   ): Promise<VectorSearchHit[]> {
     return [...this.points.values()]

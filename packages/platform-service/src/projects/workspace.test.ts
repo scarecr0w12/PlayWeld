@@ -1,5 +1,6 @@
 import { mkdtempSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { Database } from '../db/database';
@@ -47,6 +48,17 @@ describe('Project instructions template', () => {
         parentDirectory,
       });
       expect(created.trusted).toBe(true);
+      for (const directory of ['vectors.lancedb', 'qdrant']) {
+        const file = `.gamecrafter/${directory}/data.bin`;
+        mkdirSync(path.dirname(path.join(created.path, file)), { recursive: true });
+        writeFileSync(path.join(created.path, file), 'private derived vectors');
+        expect(
+          execFileSync('git', ['check-ignore', file], {
+            cwd: created.path,
+            encoding: 'utf8',
+          }).trim(),
+        ).toBe(file);
+      }
       expect(readFileSync(path.join(created.path, '.gitignore'), 'utf8')).toContain(
         '.gamecrafter/engine-runs/',
       );
@@ -66,6 +78,12 @@ describe('Project instructions template', () => {
       };
       writeFileSync(path.join(importedPath, 'gamecrafter.project.json'), JSON.stringify(manifest));
       const imported = workspace.open(importedPath);
+      expect(readFileSync(path.join(importedPath, '.gitignore'), 'utf8')).toContain(
+        '.gamecrafter/vectors.lancedb/',
+      );
+      expect(readFileSync(path.join(importedPath, '.gitignore'), 'utf8')).toContain(
+        '.gamecrafter/qdrant/',
+      );
       expect(readFileSync(path.join(importedPath, '.gitignore'), 'utf8')).toContain(
         '.gamecrafter/engine-runs/',
       );
@@ -118,6 +136,17 @@ describe('Project instructions template', () => {
         path.join(source.path, '.gamecrafter', 'worktrees', 'live-task', '.git'),
         'gitdir: source',
       );
+      for (const directory of ['vectors.lancedb', 'qdrant']) {
+        mkdirSync(path.join(source.path, '.gamecrafter', directory), { recursive: true });
+        writeFileSync(
+          path.join(source.path, '.gamecrafter', directory, 'data.bin'),
+          'source-only vectors',
+        );
+      }
+      writeFileSync(
+        path.join(source.path, '.gamecrafter', 'vectors.sqlite'),
+        'source-only vectors',
+      );
       await expect(
         workspace.clone({
           projectId: source.projectId,
@@ -132,6 +161,8 @@ describe('Project instructions template', () => {
       });
       expect(clone.projectId).not.toBe(source.projectId);
       expect(existsSync(path.join(clone.path, '.gamecrafter', 'worktrees'))).toBe(false);
+      for (const name of ['vectors.lancedb', 'qdrant', 'vectors.sqlite'])
+        expect(existsSync(path.join(clone.path, '.gamecrafter', name))).toBe(false);
       const clonedTask = new TaskStore(databases.get(clone.projectId)).get(task.taskId);
       expect(clonedTask).toMatchObject({
         projectId: clone.projectId,

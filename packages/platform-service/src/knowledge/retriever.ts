@@ -50,18 +50,18 @@ export class KnowledgeRetriever {
     const semantic: Array<{ candidate: LexicalCandidate; rank: number }> = [];
 
     if (mode !== 'lexical') {
-      const profile = this.options.embeddingProfile(request.projectId);
-      const vectorStore = this.options.vectorStore(request.projectId);
-      if (!profile) {
-        degraded = 'Embedding profile missing; lexical results only.';
-      } else if (vectorStore.kind === 'none') {
-        degraded = 'Vector store disabled; lexical results only.';
-      } else {
-        const health = await vectorStore.health(profile);
-        if (!health.reachable) {
-          degraded = health.error ?? 'Vector store unreachable; lexical results only.';
+      try {
+        const profile = this.options.embeddingProfile(request.projectId);
+        const vectorStore = this.options.vectorStore(request.projectId);
+        if (!profile) {
+          degraded = 'Embedding profile missing; lexical results only.';
+        } else if (vectorStore.kind === 'none') {
+          degraded = 'Vector store disabled; lexical results only.';
         } else {
-          try {
+          const health = await vectorStore.health(profile);
+          if (!health.reachable) {
+            degraded = health.error ?? 'Vector store unreachable; lexical results only.';
+          } else {
             const embedding = await this.options.embed(profile.modelId, [request.query]);
             const queryVector = embedding.vectors[0];
             if (!queryVector || queryVector.length !== profile.dimensions) {
@@ -71,7 +71,7 @@ export class KnowledgeRetriever {
               const hits = await vectorStore.search(
                 profile,
                 queryVector,
-                vectorFilter(filter),
+                filter,
                 Math.max(limit * 4, limit),
               );
               const chunkIds = hits.flatMap((hit) =>
@@ -96,10 +96,10 @@ export class KnowledgeRetriever {
                 semantic.push({ candidate, rank: semantic.length + 1 });
               }
             }
-          } catch (error) {
-            degraded = `${error instanceof Error ? error.message : String(error)}; lexical results only.`;
           }
         }
+      } catch (error) {
+        degraded = `${error instanceof Error ? error.message : String(error)}; lexical results only.`;
       }
     }
 
@@ -227,14 +227,4 @@ function reciprocalRank(rank: number): number {
 function recency(store: KnowledgeStore, candidate: LexicalCandidate): number {
   const state = store.indexState(candidate.chunk.path);
   return !state || Array.isArray(state) ? 0 : Date.parse(state.indexedAt) || 0;
-}
-
-function vectorFilter(filter: KnowledgeSearchFilter): Record<string, unknown> {
-  const must: unknown[] = [];
-  if (filter.sources?.length) must.push({ key: 'source', match: { any: filter.sources } });
-  if (filter.recordTypes?.length)
-    must.push({ key: 'recordType', match: { any: filter.recordTypes } });
-  if (filter.statuses?.length) must.push({ key: 'recordStatus', match: { any: filter.statuses } });
-  if (filter.includeInactive !== true) must.push({ key: 'active', match: { value: true } });
-  return { must };
 }
