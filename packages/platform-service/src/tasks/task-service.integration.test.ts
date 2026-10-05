@@ -8,6 +8,7 @@ import { isProcessAlive } from '../lock';
 import { resolvePaths, type ServicePaths } from '../paths';
 import type { WorkerScheduleSnapshot } from '../workers/supervisor';
 import { PlatformService } from '../service';
+import type { TaskService } from './task-service';
 
 const temporaryDirectories: string[] = [];
 let service: PlatformService | undefined;
@@ -294,6 +295,46 @@ describe('Task service integration', () => {
     expect((await client!.call('task/questions', { pendingOnly: true })).questions).toHaveLength(0);
   }, 60_000);
 
+  it('limits A2A continuation to a pending task question and streams scoped task events', async () => {
+    const tasks = a2aTaskService();
+    const created = await createTask('noop.ask', 'A2A continuation', 'Answer this task question', {
+      prompt: 'Choose an answer',
+      options: ['Yes', 'No'],
+    });
+    await waitForTask(created.task.taskId, (task) => task.state === 'waiting_input');
+    expect(tasks.pendingQuestionForTask(projectId, created.task.taskId)?.taskId).toBe(
+      created.task.taskId,
+    );
+
+    const before =
+      tasks.eventsForProject(projectId, { taskId: created.task.taskId }).at(-1)?.seq ?? 0;
+    const eventStream = tasks.subscribeTaskEvents(projectId, created.task.taskId, {
+      afterSeq: before,
+    });
+    const nextEvent = eventStream.next();
+    const answered = await tasks.continueExternalTask(projectId, created.task.taskId, 'Yes');
+    expect(answered.taskId).toBe(created.task.taskId);
+    const observed = await nextEvent;
+    expect(observed.done).toBe(false);
+    expect(observed.value?.taskId).toBe(created.task.taskId);
+    expect(observed.value?.seq).toBeGreaterThan(before);
+    await eventStream.return();
+    await waitForTask(created.task.taskId, (task) => task.state === 'succeeded');
+
+    const active = await createTask('noop.sleep', 'A2A active task', 'No pending question', {
+      ms: 2_000,
+    });
+    await waitForTask(active.task.taskId, (task) => task.state === 'running');
+    await expect(
+      tasks.continueExternalTask(projectId, active.task.taskId, 'Do not become approval'),
+    ).rejects.toThrow('cannot be continued without a pending question');
+    await client!.call('task/cancel', {
+      projectId,
+      taskId: active.task.taskId,
+      reason: 'test_cleanup',
+    });
+  }, 60_000);
+
   it('resumes checkpointed work after a worker process exits', async () => {
     const created = await createTask('noop.checkpointed', 'Checkpoint task', 'Resume work', {
       steps: 5,
@@ -420,6 +461,11 @@ async function startService(paths: ServicePaths): Promise<PlatformService> {
       resolveStopRequested();
     },
   });
+}
+
+function a2aTaskService(): TaskService {
+  return (service as unknown as { a2aService: { options: { tasks: TaskService } } }).a2aService
+    .options.tasks;
 }
 
 async function connectToService(socketPath: string, paths: ServicePaths): Promise<ServiceClient> {

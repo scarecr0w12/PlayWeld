@@ -87,7 +87,6 @@ import {
   ChatResponseSchema,
   ModelPoolSchema,
   ModelPoolTargetSchema,
-  ModelPricingSchema,
   ModelSchema,
   ModelUsageSchema,
   ModelUsageRecordSchema,
@@ -112,6 +111,14 @@ import {
   SkillValidationResultSchema,
 } from '../skills';
 import { UpdateStateSchema } from '../updates';
+import {
+  A2AInboundClientInputSchema,
+  A2AInboundClientSchema,
+  A2AInboundConfigSchema,
+  A2AOutboundConnectionInputSchema,
+  A2AOutboundConnectionSchema,
+  A2AAgentCardSummarySchema,
+} from '../a2a';
 import { ChatConversationSchema, ChatEntrySchema } from '../chat';
 import {
   BindingDecisionSchema,
@@ -935,6 +942,67 @@ export const RpcMethods = {
     ),
     result: EffectiveSettingSchema,
   },
+  'a2a/outbound/list': {
+    params: EmptyParams,
+    result: Type.Object(
+      { connections: Type.Array(A2AOutboundConnectionSchema) },
+      { additionalProperties: false },
+    ),
+  },
+  'a2a/outbound/upsert': {
+    params: A2AOutboundConnectionInputSchema,
+    result: A2AOutboundConnectionSchema,
+  },
+  'a2a/outbound/delete': {
+    params: Type.Object(
+      { connectionId: Type.String({ format: 'uuid' }) },
+      { additionalProperties: false },
+    ),
+    result: Type.Object({ removed: Type.Boolean() }, { additionalProperties: false }),
+  },
+  'a2a/outbound/discover': {
+    params: Type.Object(
+      { connectionId: Type.String({ format: 'uuid' }) },
+      { additionalProperties: false },
+    ),
+    result: A2AAgentCardSummarySchema,
+  },
+  'a2a/inbound/get': { params: EmptyParams, result: A2AInboundConfigSchema },
+  'a2a/inbound/configure': {
+    params: Type.Object(
+      { enabled: Type.Boolean(), port: Type.Integer({ minimum: 1024, maximum: 65535 }) },
+      { additionalProperties: false },
+    ),
+    result: A2AInboundConfigSchema,
+  },
+  'a2a/inbound/clients': {
+    params: EmptyParams,
+    result: Type.Object(
+      { clients: Type.Array(A2AInboundClientSchema) },
+      { additionalProperties: false },
+    ),
+  },
+  'a2a/inbound/client/upsert': {
+    params: A2AInboundClientInputSchema,
+    result: A2AInboundClientSchema,
+  },
+  'a2a/inbound/client/issueToken': {
+    params: Type.Object(
+      { clientId: Type.String({ format: 'uuid' }) },
+      { additionalProperties: false },
+    ),
+    result: Type.Object(
+      { clientId: Type.String({ format: 'uuid' }), token: Type.String({ minLength: 32 }) },
+      { additionalProperties: false },
+    ),
+  },
+  'a2a/inbound/client/revoke': {
+    params: Type.Object(
+      { clientId: Type.String({ format: 'uuid' }) },
+      { additionalProperties: false },
+    ),
+    result: A2AInboundClientSchema,
+  },
   'task/create': {
     params: TaskCreateInputSchema,
     result: Type.Object(
@@ -1244,6 +1312,7 @@ export const RpcMethods = {
         providerKind: ProviderKindSchema,
         displayName: Type.String(),
         baseUrl: Type.String({ format: 'uri' }),
+        providerOptions: Type.Optional(Type.Record(Type.String(), Type.String())),
         apiKey: Type.Optional(Type.String()),
         headers: Type.Optional(Type.Record(Type.String(), Type.String())),
         isLocal: Type.Optional(Type.Boolean()),
@@ -1260,6 +1329,7 @@ export const RpcMethods = {
           {
             displayName: Type.Optional(Type.String()),
             baseUrl: Type.Optional(Type.String({ format: 'uri' })),
+            providerOptions: Type.Optional(Type.Record(Type.String(), Type.String())),
             apiKey: Type.Optional(Type.Union([Type.String(), Type.Null()])),
             headers: Type.Optional(Type.Record(Type.String(), Type.String())),
             enabled: Type.Optional(Type.Boolean()),
@@ -1332,15 +1402,16 @@ export const RpcMethods = {
           {
             enabled: Type.Optional(Type.Boolean()),
             displayName: Type.Optional(Type.String()),
+            catalogModelId: Type.Optional(Type.Union([Type.String({ minLength: 1 }), Type.Null()])),
             capabilities: Type.Optional(
               Type.Object(
                 {
-                  chat: Type.Optional(Type.Boolean()),
-                  tools: Type.Optional(Type.Boolean()),
-                  vision: Type.Optional(Type.Boolean()),
-                  structuredOutput: Type.Optional(Type.Boolean()),
-                  streaming: Type.Optional(Type.Boolean()),
-                  embeddings: Type.Optional(Type.Boolean()),
+                  chat: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+                  tools: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+                  vision: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+                  structuredOutput: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+                  streaming: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
+                  embeddings: Type.Optional(Type.Union([Type.Boolean(), Type.Null()])),
                   contextWindow: Type.Optional(
                     Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]),
                   ),
@@ -1354,7 +1425,15 @@ export const RpcMethods = {
                 { additionalProperties: false },
               ),
             ),
-            pricing: Type.Optional(ModelPricingSchema),
+            pricing: Type.Optional(
+              Type.Object(
+                {
+                  inputPerMTokUsd: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+                  outputPerMTokUsd: Type.Optional(Type.Union([Type.Number(), Type.Null()])),
+                },
+                { additionalProperties: false },
+              ),
+            ),
             tags: Type.Optional(Type.Array(Type.String())),
             workTypes: Type.Optional(Type.Array(Type.String())),
             roles: Type.Optional(Type.Array(Type.String())),
@@ -2437,6 +2516,8 @@ export const RpcErrorCode = {
   UpdateVerificationFailed: -32131,
   UpdateIncompatible: -32132,
   UpdateNotDownloaded: -32133,
+  A2AConnectionNotFound: -32134,
+  A2AClientNotFound: -32135,
   InvalidParams: -32602,
 } as const;
 export type RpcErrorCode = (typeof RpcErrorCode)[keyof typeof RpcErrorCode];

@@ -82,9 +82,11 @@ Settings export redacts credential-like values. Import supports validation and d
 
 ## Configure models and routing
 
-In Models & Routing, configure a provider account and its endpoint/credential, discover or register the models you intend to use, and assign suitable model pools. The service implements OpenAI-compatible and Anthropic adapters, streaming completion, pricing/usage records and routing/outcome learning. Actual endpoint support depends on the provider.
+In Models & Routing, configure one or more provider accounts, discover or register the models you intend to use, and assign suitable model pools. Named account presets cover OpenAI, Google Gemini Developer API, OpenRouter, xAI, Mistral, DeepSeek, Groq, Azure OpenAI, and Anthropic; generic OpenAI-compatible endpoints remain available for local servers and compatible gateways. API keys and custom secret headers are stored in the encrypted profile credential store. OAuth and cloud-native IAM are not supported in this scope.
 
-Use quality, balance or cost policy deliberately. Define task budgets where needed. A model advertising text generation does not automatically support tools, embeddings, images or the context length required by a task. The router uses the recorded model capabilities and pool policies.
+Edit an account to replace credentials or headers without deleting its model records. Azure classic endpoints require a callable deployment name; the optional base model ID is a separate catalog mapping. Discovery combines account API facts with exact-ID entries in a versioned provider-sourced catalog. Each populated field shows provenance, freshness, and confidence. Unknown is not Unsupported; selecting Unknown clears a manual override so later discovery can fill it. Provider-published prices are estimates, not invoices, and discovery never runs a silent billable completion probe.
+
+Use quality, balance or cost policy deliberately. Define task budgets where needed. Chat routing requires a known, supported chat capability, and unknown data does not make a model eligible for a required capability. Provider-declared vision is visible but not routable while the common chat request carries text only; embeddings use the separate embedding operation. Role and work-type lists are hard restrictions and empty lists mean unrestricted. Catalog category tags remain descriptive unless an exact, high-confidence source rule matches a local role/work type.
 
 Use Audit & History's **Model usage** view for recorded model estimates and token/cache counters, separately from **Tool calls** and the Project timeline. Missing prices are unavailable, not free. Known subtotals cover the loaded/filtered page and can exclude unknown or unverifiable history; they are not all-time spending or invoices. Set model rates in Models & Routing before relying on monetary estimates or known-cost budget comparisons. Agent goals/results use structured, bounded reading panels rather than unformatted expanded text.
 
@@ -158,6 +160,15 @@ Capability reports distinguish project-file inspection, headless CLI execution a
 Unity/Unreal fixtures have live acceptance evidence; the exact versions, hosts, limitations and repeatable commands are in [live engine acceptance](LIVE_ENGINE_ACCEPTANCE.md) and [extended acceptance](EXTENDED_ENGINE_ACCEPTANCE.md). The CodeFizz adapter used for extended acceptance is testing tooling in the checkout, not a shipped general-purpose connector.
 
 DCC follows similar installation, capability and run-history flows. Blender has real scene/export/render evidence. Other DCC applications still require live verification. Consult the [integration guide](INTEGRATION_GUIDE.md) before assuming an operation exists for a particular tool.
+
+### Agent-to-agent connections (A2A)
+
+The **Connections → A2A agents** view connects PlayWeld to other A2A v1.0 agents and optionally exposes a scoped task gateway to a local harness. It is separate from MCP server connections and model-provider accounts.
+
+- For outbound delegation, add an agent base URL and a static API-key header, bearer, basic, or custom-header credential. Remote URLs require HTTPS; plain HTTP is allowed only for explicitly configured loopback agents. Discover the Agent Card to inspect its identity, skills, and JSON-RPC interface before workers use the brokered send/get/stream/resubscribe/cancel and Project-scoped remote-task listing tools. By default, the coordinator role has the `a2a/*` tool grant; other builtin roles need explicit configuration. Existing remote task IDs can only be read, continued, streamed, or canceled by the Project that owns their ledger record. When an agent delegates within a local Task, streamed updates appear in that Task's event timeline while the worker awaits the final response. Remote task IDs/statuses are retained for reconciliation; if a send is interrupted before its remote ID is returned, PlayWeld does not retry it automatically.
+- For inbound control, enable the gateway and choose a port. It binds only to `127.0.0.1`; another machine on the LAN cannot connect. Register each harness with explicit Project, role, and task-operation grants, then issue a bearer token. The plaintext token is shown once; copy it to the local harness and rotate it if lost. Revocation invalidates the token and active streams.
+- Inbound A2A can create, read, continue, stream, and cancel `agent.run` tasks only within those grants. It cannot call settings, credentials, arbitrary tools, or service administration. Task execution retains the Project access mode and Ask-always broker approvals; an A2A caller cannot answer a broker approval.
+- This implementation supports A2A v1.0 JSON-RPC over HTTP(S) and text input only. OAuth/OIDC, gRPC, public/LAN inbound exposure, task listing, push notifications, and non-text inbound parts are not supported.
 
 ## Knowledge and search
 

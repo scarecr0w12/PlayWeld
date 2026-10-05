@@ -386,4 +386,74 @@ export const profileMigrations: Migration[] = [
         ON decision_assessments(task_id, created_at DESC);
     `,
   },
+  {
+    id: 16,
+    name: 'store provider options and model metadata provenance',
+    up: `
+      ALTER TABLE provider_accounts
+        ADD COLUMN provider_options TEXT NOT NULL DEFAULT '{}';
+      ALTER TABLE models
+        ADD COLUMN metadata_fields TEXT NOT NULL DEFAULT '{}';
+      ALTER TABLE models
+        ADD COLUMN catalog_model_id TEXT;
+    `,
+  },
+  {
+    id: 17,
+    name: 'create A2A connection and loopback access tables',
+    up: `
+      CREATE TABLE a2a_connections (
+        connection_id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        endpoint TEXT NOT NULL,
+        auth_kind TEXT NOT NULL,
+        credential_ref TEXT,
+        agent_card_json TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE a2a_inbound_config (
+        singleton_id INTEGER PRIMARY KEY CHECK (singleton_id = 1),
+        enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+        port INTEGER NOT NULL CHECK (port BETWEEN 1024 AND 65535),
+        updated_at TEXT NOT NULL
+      );
+      INSERT INTO a2a_inbound_config (singleton_id, enabled, port, updated_at)
+        VALUES (1, 0, 8765, '1970-01-01T00:00:00.000Z');
+      CREATE TABLE a2a_inbound_clients (
+        client_id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        grants_json TEXT NOT NULL,
+        token_hash TEXT,
+        revoked_at TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE UNIQUE INDEX a2a_inbound_clients_token_hash_idx
+        ON a2a_inbound_clients(token_hash) WHERE token_hash IS NOT NULL;
+    `,
+  },
+  {
+    id: 18,
+    name: 'persist outbound A2A remote task identities and status',
+    up: `
+      CREATE TABLE a2a_remote_tasks (
+        connection_id TEXT NOT NULL,
+        remote_task_id TEXT NOT NULL,
+        remote_context_id TEXT,
+        project_id TEXT,
+        local_task_id TEXT,
+        call_id TEXT,
+        status_state TEXT,
+        status_timestamp TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (connection_id, remote_task_id)
+      );
+      CREATE INDEX a2a_remote_tasks_project_updated_idx
+        ON a2a_remote_tasks(project_id, updated_at DESC);
+      CREATE INDEX a2a_remote_tasks_local_task_idx
+        ON a2a_remote_tasks(local_task_id, updated_at DESC);
+    `,
+  },
 ];

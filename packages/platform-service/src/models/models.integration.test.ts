@@ -38,7 +38,11 @@ async function createFakeServer(): Promise<string> {
         });
         const model =
           profile === 'plain'
-            ? { id: 'plain-chat', display_name: 'Plain chat' }
+            ? {
+                id: 'plain-chat',
+                display_name: 'Plain chat',
+                capabilities: { chat: true },
+              }
             : profile === 'cheap'
               ? {
                   id: 'cheap-low-quality',
@@ -377,7 +381,7 @@ describe('model registry and adaptive routing integration', () => {
     const account = await addAccount(await createFakeServer(), 'Plain chat account', 'plain');
     const discovered = await client.call('model/discover', { accountId: account.accountId });
     const model = discovered.models[0]!;
-    expect(model.capabilities).toMatchObject({ chat: true, streaming: false });
+    expect(model.capabilities).toMatchObject({ chat: true, streaming: null });
     await client.call('pool/create', {
       name: 'Chat models',
       scope: 'platform',

@@ -2,7 +2,15 @@ import { Static, Type } from '@sinclair/typebox';
 
 export const ProviderKindSchema = Type.Union([
   Type.Literal('openai-compatible'),
+  Type.Literal('openai'),
   Type.Literal('anthropic'),
+  Type.Literal('google-gemini'),
+  Type.Literal('openrouter'),
+  Type.Literal('xai'),
+  Type.Literal('mistral'),
+  Type.Literal('deepseek'),
+  Type.Literal('groq'),
+  Type.Literal('azure-openai'),
 ]);
 export type ProviderKind = Static<typeof ProviderKindSchema>;
 
@@ -12,6 +20,7 @@ export const ProviderAccountSchema = Type.Object(
     providerKind: ProviderKindSchema,
     displayName: Type.String(),
     baseUrl: Type.String({ format: 'uri' }),
+    providerOptions: Type.Record(Type.String(), Type.String()),
     hasCredential: Type.Boolean(),
     headers: Type.Record(Type.String(), Type.String()),
     isLocal: Type.Boolean(),
@@ -26,12 +35,12 @@ export type ProviderAccount = Static<typeof ProviderAccountSchema>;
 
 export const ModelCapabilitiesSchema = Type.Object(
   {
-    chat: Type.Boolean(),
-    tools: Type.Boolean(),
-    vision: Type.Boolean(),
-    structuredOutput: Type.Boolean(),
-    streaming: Type.Boolean(),
-    embeddings: Type.Boolean(),
+    chat: Type.Union([Type.Boolean(), Type.Null()]),
+    tools: Type.Union([Type.Boolean(), Type.Null()]),
+    vision: Type.Union([Type.Boolean(), Type.Null()]),
+    structuredOutput: Type.Union([Type.Boolean(), Type.Null()]),
+    streaming: Type.Union([Type.Boolean(), Type.Null()]),
+    embeddings: Type.Union([Type.Boolean(), Type.Null()]),
     contextWindow: Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]),
     maxInputTokens: Type.Optional(Type.Union([Type.Integer({ minimum: 0 }), Type.Null()])),
     maxOutputTokens: Type.Union([Type.Integer({ minimum: 0 }), Type.Null()]),
@@ -49,16 +58,36 @@ export const ModelPricingSchema = Type.Object(
 );
 export type ModelPricing = Static<typeof ModelPricingSchema>;
 
+export const ModelFieldMetadataSchema = Type.Object(
+  {
+    source: Type.Union([
+      Type.Literal('provider-api'),
+      Type.Literal('provider-catalog'),
+      Type.Literal('account-config'),
+      Type.Literal('manual'),
+      Type.Literal('derived'),
+      Type.Literal('legacy'),
+    ]),
+    updatedAt: Type.String({ format: 'date-time' }),
+    sourceUrl: Type.Union([Type.String({ format: 'uri' }), Type.Null()]),
+    confidence: Type.Union([Type.Literal('high'), Type.Literal('medium'), Type.Literal('low')]),
+  },
+  { additionalProperties: false },
+);
+export type ModelFieldMetadata = Static<typeof ModelFieldMetadataSchema>;
+
 export const ModelSchema = Type.Object(
   {
     modelId: Type.String({ minLength: 1 }),
     accountId: Type.String({ format: 'uuid' }),
     providerModelId: Type.String({ minLength: 1 }),
+    catalogModelId: Type.Union([Type.String({ minLength: 1 }), Type.Null()]),
     displayName: Type.String(),
     capabilities: ModelCapabilitiesSchema,
     pricing: ModelPricingSchema,
     metadataSource: Type.Union([Type.Literal('provider'), Type.Literal('manual')]),
     metadataUpdatedAt: Type.String({ format: 'date-time' }),
+    metadataFields: Type.Record(Type.String(), ModelFieldMetadataSchema),
     enabled: Type.Boolean(),
     tags: Type.Array(Type.String()),
     workTypes: Type.Array(Type.String()),

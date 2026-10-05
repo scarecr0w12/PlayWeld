@@ -164,8 +164,14 @@ describe('Tool broker integration', () => {
 
   it('lists the builtin tools with their execution metadata', async () => {
     const result = await client!.call('tool/list', { projectId });
-    expect(result.tools).toHaveLength(51);
+    expect(result.tools).toHaveLength(57);
     expect(result.tools.map((tool) => tool.toolId)).toEqual([
+      'a2a/cancel-task',
+      'a2a/get-task',
+      'a2a/list-remote-tasks',
+      'a2a/resubscribe-task',
+      'a2a/send-message',
+      'a2a/send-message-stream',
       'asset/files',
       'asset/generate',
       'asset/import',

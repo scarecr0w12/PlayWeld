@@ -81,6 +81,8 @@ describe('RoleRegistry', () => {
         'validator',
       ]);
       expect(registry.get('engine-engineer')?.scope).toBe('platform');
+      expect(registry.get('coordinator').tools).toContain('a2a/*');
+      expect(registry.get('explorer').tools).not.toContain('a2a/*');
       expect(registry.get('engine-engineer', projectId)).toMatchObject({
         scope: 'project',
         description: 'Project engine engineer.',

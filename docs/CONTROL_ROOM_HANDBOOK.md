@@ -40,14 +40,14 @@ Project-specific screens can select a Project independently. Check the selector 
 
 An **account** is an endpoint and its credentials/configuration. A **model** is an enabled provider model with recorded capabilities and pricing. A **pool** groups models eligible for a scope/target. A route is a choice for one request. These records solve different problems; merely adding an account does not create an eligible model.
 
-1. Add a provider using its API base URL, display name, kind, local/cloud classification, and credential when required.
+1. Add a provider account using its preset/base URL, display name, and API key or custom headers when required. Named presets cover OpenAI, Gemini Developer API, OpenRouter, xAI, Mistral, DeepSeek, Groq, Azure OpenAI, and Anthropic; generic OpenAI-compatible endpoints remain available. Multiple accounts for one provider stay distinct.
 2. Click **Discover** to preview what that account offers.
 3. Select the desired models and **Add selected**, or add all discovered choices deliberately.
-4. Inspect enabled state, capabilities, tags, work types, role restrictions, and pricing.
+4. Inspect enabled state, capabilities, tags, work types, role restrictions, and pricing. Capability values distinguish Supported, Unsupported, and Unknown and show per-field provenance/freshness. Unknown is not Unsupported; clearing a manual value lets later discovery refill it. Provider-published prices are estimates, not invoices.
 5. Configure pools when you need a target-specific selection policy.
 6. Send a small Chat request and inspect the actual result before relying on the endpoint.
 
-Discovery metadata may be incomplete. Tool use, streaming, vision, embeddings, structured output, context window, and maximum output tokens are separate properties. Do not enable a capability solely to make routing pass. An ID-only discovery result cannot prove tool support. Chat supports complete responses as well as declared streaming support; a lack of streaming alone does not make a chat model unusable.
+Azure's callable deployment name is the provider model ID; configure or select its base model ID separately for catalog enrichment. Chat routing requires known Chat support. Provider-declared Vision is visible but not routable while chat input is text-only; embeddings use the dedicated embedding operation. Do not enable a capability solely to make routing pass. Role and work-type arrays are hard restrictions and empty means unrestricted; no automatic restriction is applied for provider labels that do not exactly match the local taxonomy.
 
 Choose **Auto route** for service selection or a specific eligible model in Chat. Quality, balance, and cost policies influence routing; cost/latency constraints filter known estimates. Unknown estimates do not guarantee future charges. Inspect actual usage and the separate agent token budget. The [routing guide](MODEL_ROUTING_GUIDE.md) explains those limits. Account credentials belong in the credential store, not Project documents or screenshots.
 
@@ -131,11 +131,13 @@ Example: enable an asset workflow skill for a model task, read the export/valida
 
 ![MCP connection configuration](images/lantern-workshop/11-connections.png)
 
-The **Servers**, **Add connection**, **Tool safety**, and **Logs** sections separate server setup from discovered-tool policy and diagnostics. Select platform scope or a Project. Configure the connection name, tags, and execution mode. Expand **Command arguments and environment**, **Custom request headers**, **Advanced metadata and credentials**, or **Advanced Docker settings** when those inputs apply. Save the connection, then explicitly connect it; inspect negotiated capabilities, classify discovered tools, and review logs in their sections.
+The **Servers**, **Add connection**, **Tool safety**, **Logs**, and **A2A agents** sections separate MCP server setup, external-agent connectivity, tool policy, and diagnostics. Select platform scope or a Project for MCP. Configure the connection name, tags, and execution mode. Expand **Command arguments and environment**, **Custom request headers**, **Advanced metadata and credentials**, or **Advanced Docker settings** when those inputs apply. Save the MCP connection, then explicitly connect it; inspect negotiated capabilities, classify discovered tools, and review logs in their sections.
 
 Use a slug such as `lantern-editor`; names follow `^[a-z0-9][a-z0-9-]{0,63}$`. Supply arguments/environment in the shapes requested by the form, not a pasted shell command with accidental quoting. Use credentials controls for secrets. Docker additionally needs an available runtime and deliberately configured mounts/network.
 
 An MCP server being connected means transport/protocol readiness. It does not prove that an editor has the correct game open. For live engine use, bind the Project and verify a read-only identity probe. Server-initiated input or model requests have their own policy/settings. Keep connection and tool-call identifiers when reporting failures.
+
+The **A2A agents** view is separate from MCP: outbound JSON-RPC v1.0 agents are configured with static API-key/bearer/basic/custom-header credentials, discovered Agent Cards are untrusted input, and delegation is brokered. The builtin coordinator role has `a2a/*` by default; other roles require an explicit tool grant. The optional inbound gateway binds only to `127.0.0.1`. Register each local harness with explicit Project/role/task-operation grants and issue a bearer token; the plaintext is shown once, while the service retains only its hash. Inbound tasks retain the TaskService, access-mode and Ask-always approval boundaries. Remote/LAN inbound access, OAuth/OIDC, gRPC, webhooks and non-text request parts are unsupported.
 
 ## Engine
 

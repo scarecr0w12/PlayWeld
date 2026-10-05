@@ -92,7 +92,7 @@ export class CompletionService {
     // models whose discovery metadata does not advertise streaming support.
     const request = {
       ...params.request,
-      stream: !!params.request.stream && model.capabilities.streaming,
+      stream: !!params.request.stream && model.capabilities.streaming === true,
     };
     const requestId = request.stream ? (params.requestId ?? uuidv7()) : params.requestId;
     const startedAt = this.now().getTime();

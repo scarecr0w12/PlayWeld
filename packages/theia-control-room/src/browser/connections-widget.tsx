@@ -4,11 +4,19 @@ import { Message } from '@theia/core/lib/browser/widgets/widget';
 import { ControlRoomReactWidget } from './control-room-react-widget';
 import { QuickInputService } from '@theia/core/lib/common/quick-pick-service';
 import type {
+  A2AAgentCardSummary,
+  A2AAuthKind,
+  A2AInboundClient,
+  A2AInboundConfig,
+  A2AOutboundAuthInput,
+  A2AOutboundConnection,
+  A2AProjectGrant,
   ExecutionMode,
   McpConnectionInput,
   McpConnectionListEntry,
   McpConnectionLogEntry,
   ProjectSummary,
+  RoleRecord,
   RpcNotificationParams,
   SideEffect,
   ToolDefinition,
@@ -22,7 +30,15 @@ import { ControlRoomClientEvents } from './control-room-client';
 type McpMode = 'command' | 'endpoint' | 'docker';
 type EndpointTransport = 'streamable-http' | 'legacy-sse';
 type DockerTransport = 'stdio' | 'streamable-http';
-type ConnectionsSection = 'servers' | 'add' | 'tools' | 'logs';
+type ConnectionsSection = 'servers' | 'add' | 'tools' | 'logs' | 'a2a';
+type A2ATaskPermission = A2AProjectGrant['permissions'][number];
+const A2A_PERMISSIONS: Array<[A2ATaskPermission, string]> = [
+  ['create', 'Create tasks'],
+  ['get', 'Read task status/results'],
+  ['continue', 'Answer task questions / continue'],
+  ['stream', 'Stream task updates'],
+  ['cancel', 'Cancel tasks'],
+];
 type ConnectionFormField =
   | 'connectionName'
   | 'scope'
@@ -79,6 +95,29 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
   private allowServerInitiatedModelCalls = false;
   private credentialsJson = '{}';
   private busy = false;
+  private a2aConnections: A2AOutboundConnection[] = [];
+  private a2aInboundConfig?: A2AInboundConfig;
+  private a2aInboundClients: A2AInboundClient[] = [];
+  private a2aRoles: RoleRecord[] = [];
+  private a2aView: 'outbound' | 'inbound' = 'outbound';
+  private a2aOutboundName = '';
+  private a2aEndpoint = '';
+  private a2aAuthKind: A2AAuthKind = 'none';
+  private a2aHeaderName = 'x-api-key';
+  private a2aApiKey = '';
+  private a2aBearer = '';
+  private a2aUsername = '';
+  private a2aPassword = '';
+  private a2aCustomHeaders = '{}';
+  private a2aInboundEnabled = false;
+  private a2aPort = '8765';
+  private a2aClientName = '';
+  private a2aEditingClientId?: string;
+  private a2aGrantProjectId = '';
+  private a2aGrantRole = '';
+  private a2aPermissions: A2ATaskPermission[] = ['create', 'get', 'continue', 'stream', 'cancel'];
+  private a2aDraftGrants: A2AProjectGrant[] = [];
+  private issuedA2AToken?: { clientId: string; token: string };
 
   constructor(
     @inject(ControlRoomService)
@@ -128,8 +167,8 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
           <div>
             <h1>Connections</h1>
             <p>
-              Manage server access, inspect discovered tools, and review their safety
-              classifications.
+              Manage MCP server access, connect outbound A2A agents, and control scoped inbound
+              delegation.
             </p>
           </div>
           <button type="button" disabled={this.busy} onClick={() => void this.refresh()}>
@@ -226,6 +265,7 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
                 'Logs',
                 this.logConnectionId ? (this.logs.get(this.logConnectionId)?.length ?? 0) : 0,
               ],
+              ['a2a', 'A2A agents', this.a2aConnections.length + this.a2aInboundClients.length],
             ] as const
           ).map(([section, label, count]) => (
             <button
@@ -507,6 +547,13 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
             </div>
           )}
         </section>
+
+        <section
+          className="gamecrafter-connections-section gamecrafter-page-panel"
+          hidden={this.activeSection !== 'a2a'}
+        >
+          {this.renderA2ASection()}
+        </section>
       </div>
     );
   }
@@ -760,6 +807,767 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
     });
   }
 
+  private renderA2ASection(): React.ReactNode {
+    const config = this.a2aInboundConfig;
+    return (
+      <div className="gamecrafter-connections-a2a">
+        <header className="gamecrafter-page-header">
+          <div>
+            <h2>Agent-to-Agent protocol (A2A v1.0)</h2>
+            <p>
+              Outbound agents are available to workers through brokered tools. The inbound gateway
+              accepts scoped task requests only from local harnesses on 127.0.0.1.
+            </p>
+          </div>
+        </header>
+        <nav className="gamecrafter-section-nav" aria-label="A2A views">
+          <button
+            type="button"
+            aria-pressed={this.a2aView === 'outbound'}
+            onClick={() => {
+              this.a2aView = 'outbound';
+              this.update();
+            }}
+          >
+            Outbound agents <span className="gamecrafter-count">{this.a2aConnections.length}</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={this.a2aView === 'inbound'}
+            onClick={() => {
+              this.a2aView = 'inbound';
+              this.update();
+            }}
+          >
+            Inbound gateway{' '}
+            <span className="gamecrafter-count">{this.a2aInboundClients.length}</span>
+          </button>
+        </nav>
+        {this.issuedA2AToken && (
+          <div className="gamecrafter-connections-result" role="status">
+            <strong>New A2A bearer token. Copy it now; it cannot be retrieved later.</strong>
+            <textarea
+              aria-label="One-time A2A client token"
+              value={this.issuedA2AToken.token}
+              readOnly
+              rows={2}
+              spellCheck={false}
+            />
+            <button type="button" onClick={() => void this.copyA2AToken()}>
+              Copy token
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                this.issuedA2AToken = undefined;
+                this.update();
+              }}
+            >
+              Hide token
+            </button>
+          </div>
+        )}
+        {this.a2aView === 'outbound' ? this.renderA2AOutbound() : this.renderA2AInbound(config)}
+      </div>
+    );
+  }
+
+  private renderA2AOutbound(): React.ReactNode {
+    return (
+      <>
+        <section className="gamecrafter-page-panel">
+          <h3>Configured external agents</h3>
+          <p>
+            Agent Cards and remote responses are untrusted data. Configure one credential per
+            connection; OAuth and non-JSON-RPC bindings are not supported.
+          </p>
+          {this.a2aConnections.length === 0 ? (
+            <p className="gamecrafter-page-empty">No outbound A2A agents are configured.</p>
+          ) : (
+            <div className="gamecrafter-connections-table-scroll">
+              <table className="gamecrafter-connections-table">
+                <thead>
+                  <tr>
+                    <th>Connection</th>
+                    <th>Agent Card</th>
+                    <th>Authentication</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {this.a2aConnections.map((connection) => (
+                    <tr key={connection.connectionId}>
+                      <td>
+                        <strong>{connection.name}</strong>
+                        <div>
+                          <code>{connection.endpoint}</code>
+                        </div>
+                      </td>
+                      <td>
+                        {connection.agentCard ? (
+                          <>
+                            <strong>{connection.agentCard.name}</strong>{' '}
+                            <span>v{connection.agentCard.version}</span>
+                            <p>{connection.agentCard.description || 'No description.'}</p>
+                            <div>
+                              {connection.agentCard.supportedBindings.join(', ') ||
+                                'No supported binding'}
+                              {connection.agentCard.streaming ? ' · Streaming' : ''}
+                            </div>
+                            <ul>
+                              {connection.agentCard.skills.map((skill) => (
+                                <li key={skill.id}>
+                                  {skill.name} <code>{skill.id}</code>
+                                </li>
+                              ))}
+                            </ul>
+                          </>
+                        ) : (
+                          <span>Not discovered</span>
+                        )}
+                      </td>
+                      <td>
+                        {connection.authKind}
+                        {connection.credentialConfigured
+                          ? ' · credential stored'
+                          : ' · no credential'}
+                      </td>
+                      <td className="gamecrafter-connection-actions">
+                        <button
+                          type="button"
+                          disabled={this.busy}
+                          onClick={() => void this.discoverA2AConnection(connection.connectionId)}
+                        >
+                          Discover / refresh card
+                        </button>
+                        <button
+                          type="button"
+                          disabled={this.busy}
+                          onClick={() => void this.removeA2AConnection(connection.connectionId)}
+                        >
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        <section className="gamecrafter-page-panel">
+          <h3>Add outbound agent</h3>
+          <form
+            className="gamecrafter-connections-form gamecrafter-a2a-outbound-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void this.addA2AConnection();
+            }}
+          >
+            <label>
+              Name
+              <input
+                aria-label="A2A connection name"
+                value={this.a2aOutboundName}
+                onChange={(event) => {
+                  this.a2aOutboundName = event.currentTarget.value;
+                  this.update();
+                }}
+                required
+              />
+            </label>
+            <label className="gamecrafter-connections-wide">
+              Agent base URL
+              <input
+                aria-label="A2A agent endpoint"
+                type="url"
+                value={this.a2aEndpoint}
+                onChange={(event) => {
+                  this.a2aEndpoint = event.currentTarget.value;
+                  this.update();
+                }}
+                required
+              />
+            </label>
+            <p className="gamecrafter-page-hint gamecrafter-connections-wide">
+              Remote agents require HTTPS. Plain HTTP is allowed only for an explicitly configured
+              loopback endpoint. Redirects and cross-origin advertised interfaces are rejected.
+            </p>
+            <label>
+              Authentication
+              <select
+                aria-label="A2A authentication kind"
+                value={this.a2aAuthKind}
+                onChange={(event) => {
+                  this.a2aAuthKind = event.currentTarget.value as A2AAuthKind;
+                  this.update();
+                }}
+              >
+                <option value="none">None</option>
+                <option value="api-key">API key header</option>
+                <option value="bearer">Bearer token</option>
+                <option value="basic">Basic username/password</option>
+                <option value="custom-headers">Custom headers</option>
+              </select>
+            </label>
+            {this.renderA2AAuthFields()}
+            <button
+              type="submit"
+              disabled={this.busy || !this.a2aOutboundName.trim() || !this.a2aEndpoint.trim()}
+            >
+              Save outbound agent
+            </button>
+          </form>
+        </section>
+      </>
+    );
+  }
+
+  private renderA2AAuthFields(): React.ReactNode {
+    if (this.a2aAuthKind === 'api-key') {
+      return (
+        <>
+          <label>
+            API-key header name
+            <input
+              aria-label="A2A API-key header name"
+              value={this.a2aHeaderName}
+              onChange={(event) => {
+                this.a2aHeaderName = event.currentTarget.value;
+                this.update();
+              }}
+              required
+            />
+          </label>
+          <label>
+            API key (stored encrypted)
+            <input
+              aria-label="A2A API key"
+              type="password"
+              value={this.a2aApiKey}
+              onChange={(event) => {
+                this.a2aApiKey = event.currentTarget.value;
+                this.update();
+              }}
+              required
+            />
+          </label>
+        </>
+      );
+    }
+    if (this.a2aAuthKind === 'bearer') {
+      return (
+        <label>
+          Bearer token (stored encrypted)
+          <input
+            aria-label="A2A bearer token"
+            type="password"
+            value={this.a2aBearer}
+            onChange={(event) => {
+              this.a2aBearer = event.currentTarget.value;
+              this.update();
+            }}
+            required
+          />
+        </label>
+      );
+    }
+    if (this.a2aAuthKind === 'basic') {
+      return (
+        <>
+          <label>
+            Username
+            <input
+              aria-label="A2A basic username"
+              value={this.a2aUsername}
+              onChange={(event) => {
+                this.a2aUsername = event.currentTarget.value;
+                this.update();
+              }}
+              required
+            />
+          </label>
+          <label>
+            Password (stored encrypted)
+            <input
+              aria-label="A2A basic password"
+              type="password"
+              value={this.a2aPassword}
+              onChange={(event) => {
+                this.a2aPassword = event.currentTarget.value;
+                this.update();
+              }}
+              required
+            />
+          </label>
+        </>
+      );
+    }
+    if (this.a2aAuthKind === 'custom-headers') {
+      return (
+        <label className="gamecrafter-connections-wide">
+          Custom headers (JSON string values; stored encrypted)
+          <textarea
+            aria-label="A2A custom headers"
+            value={this.a2aCustomHeaders}
+            onChange={(event) => {
+              this.a2aCustomHeaders = event.currentTarget.value;
+              this.update();
+            }}
+            required
+          />
+        </label>
+      );
+    }
+    return <p className="gamecrafter-page-hint">This agent does not require credentials.</p>;
+  }
+
+  private renderA2AInbound(config?: A2AInboundConfig): React.ReactNode {
+    return (
+      <>
+        <section className="gamecrafter-page-panel">
+          <h3>Inbound A2A task gateway</h3>
+          <p>
+            The optional HTTP endpoint binds only to 127.0.0.1. Remote harnesses on other machines
+            cannot connect; each local client is separately authenticated and project-scoped.
+          </p>
+          <p className="gamecrafter-page-meta">
+            Address <code>127.0.0.1</code> · Status{' '}
+            <strong>{config?.active ? 'Listening' : 'Stopped'}</strong>
+            {config && config.active && (
+              <span>
+                {' · '}Agent Card{' '}
+                <code>http://127.0.0.1:{config.port}/.well-known/agent-card.json</code>
+              </span>
+            )}
+          </p>
+          <form
+            className="gamecrafter-connections-form gamecrafter-a2a-gateway-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void this.configureA2AGateway();
+            }}
+          >
+            <label className="gamecrafter-connections-checkbox">
+              <input
+                type="checkbox"
+                aria-label="Enable inbound A2A gateway"
+                checked={this.a2aInboundEnabled}
+                onChange={(event) => {
+                  this.a2aInboundEnabled = event.currentTarget.checked;
+                  this.update();
+                }}
+              />
+              Enable loopback A2A gateway
+            </label>
+            <label>
+              Port
+              <input
+                type="number"
+                aria-label="Inbound A2A port"
+                min={1024}
+                max={65535}
+                value={this.a2aPort}
+                onChange={(event) => {
+                  this.a2aPort = event.currentTarget.value;
+                  this.update();
+                }}
+                required
+              />
+            </label>
+            <button type="submit" disabled={this.busy}>
+              Save gateway settings
+            </button>
+          </form>
+        </section>
+
+        <section className="gamecrafter-page-panel">
+          <h3>Authorized local clients</h3>
+          <p>
+            Each client can submit, inspect, continue, stream, or cancel only the tasks permitted by
+            its Project and role grants. Ask-always approvals remain under local user control.
+          </p>
+          {this.renderA2AClientForm()}
+          {this.a2aInboundClients.length === 0 ? (
+            <p className="gamecrafter-page-empty">No inbound harness clients are registered.</p>
+          ) : (
+            <div className="gamecrafter-connections-table-scroll">
+              <table className="gamecrafter-connections-table">
+                <thead>
+                  <tr>
+                    <th>Client</th>
+                    <th>Project / role grants</th>
+                    <th>Token state</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {this.a2aInboundClients.map((client) => (
+                    <tr key={client.clientId}>
+                      <td>
+                        <strong>{client.name}</strong>
+                        <div>
+                          <code>{client.clientId}</code>
+                        </div>
+                      </td>
+                      <td>
+                        {client.grants.map((grant, index) => (
+                          <div key={`${grant.projectId}-${grant.role}-${index}`}>
+                            {this.projects.find((project) => project.projectId === grant.projectId)
+                              ?.name ?? grant.projectId}{' '}
+                            / {grant.role}
+                            <div>{grant.permissions.join(', ')}</div>
+                          </div>
+                        ))}
+                      </td>
+                      <td>
+                        {client.revokedAt
+                          ? 'Revoked'
+                          : client.credentialConfigured
+                            ? 'Active'
+                            : 'Not issued'}
+                      </td>
+                      <td className="gamecrafter-connection-actions">
+                        <button type="button" onClick={() => this.beginEditA2AClient(client)}>
+                          Edit grants
+                        </button>
+                        <button
+                          type="button"
+                          disabled={this.busy}
+                          onClick={() => void this.issueA2AToken(client.clientId)}
+                        >
+                          Issue / rotate token
+                        </button>
+                        <button
+                          type="button"
+                          disabled={this.busy || !client.credentialConfigured}
+                          onClick={() => void this.revokeA2AClient(client.clientId)}
+                        >
+                          Revoke token
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      </>
+    );
+  }
+
+  private renderA2AClientForm(): React.ReactNode {
+    return (
+      <form
+        className="gamecrafter-connections-form gamecrafter-a2a-client-form"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void this.saveA2AClient();
+        }}
+      >
+        <h4>{this.a2aEditingClientId ? 'Edit client grants' : 'Register local harness'}</h4>
+        <label>
+          Client name
+          <input
+            aria-label="A2A client name"
+            value={this.a2aClientName}
+            onChange={(event) => {
+              this.a2aClientName = event.currentTarget.value;
+              this.update();
+            }}
+            required
+          />
+        </label>
+        <label>
+          Project
+          <select
+            aria-label="A2A grant project"
+            value={this.a2aGrantProjectId}
+            onChange={(event) => void this.selectA2AProject(event.currentTarget.value)}
+          >
+            <option value="">Select a Project</option>
+            {this.projects.map((project) => (
+              <option key={project.projectId} value={project.projectId}>
+                {project.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Role
+          <select
+            aria-label="A2A grant role"
+            value={this.a2aGrantRole}
+            onChange={(event) => {
+              this.a2aGrantRole = event.currentTarget.value;
+              this.update();
+            }}
+            disabled={!this.a2aGrantProjectId || this.a2aRoles.length === 0}
+          >
+            <option value="">Select a role</option>
+            {this.a2aRoles.map((role) => (
+              <option key={role.name} value={role.name}>
+                {role.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <fieldset className="gamecrafter-connections-wide">
+          <legend>Allowed task operations</legend>
+          {A2A_PERMISSIONS.map(([permission, label]) => (
+            <label className="gamecrafter-connections-checkbox" key={permission}>
+              <input
+                type="checkbox"
+                aria-label={`A2A permission ${permission}`}
+                checked={this.a2aPermissions.includes(permission)}
+                onChange={(event) =>
+                  this.toggleA2APermission(permission, event.currentTarget.checked)
+                }
+              />
+              {label}
+            </label>
+          ))}
+        </fieldset>
+        <button
+          type="button"
+          disabled={
+            !this.a2aGrantProjectId || !this.a2aGrantRole || this.a2aPermissions.length === 0
+          }
+          onClick={() => this.addA2AGrant()}
+        >
+          Add Project / role grant
+        </button>
+        {this.a2aDraftGrants.length > 0 && (
+          <ul className="gamecrafter-connections-wide">
+            {this.a2aDraftGrants.map((grant, index) => (
+              <li key={`${grant.projectId}-${grant.role}-${index}`}>
+                {this.projects.find((project) => project.projectId === grant.projectId)?.name ??
+                  grant.projectId}{' '}
+                / {grant.role} · {grant.permissions.join(', ')}
+                <button type="button" onClick={() => this.removeA2AGrant(index)}>
+                  Remove grant
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="gamecrafter-page-hint gamecrafter-connections-wide">
+          Inbound messages can create `agent.run` tasks only. They cannot invoke settings, tools, or
+          administrative RPCs, and cannot grant themselves additional access.
+        </div>
+        <div className="gamecrafter-connection-actions">
+          <button
+            type="submit"
+            disabled={this.busy || !this.a2aClientName.trim() || !this.a2aDraftGrants.length}
+          >
+            {this.a2aEditingClientId ? 'Save client grants' : 'Register client'}
+          </button>
+          {this.a2aEditingClientId && (
+            <button type="button" onClick={() => this.cancelEditA2AClient()}>
+              Cancel edit
+            </button>
+          )}
+        </div>
+      </form>
+    );
+  }
+
+  private buildA2AOutboundAuth(): A2AOutboundAuthInput {
+    switch (this.a2aAuthKind) {
+      case 'none':
+        return { kind: 'none' };
+      case 'api-key':
+        return {
+          kind: 'api-key',
+          headerName: this.a2aHeaderName.trim(),
+          value: this.a2aApiKey,
+        };
+      case 'bearer':
+        return { kind: 'bearer', token: this.a2aBearer };
+      case 'basic':
+        return { kind: 'basic', username: this.a2aUsername, password: this.a2aPassword };
+      case 'custom-headers':
+        return { kind: 'custom-headers', headers: parseJsonRecord(this.a2aCustomHeaders) };
+      default:
+        throw new Error('Unsupported A2A authentication kind.');
+    }
+  }
+
+  private async addA2AConnection(): Promise<void> {
+    await this.withBusy(async () => {
+      const connection = await this.service.upsertA2AOutbound({
+        name: this.a2aOutboundName.trim(),
+        endpoint: this.a2aEndpoint.trim(),
+        auth: this.buildA2AOutboundAuth(),
+      });
+      this.a2aOutboundName = '';
+      this.a2aEndpoint = '';
+      this.a2aApiKey = '';
+      this.a2aBearer = '';
+      this.a2aUsername = '';
+      this.a2aPassword = '';
+      this.a2aCustomHeaders = '{}';
+      this.resultMessage = `Saved A2A connection ${connection.name}.`;
+      this.a2aConnections = await this.service.listA2AOutbound();
+    });
+  }
+
+  private async discoverA2AConnection(connectionId: string): Promise<void> {
+    await this.withBusy(async () => {
+      const card: A2AAgentCardSummary = await this.service.discoverA2AOutbound(connectionId);
+      this.resultMessage = `Discovered ${card.name} (${card.skills.length} skill(s)).`;
+      this.a2aConnections = await this.service.listA2AOutbound();
+    });
+  }
+
+  private async removeA2AConnection(connectionId: string): Promise<void> {
+    await this.withBusy(async () => {
+      const removed = await this.service.deleteA2AOutbound(connectionId);
+      this.resultMessage = removed
+        ? 'Removed outbound A2A connection.'
+        : 'A2A connection not found.';
+      this.a2aConnections = await this.service.listA2AOutbound();
+    });
+  }
+
+  private async configureA2AGateway(): Promise<void> {
+    await this.withBusy(async () => {
+      const config = await this.service.configureA2AInbound({
+        enabled: this.a2aInboundEnabled,
+        port: Number(this.a2aPort),
+      });
+      this.a2aInboundConfig = config;
+      this.a2aInboundEnabled = config.enabled;
+      this.a2aPort = String(config.port);
+      this.resultMessage = config.active
+        ? `A2A gateway listening on ${config.address}:${config.port}.`
+        : 'A2A gateway stopped.';
+    });
+  }
+
+  private async selectA2AProject(projectId: string): Promise<void> {
+    this.a2aGrantProjectId = projectId;
+    this.a2aGrantRole = '';
+    this.a2aRoles = [];
+    this.update();
+    if (!projectId) return;
+    await this.withBusy(async () => {
+      this.a2aRoles = await this.service.listRoles(projectId);
+      this.a2aGrantRole = this.a2aRoles[0]?.name ?? '';
+    });
+  }
+
+  private toggleA2APermission(permission: A2ATaskPermission, enabled: boolean): void {
+    this.a2aPermissions = enabled
+      ? [...new Set([...this.a2aPermissions, permission])]
+      : this.a2aPermissions.filter((item) => item !== permission);
+    this.update();
+  }
+
+  private addA2AGrant(): void {
+    if (!this.a2aGrantProjectId || !this.a2aGrantRole || this.a2aPermissions.length === 0) return;
+    const duplicate = this.a2aDraftGrants.some(
+      (grant) => grant.projectId === this.a2aGrantProjectId && grant.role === this.a2aGrantRole,
+    );
+    if (duplicate) {
+      this.errorMessage = 'That Project and role grant is already in the draft.';
+      this.update();
+      return;
+    }
+    this.a2aDraftGrants = [
+      ...this.a2aDraftGrants,
+      {
+        projectId: this.a2aGrantProjectId,
+        role: this.a2aGrantRole,
+        taskKinds: ['agent.run'],
+        permissions: [...this.a2aPermissions],
+      },
+    ];
+    this.update();
+  }
+
+  private removeA2AGrant(index: number): void {
+    this.a2aDraftGrants = this.a2aDraftGrants.filter((_grant, itemIndex) => itemIndex !== index);
+    this.update();
+  }
+
+  private async saveA2AClient(): Promise<void> {
+    await this.withBusy(async () => {
+      const client = await this.service.upsertA2AInboundClient({
+        ...(this.a2aEditingClientId ? { clientId: this.a2aEditingClientId } : {}),
+        name: this.a2aClientName.trim(),
+        grants: this.a2aDraftGrants,
+      });
+      this.a2aClientName = '';
+      this.a2aEditingClientId = undefined;
+      this.a2aDraftGrants = [];
+      this.issuedA2AToken = undefined;
+      this.resultMessage = `Saved inbound A2A client ${client.name}. Issue its bearer token separately.`;
+      this.a2aInboundClients = await this.service.listA2AInboundClients();
+    });
+  }
+
+  private async beginEditA2AClient(client: A2AInboundClient): Promise<void> {
+    this.a2aEditingClientId = client.clientId;
+    this.a2aClientName = client.name;
+    this.a2aDraftGrants = client.grants.map((grant) => ({
+      ...grant,
+      permissions: [...grant.permissions],
+    }));
+    const firstGrant = client.grants[0];
+    this.a2aGrantProjectId = firstGrant?.projectId ?? '';
+    this.a2aGrantRole = firstGrant?.role ?? '';
+    this.issuedA2AToken = undefined;
+    try {
+      if (this.a2aGrantProjectId) {
+        this.a2aRoles = await this.service.listRoles(this.a2aGrantProjectId);
+      }
+    } catch (error) {
+      this.errorMessage = errorMessage(error);
+    }
+    this.update();
+  }
+
+  private cancelEditA2AClient(): void {
+    this.a2aEditingClientId = undefined;
+    this.a2aClientName = '';
+    this.a2aDraftGrants = [];
+    this.a2aGrantProjectId = '';
+    this.a2aGrantRole = '';
+    this.a2aRoles = [];
+    this.update();
+  }
+
+  private async issueA2AToken(clientId: string): Promise<void> {
+    await this.withBusy(async () => {
+      this.issuedA2AToken = await this.service.issueA2AInboundClientToken(clientId);
+      this.a2aInboundClients = await this.service.listA2AInboundClients();
+      this.resultMessage = 'New A2A client token issued. It is shown once above.';
+    });
+  }
+
+  private async revokeA2AClient(clientId: string): Promise<void> {
+    await this.withBusy(async () => {
+      const client = await this.service.revokeA2AInboundClient(clientId);
+      this.issuedA2AToken = undefined;
+      this.a2aInboundClients = await this.service.listA2AInboundClients();
+      this.resultMessage = `Revoked A2A token for ${client.name}.`;
+    });
+  }
+
+  private async copyA2AToken(): Promise<void> {
+    if (!this.issuedA2AToken) return;
+    try {
+      await navigator.clipboard.writeText(this.issuedA2AToken.token);
+      this.resultMessage = 'Copied A2A token to the clipboard.';
+    } catch (error) {
+      this.errorMessage = `Could not copy the token: ${errorMessage(error)}`;
+    }
+    this.update();
+  }
+
   private async refresh(): Promise<void> {
     this.errorMessage = undefined;
     try {
@@ -767,7 +1575,18 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
       this.selectedProjectId =
         (await this.resolveProjectSelection(this.projects, () => this.selectedProjectId)) ||
         undefined;
-      this.connections = await this.service.listMcpConnections(this.selectedProjectId);
+      const [mcpConnections, outbound, inboundConfig, inboundClients] = await Promise.all([
+        this.service.listMcpConnections(this.selectedProjectId),
+        this.service.listA2AOutbound(),
+        this.service.getA2AInboundConfig(),
+        this.service.listA2AInboundClients(),
+      ]);
+      this.connections = mcpConnections;
+      this.a2aConnections = outbound;
+      this.a2aInboundConfig = inboundConfig;
+      this.a2aInboundClients = inboundClients;
+      this.a2aInboundEnabled = inboundConfig.enabled;
+      this.a2aPort = String(inboundConfig.port);
     } catch (error) {
       this.errorMessage = errorMessage(error);
     }

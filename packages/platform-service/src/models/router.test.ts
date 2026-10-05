@@ -121,6 +121,34 @@ describe('ModelRouter', () => {
     }
   });
 
+  it('requires verified chat and excludes declared features the chat contract cannot express', async () => {
+    const fixture = await createFixture();
+    try {
+      fixture.registry.updateModel(fixture.modelIds.cheap, { capabilities: { chat: null } });
+      fixture.registry.updateModel(fixture.modelIds.good, {
+        capabilities: { chat: null, vision: true },
+      });
+      expect(() =>
+        fixture.router.route({ taskType: 'code', agentRole: 'programmer' }),
+      ).toThrowError(
+        expect.objectContaining({ data: expect.objectContaining({ stage: 'capabilities' }) }),
+      );
+
+      fixture.registry.updateModel(fixture.modelIds.good, { capabilities: { chat: true } });
+      expect(() =>
+        fixture.router.route({
+          taskType: 'code',
+          agentRole: 'programmer',
+          requiredCapabilities: ['vision'],
+        }),
+      ).toThrowError(
+        expect.objectContaining({ data: expect.objectContaining({ stage: 'capabilities' }) }),
+      );
+    } finally {
+      fixture.close();
+    }
+  });
+
   it('intersects applicable agent and task-type pool unions and reports an empty conflict', async () => {
     const fixture = await createFixture();
     try {
@@ -373,7 +401,7 @@ async function createFixture() {
     {
       providerModelId: 'cheap',
       displayName: 'Cheap model',
-      capabilities: { chat: true, tools: false },
+      capabilities: { chat: true, tools: null },
       pricing: { inputPerMTokUsd: 0.1, outputPerMTokUsd: 0.2 },
     },
     {

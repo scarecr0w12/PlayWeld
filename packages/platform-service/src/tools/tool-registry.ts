@@ -17,6 +17,7 @@ export interface ToolContext {
   accessMode: AccessMode;
   callId: string;
   signal: AbortSignal;
+  reportProgress?: (payload: unknown) => void;
 }
 
 export interface ToolExecutionResult {

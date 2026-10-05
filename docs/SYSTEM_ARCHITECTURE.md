@@ -103,7 +103,9 @@ Locks coordinate named resources. A Git worktree isolates a checkout's files; it
 
 ## Models and providers
 
-The model subsystem stores provider accounts, model metadata, pool policies, route decisions, usage and outcomes. OpenAI-compatible and Anthropic adapters implement their supported completion/streaming paths. The router uses capability and policy information instead of requiring the UI to choose a provider for every internal call.
+The model subsystem stores separate provider accounts, model metadata, pool policies, route decisions, usage and outcomes. First-party adapters cover OpenAI, Gemini Developer API, OpenRouter, xAI, Mistral, DeepSeek, Groq, and Azure OpenAI; Anthropic and generic OpenAI-compatible endpoints remain available. API keys and custom headers are stored in the encrypted credential store; OAuth/device login and cloud-native IAM are outside the selected contract. A sourced, versioned catalog enriches incomplete model-list responses with exact-ID facts. Every field records source, timestamp and confidence; unknown values remain distinct from unsupported values and from manual overrides. Published prices are estimates, not invoices.
+
+Completion routing requires `chat: true`; an unknown/unsupported capability cannot satisfy a required feature. Provider-declared vision remains visible but cannot be selected for image input until the common chat request can carry media. Embeddings use the dedicated embedding operation rather than chat routing. Azure callable deployment names (`providerModelId`) remain separate from their documented base-model catalog IDs (`catalogModelId`). Role/work-type lists are hard allowlist restrictions; exact source categories that do not match the local taxonomy remain descriptive tags, and those restrictions stay empty/unrestricted.
 
 Chat persists Project conversations and streams deltas. Agent mode delegates into Swarm. The native Theia AI model adapter and a chat-local tool execution loop remain unimplemented. Fixture provider tests establish contract/error behavior; they do not establish current remote account availability or provider quality.
 
@@ -116,6 +118,12 @@ Engine connectors expose three layers: project files, headless process and live 
 Engine runs persist command, logs, result status and report artifacts. Test-report parsing distinguishes actual engine test failures from a process that merely exits zero. A screenshot operation requires a collectable PNG; file-backed images must resolve inside the intended Project boundary and pass type/size checks.
 
 DCC uses installations, capability reports and recorded operation runs. Blender has live evidence; other connectors retain narrower fixture evidence. Actual version/host boundaries are in the [integration guide](INTEGRATION_GUIDE.md).
+
+## Agent-to-agent protocol boundary
+
+The A2A v1.0 integration is separate from MCP and from the authenticated named-pipe/Unix-socket control API. Outbound agent records retain endpoint, discovered Agent Card, static auth kind, and encrypted credential reference. JSON-RPC over HTTP(S) and streaming are supported; remote endpoints require HTTPS, loopback HTTP requires explicit configuration, and redirects/cross-origin interfaces cannot receive credentials. Remote delegation runs as brokered operations inside a local task and preserves Project access mode, approvals, and audit identity.
+
+Inbound A2A is an opt-in, separate HTTP listener bound only to IPv4 loopback. Per-client bearer tokens are returned once and stored hashed; each grant scopes Projects, roles, `agent.run` kind, and operations. Task create/get/continue/stream/cancel runs through the durable TaskService. Continuation cannot approve broker requests; every task execution remains under an Ask-always ceiling. Strict Host/Origin checks, no permissive CORS, request and per-client limits, and active stream invalidation on credential/grant changes apply. Public/LAN exposure, OAuth/OIDC, gRPC, webhooks, task listing, non-text inbound parts, and direct administrative/tool RPC are unsupported.
 
 ## Knowledge, board and assets
 

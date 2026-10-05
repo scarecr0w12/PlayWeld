@@ -7,6 +7,7 @@ import {
   type ModelUsageRecord,
   type DecisionAssessment,
   type RouteCandidate,
+  type RouteCapability,
   type RouteDecision,
   type RouteOutcome,
   type RouteRequest,
@@ -99,9 +100,14 @@ export class ModelRouter {
     if (roleModels.length === 0) throw noEligibleModel('roles', ['model roles']);
     eligible = roleModels;
 
-    const required = request.requiredCapabilities ?? [];
+    const required = [
+      ...new Set<RouteCapability>(['chat', ...(request.requiredCapabilities ?? [])]),
+    ];
     const capabilityModels = eligible.filter((model) =>
-      required.every((capability) => model.capabilities[capability] === true),
+      required.every(
+        (capability) =>
+          isChatRequestCapability(capability) && model.capabilities[capability] === true,
+      ),
     );
     if (capabilityModels.length === 0) {
       throw noEligibleModel(
@@ -794,6 +800,10 @@ function noEligibleModel(stage: string, removedBy: string[]): RpcError {
       removedBy,
     },
   );
+}
+
+function isChatRequestCapability(capability: RouteCapability): boolean {
+  return capability !== 'vision' && capability !== 'embeddings';
 }
 
 function modelLabels(

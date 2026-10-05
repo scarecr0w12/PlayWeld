@@ -1,6 +1,6 @@
 # PlayWeld versioning, releases and local Windows testing
 
-**Last updated:** 2026-10-04
+**Last updated:** 2026-10-05
 
 This guide defines the current release tooling and the local testing handoff. The complete release lifecycle remains in progress in [WP19](DEVELOPMENT_PLAN.md#wp19--packaging-and-release); installer upgrade/rollback and signing acceptance are separate from producing a test build.
 
@@ -68,7 +68,7 @@ node scripts/stage-windows-release.cjs
 
 Electron Builder writes to `apps/control-room/dist/<version>/`. This preserves previous version outputs and avoids packaging over a running app's directory. Close the owned application from that version before rebuilding the same directory; Windows can lock native modules.
 
-The Windows verifier checks the Electron main entry, PE native module, matching application/service versions, all thirty current bundled skills and their reference content, and Apache license/notice files. It rejects missing or stale skill assets, so a test package cannot silently substitute an older skill library.
+The Windows verifier checks the Electron main entry, PE native modules, matching application/service versions, all thirty current bundled skills and their reference content, Apache license/notice files, and a real packaged service start/status/stop in an isolated profile. It checks package runtime entry points (including `debug/src/index.js`) so broad TypeScript source filtering cannot silently remove a JavaScript runtime dependency. It rejects missing or stale skill assets, so a test package cannot silently substitute an older skill library.
 
 Desktop packaging first prepares the checksum-pinned Qdrant 1.19.1 native executable for the host Windows/Linux x64 target and its license, then copies these resources beside the application. Build-time downloads require network access; installed managed Qdrant does not download itself or require Docker. The Windows contents verifier also checks the LanceDB addon and Qdrant executable are x64 PE binaries. Development preparation is `npm run prepare:qdrant -w @gamecrafter/control-room`. Cross-host packaging is not supported by this preparation step; use native target-host builds. Embeddings are configured separately and no inference runtime is bundled with the selected LanceDB release.
 
@@ -125,6 +125,8 @@ The [0.7.0 local deployment record](changes/2026-10-04-local-0.7.0-deployment.md
 The [0.8.0 hierarchy/cost deployment](changes/2026-10-04-local-0.8.0-deployment.md) retains the preceding upgrade evidence: structured goals and model-usage export, database backups, installed hashes and retained pricing/configuration. Existing screenshot version labels and earlier installers are preserved.
 
 The current [0.9.0 local deployment](changes/2026-10-04-local-0.9.0-deployment.md) adds typed decision assistance and the separately documented cache maintenance. It passed the 33-task quality gate, native packaging, 29 staged and 29 installed Electron checks, twenty-one installed-file comparisons, and ordinary profile/Project retention and migration checks. Decision weights and live calibration are not established by package/history tests. Use the next unused version for later preparation; no example authorizes overwriting an existing version or changing historical evidence.
+
+The [0.10.0 provider/A2A release work record](changes/2026-10-04-model-providers-routing-a2a.md) records the new local Windows package and a 30-check packaged Electron/service smoke in an isolated profile. The package remains unsigned because no signing certificate or GitHub signing key is configured; its local-build manifest identifies the pre-commit source and dirty paths. This does not verify NSIS installation/uninstall, upgrade/rollback, a published GitHub workflow, live provider accounts, or live external A2A interoperability.
 
 Keep quality logs, package logs, screenshots, UI reports, metadata/checksum verification and the exact GitHub workflow/tag IDs with each build. Source fixtures and sanitized records are versioned; generated artifacts live in ignored local output or GitHub release assets.
 

@@ -15,6 +15,7 @@ describe('model contracts', () => {
       providerKind: 'openai-compatible',
       displayName: 'Local Ollama',
       baseUrl: 'http://localhost:11434/v1',
+      providerOptions: {},
       hasCredential: false,
       headers: {},
       isLocal: true,
@@ -31,7 +32,7 @@ describe('model contracts', () => {
   it('validates capabilities, per-model eligibility, and outcome bounds', () => {
     const capabilities = {
       chat: true,
-      tools: true,
+      tools: null,
       vision: false,
       structuredOutput: true,
       streaming: true,
@@ -45,11 +46,26 @@ describe('model contracts', () => {
         modelId: '019535d4-2c00-7000-8000-000000000301/qwen2.5-coder',
         accountId: '019535d4-2c00-7000-8000-000000000301',
         providerModelId: 'qwen2.5-coder',
+        catalogModelId: null,
         displayName: 'Qwen Coder',
         capabilities,
         pricing: { inputPerMTokUsd: null, outputPerMTokUsd: null },
         metadataSource: 'provider',
         metadataUpdatedAt: '2026-09-28T00:00:00.000Z',
+        metadataFields: {
+          'capabilities.chat': {
+            source: 'provider-api',
+            updatedAt: '2026-09-28T00:00:00.000Z',
+            sourceUrl: 'https://provider.example/models',
+            confidence: 'high',
+          },
+          'capabilities.tools': {
+            source: 'legacy',
+            updatedAt: '2026-09-28T00:00:00.000Z',
+            sourceUrl: null,
+            confidence: 'low',
+          },
+        },
         enabled: true,
         tags: ['local'],
         workTypes: ['code'],
@@ -70,6 +86,37 @@ describe('model contracts', () => {
     ).toBe(false);
   });
 
+  it('accepts Azure deployment options without returning credentials', () => {
+    const account = {
+      accountId: '019535d4-2c00-7000-8000-000000000311',
+      providerKind: 'azure-openai',
+      displayName: 'Studio Azure',
+      baseUrl: 'https://studio.openai.azure.com/openai/v1',
+      providerOptions: { apiVersion: '2024-10-21' },
+      hasCredential: true,
+      headers: {},
+      isLocal: false,
+      privacy: 'cloud',
+      enabled: true,
+      createdAt: '2026-09-28T00:00:00.000Z',
+      updatedAt: '2026-09-28T00:00:00.000Z',
+    };
+    const validate = compile(ProviderAccountSchema);
+    expect(validate.check(account)).toBe(true);
+    expect(validate.check({ ...account, apiKey: 'must-not-be-returned' })).toBe(false);
+
+    const addAccount = compile(RpcMethods['provider/addAccount'].params);
+    expect(
+      addAccount.check({
+        providerKind: 'azure-openai',
+        displayName: 'Studio Azure',
+        baseUrl: account.baseUrl,
+        providerOptions: { apiVersion: '2024-10-21' },
+        apiKey: 'secret',
+      }),
+    ).toBe(true);
+  });
+
   it('requires exactly one model-completion selection mode', () => {
     const validate = compile(RpcMethods['model/complete'].params);
     const request = { messages: [] };
@@ -79,5 +126,19 @@ describe('model contracts', () => {
       false,
     );
     expect(validate.check({ request })).toBe(false);
+  });
+
+  it('supports partial manual metadata overrides and explicit unknown capabilities', () => {
+    const validate = compile(RpcMethods['model/update'].params);
+    expect(
+      validate.check({
+        modelId: 'account/model',
+        patch: {
+          capabilities: { tools: null },
+          pricing: { inputPerMTokUsd: 0.15 },
+          catalogModelId: null,
+        },
+      }),
+    ).toBe(true);
   });
 });

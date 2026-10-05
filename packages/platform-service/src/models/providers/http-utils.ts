@@ -17,7 +17,13 @@ export function providerHeaders(
 ): Headers {
   const headers = new Headers(account.headers);
   for (const [name, value] of Object.entries(overrides)) headers.set(name, value);
-  if (account.apiKey && !headers.has('authorization') && !headers.has('x-api-key')) {
+  if (
+    account.apiKey &&
+    !headers.has('authorization') &&
+    !headers.has('x-api-key') &&
+    !headers.has('api-key') &&
+    !headers.has('x-goog-api-key')
+  ) {
     headers.set('authorization', `Bearer ${account.apiKey}`);
   }
   return headers;

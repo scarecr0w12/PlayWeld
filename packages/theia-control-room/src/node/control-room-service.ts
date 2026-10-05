@@ -2,6 +2,10 @@ import { homedir } from 'node:os';
 import path from 'node:path';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import {
+  type A2AAgentCardSummary,
+  type A2AInboundClient,
+  type A2AInboundConfig,
+  type A2AOutboundConnection,
   type AccessMode,
   type DecisionAssessment,
   type ApprovalRequest,
@@ -988,6 +992,52 @@ export class ControlRoomServiceImpl implements ControlRoomService {
   async listMcpLogs(connectionId: string, limit?: number): Promise<McpConnectionLogEntry[]> {
     const client = await this.getPlatformClient();
     return (await client.call('mcp/log', { connectionId, limit })).entries;
+  }
+
+  async listA2AOutbound(): Promise<A2AOutboundConnection[]> {
+    return (await (await this.getPlatformClient()).call('a2a/outbound/list', {})).connections;
+  }
+
+  async upsertA2AOutbound(input: RpcParams<'a2a/outbound/upsert'>): Promise<A2AOutboundConnection> {
+    return (await this.getPlatformClient()).call('a2a/outbound/upsert', input);
+  }
+
+  async deleteA2AOutbound(connectionId: string): Promise<boolean> {
+    return (await this.getPlatformClient())
+      .call('a2a/outbound/delete', { connectionId })
+      .then((result) => result.removed);
+  }
+
+  async discoverA2AOutbound(connectionId: string): Promise<A2AAgentCardSummary> {
+    return (await this.getPlatformClient()).call('a2a/outbound/discover', { connectionId });
+  }
+
+  async getA2AInboundConfig(): Promise<A2AInboundConfig> {
+    return (await this.getPlatformClient()).call('a2a/inbound/get', {});
+  }
+
+  async configureA2AInbound(input: RpcParams<'a2a/inbound/configure'>): Promise<A2AInboundConfig> {
+    return (await this.getPlatformClient()).call('a2a/inbound/configure', input);
+  }
+
+  async listA2AInboundClients(): Promise<A2AInboundClient[]> {
+    return (await (await this.getPlatformClient()).call('a2a/inbound/clients', {})).clients;
+  }
+
+  async upsertA2AInboundClient(
+    input: RpcParams<'a2a/inbound/client/upsert'>,
+  ): Promise<A2AInboundClient> {
+    return (await this.getPlatformClient()).call('a2a/inbound/client/upsert', input);
+  }
+
+  async issueA2AInboundClientToken(
+    clientId: string,
+  ): Promise<RpcResult<'a2a/inbound/client/issueToken'>> {
+    return (await this.getPlatformClient()).call('a2a/inbound/client/issueToken', { clientId });
+  }
+
+  async revokeA2AInboundClient(clientId: string): Promise<A2AInboundClient> {
+    return (await this.getPlatformClient()).call('a2a/inbound/client/revoke', { clientId });
   }
 
   async listPlugins(projectId?: string): Promise<PluginListEntry[]> {

@@ -6,6 +6,16 @@ Generated from permanent [work records](docs/changes/README.md). Run `npm run ch
 
 No pending work records.
 
+## 0.10.0
+
+### Added
+
+- **Model Providers, Routing Metadata, and A2A Connectivity** (minor): Expanded provider account/model discovery and added bidirectional A2A v1.0 agent connectivity. The implementation distinguishes provider-declared, catalog-sourced, account-configured, manual, and unknown model metadata; keeps the existing access/broker boundaries for external task execution; and exposes account/A2A controls in the Theia Connections and Models & Routing views. [Full details and validation](docs/changes/2026-10-04-model-providers-routing-a2a.md).
+
+### Maintenance
+
+- **Prepare version 0.10.0** (none): Prepare version 0.10.0 from 0.9.0, retaining all pending work records in the changelog and detailed release notes. [Full details and validation](docs/changes/2026-10-04-release-0.10.0.md).
+
 ## 0.9.0
 
 ### Added

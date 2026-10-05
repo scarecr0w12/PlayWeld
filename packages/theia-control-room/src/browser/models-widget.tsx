@@ -24,6 +24,84 @@ import {
 } from '../common/models-view-model';
 import { MarkdownContent } from './markdown-content';
 
+const PROVIDER_PRESETS: Record<ProviderKind, { label: string; baseUrl: string; isLocal: boolean }> =
+  {
+    'openai-compatible': {
+      label: 'OpenAI-compatible endpoint',
+      baseUrl: 'http://localhost:11434/v1',
+      isLocal: true,
+    },
+    openai: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1', isLocal: false },
+    anthropic: { label: 'Anthropic', baseUrl: 'https://api.anthropic.com', isLocal: false },
+    'google-gemini': {
+      label: 'Google Gemini',
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+      isLocal: false,
+    },
+    openrouter: { label: 'OpenRouter', baseUrl: 'https://openrouter.ai/api/v1', isLocal: false },
+    xai: { label: 'xAI', baseUrl: 'https://api.x.ai/v1', isLocal: false },
+    mistral: { label: 'Mistral', baseUrl: 'https://api.mistral.ai/v1', isLocal: false },
+    deepseek: { label: 'DeepSeek', baseUrl: 'https://api.deepseek.com', isLocal: false },
+    groq: { label: 'Groq', baseUrl: 'https://api.groq.com/openai/v1', isLocal: false },
+    'azure-openai': {
+      label: 'Azure OpenAI',
+      baseUrl: 'https://your-resource.openai.azure.com',
+      isLocal: false,
+    },
+  };
+
+const BOOLEAN_CAPABILITIES = [
+  ['chat', 'Chat'],
+  ['tools', 'Tool calling'],
+  ['vision', 'Vision'],
+  ['structuredOutput', 'Structured output'],
+  ['streaming', 'Streaming'],
+  ['embeddings', 'Embeddings'],
+] as const;
+
+const TOKEN_LIMIT_CAPABILITIES = [
+  ['contextWindow', 'Context window'],
+  ['maxInputTokens', 'Maximum input tokens'],
+  ['maxOutputTokens', 'Maximum output tokens'],
+] as const;
+
+function parseHeaderLines(text: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const names = new Set<string>();
+  for (const [index, line] of text.split(/\r?\n/).entries()) {
+    const value = line.trim();
+    if (!value) continue;
+    const colon = value.indexOf(':');
+    if (colon < 1 || !value.slice(0, colon).trim()) {
+      throw new Error(`Invalid custom header on line ${index + 1}; use "Name: value".`);
+    }
+    const name = value.slice(0, colon).trim();
+    if (!/^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/.test(name)) {
+      throw new Error(`Invalid HTTP header name on line ${index + 1}.`);
+    }
+    if (names.has(name.toLowerCase())) {
+      throw new Error(`Duplicate HTTP header on line ${index + 1}.`);
+    }
+    names.add(name.toLowerCase());
+    headers[name] = value.slice(colon + 1).trim();
+  }
+  return headers;
+}
+
+function capabilityLabel(value: boolean | null): string {
+  return value === true ? 'Supported' : value === false ? 'Unsupported' : 'Unknown';
+}
+
+function safeMetadataUrl(value: string | null): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 @injectable()
 export class ModelsWidget extends ControlRoomReactWidget {
   static readonly ID = 'gamecrafter.models';
@@ -42,7 +120,22 @@ export class ModelsWidget extends ControlRoomReactWidget {
   private accountName = '';
   private accountBaseUrl = 'http://localhost:11434/v1';
   private accountApiKey = '';
+  private accountHeaders = '';
   private accountIsLocal = true;
+  private accountApiVersion = '2024-10-21';
+  private accountDeploymentName = '';
+  private accountCatalogModelId = '';
+  private editingAccountId?: string;
+  private editAccountName = '';
+  private editAccountBaseUrl = '';
+  private editAccountApiKey = '';
+  private editAccountHeaders = '';
+  private editAccountHeadersChanged = false;
+  private editAccountIsLocal = false;
+  private editAccountApiVersion = '2024-10-21';
+  private editAccountDeploymentName = '';
+  private editAccountCatalogModelId = '';
+  private editAccountRemoveCredentials = false;
   private poolName = '';
   private poolScope: 'platform' | 'project' = 'platform';
   private poolTargetKind: 'none' | 'agent' | 'task-type' = 'none';
@@ -164,13 +257,15 @@ export class ModelsWidget extends ControlRoomReactWidget {
               <select
                 aria-label="Provider kind"
                 value={this.accountKind}
-                onChange={(event) => {
-                  this.accountKind = event.currentTarget.value as ProviderKind;
-                  this.update();
-                }}
+                onChange={(event) =>
+                  this.selectAccountKind(event.currentTarget.value as ProviderKind)
+                }
               >
-                <option value="openai-compatible">OpenAI-compatible</option>
-                <option value="anthropic">Anthropic</option>
+                {(Object.keys(PROVIDER_PRESETS) as ProviderKind[]).map((kind) => (
+                  <option key={kind} value={kind}>
+                    {PROVIDER_PRESETS[kind].label}
+                  </option>
+                ))}
               </select>
             </label>
             <label>
@@ -197,7 +292,7 @@ export class ModelsWidget extends ControlRoomReactWidget {
               />
             </label>
             <label>
-              API key
+              API key (stored encrypted)
               <input
                 aria-label="Provider API key"
                 type="password"
@@ -208,6 +303,63 @@ export class ModelsWidget extends ControlRoomReactWidget {
                 }}
               />
             </label>
+            <label>
+              Custom headers (one per line, Name: value)
+              <textarea
+                aria-label="Provider custom headers"
+                value={this.accountHeaders}
+                onChange={(event) => {
+                  this.accountHeaders = event.currentTarget.value;
+                  this.update();
+                }}
+                rows={3}
+                spellCheck={false}
+              />
+            </label>
+            {this.accountKind === 'azure-openai' && (
+              <fieldset className="gamecrafter-models-provider-options">
+                <legend>Azure deployment options</legend>
+                <label>
+                  Deployment name (required for classic endpoint)
+                  <input
+                    aria-label="Azure deployment name"
+                    value={this.accountDeploymentName}
+                    onChange={(event) => {
+                      this.accountDeploymentName = event.currentTarget.value;
+                      this.update();
+                    }}
+                  />
+                </label>
+                {!this.accountBaseUrl.includes('/openai/v1') && (
+                  <label>
+                    Base model ID for catalog matching (optional)
+                    <input
+                      aria-label="Azure catalog model ID"
+                      value={this.accountCatalogModelId}
+                      onChange={(event) => {
+                        this.accountCatalogModelId = event.currentTarget.value;
+                        this.update();
+                      }}
+                    />
+                  </label>
+                )}
+                <label>
+                  API version
+                  <input
+                    aria-label="Azure API version"
+                    value={this.accountApiVersion}
+                    onChange={(event) => {
+                      this.accountApiVersion = event.currentTarget.value;
+                      this.update();
+                    }}
+                  />
+                </label>
+                <p className="gamecrafter-page-hint">
+                  The deployment name is the callable model ID. Catalog metadata is matched
+                  separately and does not prove a deployment is available.
+                </p>
+              </fieldset>
+            )}
             <label className="gamecrafter-models-checkbox-label">
               <input
                 aria-label="Local provider"
@@ -222,7 +374,13 @@ export class ModelsWidget extends ControlRoomReactWidget {
             </label>
             <button
               type="submit"
-              disabled={!this.accountName.trim() || !this.accountBaseUrl.trim()}
+              disabled={
+                !this.accountName.trim() ||
+                !this.accountBaseUrl.trim() ||
+                (this.accountKind === 'azure-openai' &&
+                  !this.accountBaseUrl.includes('/openai/v1') &&
+                  !this.accountDeploymentName.trim())
+              }
             >
               Add account
             </button>
@@ -248,7 +406,16 @@ export class ModelsWidget extends ControlRoomReactWidget {
                 <tbody>
                   {this.accounts.map((account) => (
                     <tr key={account.accountId}>
-                      <td>{account.providerKind}</td>
+                      <td>
+                        {PROVIDER_PRESETS[account.providerKind].label}
+                        {account.providerKind === 'azure-openai' && (
+                          <div className="gamecrafter-page-hint">
+                            {account.providerOptions.deploymentName
+                              ? `Deployment: ${account.providerOptions.deploymentName}`
+                              : 'Deployment aliases from v1 endpoint'}
+                          </div>
+                        )}
+                      </td>
                       <td>
                         {account.displayName}
                         <div className="gamecrafter-page-hint">
@@ -257,7 +424,14 @@ export class ModelsWidget extends ControlRoomReactWidget {
                       </td>
                       <td>{account.baseUrl}</td>
                       <td>{account.privacy}</td>
-                      <td>{account.hasCredential ? 'Yes' : 'No'}</td>
+                      <td>
+                        {account.hasCredential ? 'Stored' : 'None'}
+                        {Object.keys(account.headers).length > 0 && (
+                          <div className="gamecrafter-page-hint">
+                            {Object.keys(account.headers).length} custom header(s)
+                          </div>
+                        )}
+                      </td>
                       <td>
                         <input
                           aria-label={`Enable ${account.displayName}`}
@@ -273,6 +447,9 @@ export class ModelsWidget extends ControlRoomReactWidget {
                         />
                       </td>
                       <td>
+                        <button type="button" onClick={() => this.beginEditAccount(account)}>
+                          {this.editingAccountId === account.accountId ? 'Editing' : 'Edit'}
+                        </button>
                         <button type="button" onClick={() => void this.testAccount(account)}>
                           Test
                         </button>
@@ -293,6 +470,7 @@ export class ModelsWidget extends ControlRoomReactWidget {
                         {this.accountResults.get(account.accountId) && (
                           <span role="status">{this.accountResults.get(account.accountId)}</span>
                         )}
+                        {this.renderAccountEditor(account)}
                         {this.renderModelSelection(account)}
                       </td>
                     </tr>
@@ -337,7 +515,32 @@ export class ModelsWidget extends ControlRoomReactWidget {
                         {this.accounts.find((account) => account.accountId === model.accountId)
                           ?.displayName ?? model.accountId}
                       </td>
-                      <td>{model.providerModelId}</td>
+                      <td>
+                        <code>{model.providerModelId}</code>
+                        {model.catalogModelId && model.catalogModelId !== model.providerModelId && (
+                          <div className="gamecrafter-page-hint">
+                            Catalog model: <code>{model.catalogModelId}</code>
+                          </div>
+                        )}
+                        {this.accounts.find((account) => account.accountId === model.accountId)
+                          ?.providerKind === 'azure-openai' && (
+                          <label className="gamecrafter-page-hint">
+                            Azure base model ID
+                            <input
+                              key={`${model.modelId}-catalog-${model.catalogModelId ?? ''}`}
+                              aria-label={`Catalog model ID ${model.modelId}`}
+                              defaultValue={model.catalogModelId ?? ''}
+                              placeholder="Match the deployed base model"
+                              onBlur={(event) => {
+                                const catalogModelId = event.currentTarget.value.trim() || null;
+                                if (catalogModelId !== model.catalogModelId) {
+                                  void this.updateModel(model.modelId, { catalogModelId });
+                                }
+                              }}
+                            />
+                          </label>
+                        )}
+                      </td>
                       <td>
                         <input
                           key={model.displayName}
@@ -365,58 +568,41 @@ export class ModelsWidget extends ControlRoomReactWidget {
                       </td>
                       <td>
                         <details className="gamecrafter-page-advanced">
-                          <summary>
-                            {model.capabilities.tools ? 'Tools' : ''}
-                            {model.capabilities.vision ? ' · Vision' : ''}
-                            {model.capabilities.embeddings ? ' · Embeddings' : ''}
-                            {!model.capabilities.tools &&
-                            !model.capabilities.vision &&
-                            !model.capabilities.embeddings
-                              ? 'No declared capabilities'
-                              : ''}
-                          </summary>
+                          <summary>{this.capabilitySummary(model)}</summary>
+                          {this.renderCapabilitiesEditor(model)}
                           <dl className="gamecrafter-page-meta">
-                            <div className="gamecrafter-page-meta-item">
-                              <dt>Tools</dt>
-                              <dd>{model.capabilities.tools ? 'Yes' : 'No'}</dd>
-                            </div>
-                            <div className="gamecrafter-page-meta-item">
-                              <dt>Vision</dt>
-                              <dd>{model.capabilities.vision ? 'Yes' : 'No'}</dd>
-                            </div>
-                            <div className="gamecrafter-page-meta-item">
-                              <dt>Embeddings</dt>
-                              <dd>{model.capabilities.embeddings ? 'Yes' : 'No'}</dd>
-                            </div>
                             <div className="gamecrafter-page-meta-item">
                               <dt>Context window</dt>
                               <dd>
-                                {model.capabilities.contextWindow?.toLocaleString() ??
-                                  'Provider-managed'}
+                                {model.capabilities.contextWindow?.toLocaleString() ?? 'Unknown'}
                               </dd>
                             </div>
                             <div className="gamecrafter-page-meta-item">
                               <dt>Maximum input</dt>
                               <dd>
-                                {model.capabilities.maxInputTokens?.toLocaleString() ??
-                                  'Provider-managed'}
+                                {model.capabilities.maxInputTokens?.toLocaleString() ?? 'Unknown'}
                               </dd>
                             </div>
                             <div className="gamecrafter-page-meta-item">
                               <dt>Maximum output</dt>
                               <dd>
-                                {model.capabilities.maxOutputTokens?.toLocaleString() ??
-                                  'Provider-managed'}
-                              </dd>
-                            </div>
-                            <div className="gamecrafter-page-meta-item">
-                              <dt>Metadata source</dt>
-                              <dd>
-                                {model.metadataSource} · updated{' '}
-                                {new Date(model.metadataUpdatedAt).toLocaleString()}
+                                {model.capabilities.maxOutputTokens?.toLocaleString() ?? 'Unknown'}
                               </dd>
                             </div>
                           </dl>
+                          {model.capabilities.vision === true && (
+                            <p className="gamecrafter-page-hint">
+                              Provider-declared vision is not currently routable: the shared chat
+                              request accepts text only.
+                            </p>
+                          )}
+                          {model.capabilities.embeddings === true && (
+                            <p className="gamecrafter-page-hint">
+                              Embeddings are available through the dedicated embedding operation,
+                              not chat-model routing.
+                            </p>
+                          )}
+                          {this.renderFieldProvenance(model)}
                         </details>
                       </td>
                       <td>
@@ -424,7 +610,7 @@ export class ModelsWidget extends ControlRoomReactWidget {
                           <summary>{formatPricing(model.pricing)} · Edit routing metadata</summary>
                           {this.renderPricingEditor(model)}
                           <label>
-                            Work types{' '}
+                            Work types ({this.describeMetadataSource(model, 'workTypes')}){' '}
                             {this.renderStringListEditor(
                               model.modelId,
                               'workTypes',
@@ -432,7 +618,7 @@ export class ModelsWidget extends ControlRoomReactWidget {
                             )}
                           </label>
                           <label>
-                            Agent roles{' '}
+                            Agent roles ({this.describeMetadataSource(model, 'roles')}){' '}
                             {this.renderStringListEditor(model.modelId, 'roles', model.roles)}
                           </label>
                           <label>
@@ -710,7 +896,7 @@ export class ModelsWidget extends ControlRoomReactWidget {
       const value = rawValue.trim() === '' ? null : Number(rawValue);
       if (value !== null && (!Number.isFinite(value) || value < 0)) return;
       if (value === model.pricing[field]) return;
-      void this.updateModel(model.modelId, { pricing: { ...model.pricing, [field]: value } });
+      void this.updateModel(model.modelId, { pricing: { [field]: value } });
     };
     return (
       <div className="gamecrafter-models-pricing">
@@ -740,6 +926,272 @@ export class ModelsWidget extends ControlRoomReactWidget {
           />
         </label>
       </div>
+    );
+  }
+
+  private capabilitySummary(model: Model): string {
+    const supported = BOOLEAN_CAPABILITIES.filter(
+      ([field]) => model.capabilities[field] === true,
+    ).length;
+    const unknown = BOOLEAN_CAPABILITIES.filter(
+      ([field]) => model.capabilities[field] === null,
+    ).length;
+    return `${supported} supported · ${unknown} unknown · ${BOOLEAN_CAPABILITIES.length - supported - unknown} unsupported`;
+  }
+
+  private renderCapabilitiesEditor(model: Model): React.ReactNode {
+    return (
+      <fieldset className="gamecrafter-models-capabilities">
+        <legend>Declared capabilities</legend>
+        <p className="gamecrafter-page-hint">
+          Unknown clears a manual override; a later discovery can fill it from provider or catalog
+          metadata.
+        </p>
+        {BOOLEAN_CAPABILITIES.map(([field, label]) => (
+          <label key={field}>
+            {label}
+            <select
+              aria-label={`${label} capability ${model.modelId}`}
+              value={
+                model.capabilities[field] === null
+                  ? 'unknown'
+                  : model.capabilities[field]
+                    ? 'supported'
+                    : 'unsupported'
+              }
+              onChange={(event) => {
+                const value =
+                  event.currentTarget.value === 'unknown'
+                    ? null
+                    : event.currentTarget.value === 'supported';
+                void this.updateModel(model.modelId, { capabilities: { [field]: value } });
+              }}
+            >
+              <option value="unknown">Unknown (use discovered value on refresh)</option>
+              <option value="supported">{capabilityLabel(true)}</option>
+              <option value="unsupported">{capabilityLabel(false)}</option>
+            </select>
+          </label>
+        ))}
+        {TOKEN_LIMIT_CAPABILITIES.map(([field, label]) => (
+          <label key={field}>
+            {label} ({this.describeMetadataSource(model, `capabilities.${field}`)})
+            <input
+              key={`${model.modelId}-${field}-${model.capabilities[field] ?? ''}`}
+              aria-label={`${label} ${model.modelId}`}
+              type="number"
+              min={0}
+              step={1}
+              defaultValue={model.capabilities[field] ?? ''}
+              placeholder="Unknown"
+              onBlur={(event) => {
+                const rawValue = event.currentTarget.value.trim();
+                const currentValue = model.capabilities[field] ?? null;
+                if (!rawValue) {
+                  if (currentValue !== null) {
+                    void this.updateModel(model.modelId, { capabilities: { [field]: null } });
+                  }
+                  return;
+                }
+                const value = Number(rawValue);
+                if (!Number.isInteger(value) || value < 0 || value === currentValue) return;
+                void this.updateModel(model.modelId, { capabilities: { [field]: value } });
+              }}
+            />
+          </label>
+        ))}
+      </fieldset>
+    );
+  }
+
+  private renderFieldProvenance(model: Model): React.ReactNode {
+    const fields = Object.entries(model.metadataFields).sort(([left], [right]) =>
+      left.localeCompare(right),
+    );
+    return (
+      <details className="gamecrafter-page-advanced">
+        <summary>Per-field sources ({fields.length})</summary>
+        {fields.length === 0 ? (
+          <p>
+            No per-field source is recorded. Legacy metadata source: {model.metadataSource}; record
+            updated {new Date(model.metadataUpdatedAt).toLocaleString()}.
+          </p>
+        ) : (
+          <ul className="gamecrafter-models-field-sources">
+            {fields.map(([field, metadata]) => {
+              const sourceUrl = safeMetadataUrl(metadata.sourceUrl);
+              return (
+                <li key={field}>
+                  <strong>{field}</strong> · {metadata.source} · {metadata.confidence} confidence ·{' '}
+                  {new Date(metadata.updatedAt).toLocaleString()}
+                  {sourceUrl && (
+                    <>
+                      {' · '}
+                      <a href={sourceUrl} target="_blank" rel="noreferrer">
+                        Source
+                      </a>
+                    </>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </details>
+    );
+  }
+
+  private describeMetadataSource(model: Model, field: string): string {
+    const metadata = model.metadataFields[field];
+    if (!metadata) return 'unrestricted';
+    if (metadata.source === 'manual') return 'manual override';
+    if (metadata.source === 'account-config') return 'account setting';
+    if (metadata.source === 'derived') return `auto-applied · ${metadata.confidence} confidence`;
+    return `${metadata.source} · ${metadata.confidence} confidence`;
+  }
+
+  private renderAccountEditor(account: ProviderAccount): React.ReactNode {
+    if (this.editingAccountId !== account.accountId) return null;
+    const isAzure = account.providerKind === 'azure-openai';
+    const isAzureV1 = this.editAccountBaseUrl.includes('/openai/v1');
+    return (
+      <form
+        className="gamecrafter-models-account-editor"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void this.saveAccountEdit(account);
+        }}
+      >
+        <label>
+          Display name
+          <input
+            aria-label={`Edit account name ${account.displayName}`}
+            value={this.editAccountName}
+            onChange={(event) => {
+              this.editAccountName = event.currentTarget.value;
+              this.update();
+            }}
+          />
+        </label>
+        <label>
+          Base URL
+          <input
+            aria-label={`Edit account URL ${account.displayName}`}
+            value={this.editAccountBaseUrl}
+            onChange={(event) => {
+              this.editAccountBaseUrl = event.currentTarget.value;
+              this.update();
+            }}
+          />
+        </label>
+        <label>
+          Replace API key (leave blank to keep existing)
+          <input
+            aria-label={`Replace API key ${account.displayName}`}
+            type="password"
+            value={this.editAccountApiKey}
+            onChange={(event) => {
+              this.editAccountApiKey = event.currentTarget.value;
+              this.update();
+            }}
+          />
+        </label>
+        {account.hasCredential && (
+          <label className="gamecrafter-models-checkbox-label">
+            <input
+              aria-label={`Remove stored credentials ${account.displayName}`}
+              type="checkbox"
+              checked={this.editAccountRemoveCredentials}
+              onChange={(event) => {
+                this.editAccountRemoveCredentials = event.currentTarget.checked;
+                this.update();
+              }}
+            />
+            Remove stored credentials (API key and custom headers)
+          </label>
+        )}
+        <label>
+          Replace custom headers (secret values stay redacted)
+          <textarea
+            aria-label={`Edit custom headers ${account.displayName}`}
+            value={this.editAccountHeaders}
+            rows={3}
+            spellCheck={false}
+            onChange={(event) => {
+              this.editAccountHeaders = event.currentTarget.value;
+              this.editAccountHeadersChanged = true;
+              this.update();
+            }}
+          />
+        </label>
+        {isAzure && (
+          <fieldset className="gamecrafter-models-provider-options">
+            <legend>Azure deployment options</legend>
+            {!isAzureV1 && (
+              <label>
+                Deployment name
+                <input
+                  aria-label={`Azure deployment name ${account.displayName}`}
+                  value={this.editAccountDeploymentName}
+                  onChange={(event) => {
+                    this.editAccountDeploymentName = event.currentTarget.value;
+                    this.update();
+                  }}
+                />
+              </label>
+            )}
+            {!isAzureV1 && (
+              <label>
+                Base model ID for catalog matching
+                <input
+                  aria-label={`Azure catalog model ID ${account.displayName}`}
+                  value={this.editAccountCatalogModelId}
+                  onChange={(event) => {
+                    this.editAccountCatalogModelId = event.currentTarget.value;
+                    this.update();
+                  }}
+                />
+              </label>
+            )}
+            <label>
+              API version
+              <input
+                aria-label={`Azure API version ${account.displayName}`}
+                value={this.editAccountApiVersion}
+                onChange={(event) => {
+                  this.editAccountApiVersion = event.currentTarget.value;
+                  this.update();
+                }}
+              />
+            </label>
+          </fieldset>
+        )}
+        <label className="gamecrafter-models-checkbox-label">
+          <input
+            aria-label={`Local account ${account.displayName}`}
+            type="checkbox"
+            checked={this.editAccountIsLocal}
+            onChange={(event) => {
+              this.editAccountIsLocal = event.currentTarget.checked;
+              this.update();
+            }}
+          />
+          Local
+        </label>
+        <button
+          type="submit"
+          disabled={
+            !this.editAccountName.trim() ||
+            !this.editAccountBaseUrl.trim() ||
+            (isAzure && !isAzureV1 && !this.editAccountDeploymentName.trim())
+          }
+        >
+          Save account
+        </button>
+        <button type="button" onClick={() => this.cancelEditAccount()}>
+          Cancel
+        </button>
+      </form>
     );
   }
 
@@ -843,17 +1295,111 @@ export class ModelsWidget extends ControlRoomReactWidget {
     }
   }
 
+  private selectAccountKind(kind: ProviderKind): void {
+    const currentPreset = PROVIDER_PRESETS[this.accountKind];
+    if (this.accountBaseUrl === currentPreset.baseUrl) {
+      this.accountBaseUrl = PROVIDER_PRESETS[kind].baseUrl;
+    }
+    this.accountKind = kind;
+    this.accountIsLocal = PROVIDER_PRESETS[kind].isLocal;
+    if (kind === 'azure-openai') {
+      this.accountApiVersion = '2024-10-21';
+      this.accountDeploymentName = '';
+      this.accountCatalogModelId = '';
+    }
+    this.update();
+  }
+
+  private newAccountProviderOptions(): Record<string, string> {
+    if (this.accountKind !== 'azure-openai') return {};
+    return {
+      ...(this.accountDeploymentName.trim()
+        ? { deploymentName: this.accountDeploymentName.trim() }
+        : {}),
+      ...(this.accountCatalogModelId.trim()
+        ? { catalogModelId: this.accountCatalogModelId.trim() }
+        : {}),
+      ...(this.accountApiVersion.trim() ? { apiVersion: this.accountApiVersion.trim() } : {}),
+    };
+  }
+
   private async addAccount(): Promise<void> {
     await this.run(async () => {
       await this.controlRoomService.addProviderAccount({
         providerKind: this.accountKind,
         displayName: this.accountName.trim(),
         baseUrl: this.accountBaseUrl.trim(),
+        providerOptions: this.newAccountProviderOptions(),
         ...(this.accountApiKey ? { apiKey: this.accountApiKey } : {}),
+        headers: parseHeaderLines(this.accountHeaders),
         isLocal: this.accountIsLocal,
       });
       this.accountApiKey = '';
+      this.accountHeaders = '';
       this.accountName = '';
+    });
+  }
+
+  private beginEditAccount(account: ProviderAccount): void {
+    if (this.editingAccountId === account.accountId) {
+      this.cancelEditAccount();
+      return;
+    }
+    this.editingAccountId = account.accountId;
+    this.editAccountName = account.displayName;
+    this.editAccountBaseUrl = account.baseUrl;
+    this.editAccountApiKey = '';
+    this.editAccountHeaders = Object.entries(account.headers)
+      .map(([name, value]) => `${name}: ${value}`)
+      .join('\n');
+    this.editAccountHeadersChanged = false;
+    this.editAccountIsLocal = account.isLocal;
+    this.editAccountApiVersion = account.providerOptions.apiVersion ?? '2024-10-21';
+    this.editAccountDeploymentName = account.providerOptions.deploymentName ?? '';
+    this.editAccountCatalogModelId = account.providerOptions.catalogModelId ?? '';
+    this.editAccountRemoveCredentials = false;
+    this.update();
+  }
+
+  private cancelEditAccount(): void {
+    this.editingAccountId = undefined;
+    this.editAccountApiKey = '';
+    this.editAccountHeaders = '';
+    this.editAccountHeadersChanged = false;
+    this.editAccountRemoveCredentials = false;
+    this.update();
+  }
+
+  private async saveAccountEdit(account: ProviderAccount): Promise<void> {
+    await this.run(async () => {
+      const patch: Parameters<ControlRoomServiceApi['updateProviderAccount']>[1] = {
+        displayName: this.editAccountName.trim(),
+        baseUrl: this.editAccountBaseUrl.trim(),
+        isLocal: this.editAccountIsLocal,
+        ...(this.editAccountRemoveCredentials
+          ? { apiKey: null, headers: {} }
+          : this.editAccountApiKey
+            ? { apiKey: this.editAccountApiKey }
+            : {}),
+        ...(!this.editAccountRemoveCredentials && this.editAccountHeadersChanged
+          ? { headers: parseHeaderLines(this.editAccountHeaders) }
+          : {}),
+      };
+      if (account.providerKind === 'azure-openai') {
+        patch.providerOptions = {
+          ...(this.editAccountDeploymentName.trim()
+            ? { deploymentName: this.editAccountDeploymentName.trim() }
+            : {}),
+          ...(this.editAccountCatalogModelId.trim()
+            ? { catalogModelId: this.editAccountCatalogModelId.trim() }
+            : {}),
+          ...(this.editAccountApiVersion.trim()
+            ? { apiVersion: this.editAccountApiVersion.trim() }
+            : {}),
+        };
+      }
+      await this.controlRoomService.updateProviderAccount(account.accountId, patch);
+      this.cancelEditAccount();
     });
   }
 
@@ -927,7 +1473,7 @@ export class ModelsWidget extends ControlRoomReactWidget {
               >
                 {choices.map((model) => (
                   <option key={model.providerModelId} value={model.providerModelId}>
-                    {model.displayName} ({model.providerModelId})
+                    {model.displayName} ({model.providerModelId}) · {this.capabilitySummary(model)}
                   </option>
                 ))}
               </select>

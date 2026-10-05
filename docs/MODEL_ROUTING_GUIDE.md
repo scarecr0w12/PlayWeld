@@ -10,6 +10,16 @@ Open Models, add the intended account and discover its models. Inspect both acco
 
 Use the native model ID from discovery. Provider tool-name encoding is handled separately and is not a model-ID convention. Preserve existing account/model records while diagnosing restrictions; deleting and recreating everything can discard the configuration you need to understand. [Model registry](../packages/platform-service/src/models/model-registry.ts) owns discovery/configuration, and [provider implementations](../packages/platform-service/src/models/providers/) own the downstream request format.
 
+Named account presets cover OpenAI, Gemini Developer API, OpenRouter, xAI, Mistral, DeepSeek, Groq, Azure OpenAI, and Anthropic; generic OpenAI-compatible endpoints remain available for local servers and compatible gateways. Accounts accept API keys and custom headers; OAuth/device login and cloud-native identity are not supported in this scope. Azure's callable `providerModelId` is a deployment name; match its documented base model separately as `catalogModelId` before applying catalog limits or prices.
+
+## Capability evidence and unknown values
+
+Discovery combines account API declarations with exact-ID entries in the versioned, provider-sourced catalog. Each field shows source, freshness, and confidence. `Unknown` is not `Unsupported`: an API that returns only an ID leaves absent facts unknown. Setting a boolean/price/base-model field to Unknown clears its manual override so later discovery may repopulate it; explicit Supported/Unsupported and numeric values remain manual overrides. Catalog facts are published estimates, not a provider invoice; the system does not issue silent billable completion probes.
+
+Chat routing always requires `chat: true`; false or unknown models are not eligible for a completion, even if an applicable pool contains them. An explicitly required capability also has to be `true`. Provider-declared vision is visible but is not currently routeable because the common chat request accepts text only. Embeddings are executed through the separate `model/embed` operation, not chat selection. Do not set `vision` or `embeddings` as chat-route requirements to work around an unsupported request shape.
+
+`roles` and `workTypes` are hard allowlist restrictions, not descriptive tags. An empty list means unrestricted. Provider category names such as “Code model” or “Embedding model” are not automatically translated when they do not exactly match the local taxonomy; descriptive tags can still be populated without restricting the model. Leave a model unrestricted unless a high-confidence sourced mapping matches its actual role/work type.
+
 ## Understand eligibility before ranking
 
 The [router implementation](../packages/platform-service/src/models/router.ts) filters candidates before scoring them. A manual choice still has to survive the route's applicable filters.

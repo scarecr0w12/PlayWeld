@@ -1,4 +1,8 @@
 import type {
+  A2AAgentCardSummary,
+  A2AInboundClient,
+  A2AInboundConfig,
+  A2AOutboundConnection,
   AccessMode,
   DecisionAssessment,
   ApprovalRequest,
@@ -50,16 +54,13 @@ import type {
   PluginModulesResult,
   PluginWorkerState,
   Model,
-  ModelCapabilities,
   ModelPool,
   ModelPoolTarget,
-  ModelPricing,
   ProjectCreateInput,
   ProjectSummary,
   ProjectSkillEntry,
   ProviderAccount,
   RoleRecord,
-  ProviderKind,
   RouteDecision,
   RouteOutcome,
   RpcNotificationParams,
@@ -147,24 +148,10 @@ export interface ControlRoomService {
     reason?: string,
   ): Promise<ApprovalRequest>;
   listProviderAccounts(): Promise<ProviderAccount[]>;
-  addProviderAccount(input: {
-    providerKind: ProviderKind;
-    displayName: string;
-    baseUrl: string;
-    apiKey?: string;
-    headers?: Record<string, string>;
-    isLocal?: boolean;
-  }): Promise<ProviderAccount>;
+  addProviderAccount(input: RpcParams<'provider/addAccount'>): Promise<ProviderAccount>;
   updateProviderAccount(
     accountId: string,
-    patch: {
-      displayName?: string;
-      baseUrl?: string;
-      apiKey?: string | null;
-      headers?: Record<string, string>;
-      enabled?: boolean;
-      isLocal?: boolean;
-    },
+    patch: RpcParams<'provider/updateAccount'>['patch'],
   ): Promise<ProviderAccount>;
   removeProviderAccount(accountId: string): Promise<void>;
   testProviderAccount(accountId: string): Promise<{
@@ -178,18 +165,7 @@ export interface ControlRoomService {
     accountId: string,
     options?: { preview?: boolean; providerModelIds?: string[] },
   ): Promise<{ added: number; updated: number; models: Model[] }>;
-  updateModel(
-    modelId: string,
-    patch: {
-      enabled?: boolean;
-      displayName?: string;
-      capabilities?: Partial<ModelCapabilities>;
-      pricing?: ModelPricing;
-      tags?: string[];
-      workTypes?: string[];
-      roles?: string[];
-    },
-  ): Promise<Model>;
+  updateModel(modelId: string, patch: RpcParams<'model/update'>['patch']): Promise<Model>;
   listModelPools(projectId?: string): Promise<ModelPool[]>;
   createModelPool(input: {
     name: string;
@@ -348,6 +324,16 @@ export interface ControlRoomService {
     executionMode?: ExecutionMode,
   ): Promise<ToolDefinition>;
   listMcpLogs(connectionId: string, limit?: number): Promise<McpConnectionLogEntry[]>;
+  listA2AOutbound(): Promise<A2AOutboundConnection[]>;
+  upsertA2AOutbound(input: RpcParams<'a2a/outbound/upsert'>): Promise<A2AOutboundConnection>;
+  deleteA2AOutbound(connectionId: string): Promise<boolean>;
+  discoverA2AOutbound(connectionId: string): Promise<A2AAgentCardSummary>;
+  getA2AInboundConfig(): Promise<A2AInboundConfig>;
+  configureA2AInbound(input: RpcParams<'a2a/inbound/configure'>): Promise<A2AInboundConfig>;
+  listA2AInboundClients(): Promise<A2AInboundClient[]>;
+  upsertA2AInboundClient(input: RpcParams<'a2a/inbound/client/upsert'>): Promise<A2AInboundClient>;
+  issueA2AInboundClientToken(clientId: string): Promise<RpcResult<'a2a/inbound/client/issueToken'>>;
+  revokeA2AInboundClient(clientId: string): Promise<A2AInboundClient>;
   listPlugins(projectId?: string): Promise<PluginListEntry[]>;
   inspectPlugin(source: string): Promise<PluginInspection>;
   installPlugin(source: string, acceptCapabilities: PluginCapability[]): Promise<InstalledPlugin>;

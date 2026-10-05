@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
   minAccessMode,
+  isTerminal,
   type RoleRecord,
   type TaskCreateInput,
   type TaskEvent,
@@ -34,6 +35,8 @@ export interface TaskServiceEvents {
   taskQuestion(projectId: string, question: TaskQuestion): void;
 }
 
+type TaskEventListener = (event: TaskEvent) => void;
+
 interface ExternalQuestionWaiter {
   questionId?: string;
   resolve(answer: unknown): void;
@@ -43,6 +46,7 @@ interface ExternalQuestionWaiter {
 export class TaskService {
   private readonly runtimes = new Map<string, ProjectTaskRuntime>();
   private readonly externalQuestions = new Map<string, ExternalQuestionWaiter>();
+  private readonly taskEventListeners = new Map<string, Set<TaskEventListener>>();
   private supervisor?: TaskSupervisorPort;
   private roleResolver?: (roleName: string, projectId: string) => RoleRecord;
 
@@ -84,7 +88,10 @@ export class TaskService {
       settings: this.settings,
       handlers: this.handlers,
       onTaskChanged: (task) => this.events.taskChanged(projectId, task),
-      onTaskEvent: (event) => this.events.taskEvent(projectId, event),
+      onTaskEvent: (event) => {
+        this.publishTaskEvent(projectId, event);
+        this.events.taskEvent(projectId, event);
+      },
       onQuestion: (question) => this.events.taskQuestion(projectId, question),
       onTaskTerminal: (task) => {
         graph.onTaskTerminal(task);
@@ -251,6 +258,103 @@ export class TaskService {
     return this.runtime(projectId).graph.events(filter);
   }
 
+  recordExternalProgress(projectId: string, taskId: string, payload: unknown): TaskEvent {
+    this.get(projectId, taskId);
+    return this.runtime(projectId).graph.appendEvent(taskId, 'a2a.remote_progress', payload, 'a2a');
+  }
+
+  pendingQuestionForTask(projectId: string, taskId: string): TaskQuestion | undefined {
+    const task = this.get(projectId, taskId);
+    if (task.state !== 'waiting_input') return undefined;
+    const pending = this.runtime(projectId)
+      .graph.questions(true)
+      .filter((question) => question.taskId === taskId);
+    return pending.length === 1 ? pending[0] : undefined;
+  }
+
+  async continueExternalTask(
+    projectId: string,
+    taskId: string,
+    answer: string,
+  ): Promise<TaskRecord> {
+    const task = this.get(projectId, taskId);
+    if (task.state === 'waiting_input') {
+      const question = this.pendingQuestionForTask(projectId, taskId);
+      if (!question) {
+        throw new Error(`Task has no unambiguous pending question: ${taskId}`);
+      }
+      return this.answer(projectId, taskId, question.questionId, answer);
+    }
+    if (task.state === 'failed') return this.createAttempt(task, answer);
+    throw new Error(`Task cannot be continued without a pending question: ${taskId}`);
+  }
+
+  async *subscribeTaskEvents(
+    projectId: string,
+    taskId: string,
+    options: { afterSeq?: number; signal?: AbortSignal; bufferLimit?: number } = {},
+  ): AsyncGenerator<TaskEvent, void, undefined> {
+    this.get(projectId, taskId);
+    const key = `${projectId}:${taskId}`;
+    const limit = Math.max(1, Math.min(options.bufferLimit ?? 128, 512));
+    const queue: TaskEvent[] = [];
+    let overflow = false;
+    let wake: (() => void) | undefined;
+    const waiter: TaskEventListener = (event) => {
+      if (event.seq <= (options.afterSeq ?? 0)) return;
+      if (queue.length >= limit) {
+        overflow = true;
+        queue.length = 0;
+      } else if (!overflow) {
+        queue.push(event);
+      }
+      wake?.();
+      wake = undefined;
+    };
+    const listeners = this.taskEventListeners.get(key) ?? new Set<TaskEventListener>();
+    listeners.add(waiter);
+    this.taskEventListeners.set(key, listeners);
+    const onAbort = () => {
+      wake?.();
+      wake = undefined;
+    };
+    options.signal?.addEventListener('abort', onAbort, { once: true });
+    let lastSeq = options.afterSeq ?? 0;
+    try {
+      for (const event of this.eventsForProject(projectId, {
+        taskId,
+        afterSeq: lastSeq,
+        limit: limit,
+      })) {
+        if (event.seq <= lastSeq) continue;
+        lastSeq = event.seq;
+        yield event;
+      }
+      if (overflow) throw new Error('Task event stream exceeded its bounded buffer');
+      if (isTerminal(this.get(projectId, taskId).state)) return;
+      while (true) {
+        if (options.signal?.aborted) throw abortError(options.signal.reason);
+        if (overflow) throw new Error('Task event stream exceeded its bounded buffer');
+        const event = queue.shift();
+        if (event) {
+          if (event.seq <= lastSeq) continue;
+          lastSeq = event.seq;
+          yield event;
+          if (isTerminal(this.get(projectId, taskId).state)) return;
+          continue;
+        }
+        await new Promise<void>((resolve) => {
+          wake = resolve;
+          if (options.signal?.aborted) onAbort();
+        });
+      }
+    } finally {
+      options.signal?.removeEventListener('abort', onAbort);
+      listeners.delete(waiter);
+      if (listeners.size === 0) this.taskEventListeners.delete(key);
+    }
+  }
+
   async askQuestion(
     projectId: string,
     taskId: string,
@@ -313,6 +417,13 @@ export class TaskService {
     return this.projectIds()
       .flatMap((projectId) => this.runtime(projectId).graph.questions(pendingOnly))
       .sort((left, right) => left.askedAt.localeCompare(right.askedAt));
+  }
+
+  private publishTaskEvent(projectId: string, event: TaskEvent): void {
+    if (!event.taskId) return;
+    for (const listener of this.taskEventListeners.get(`${projectId}:${event.taskId}`) ?? []) {
+      listener(event);
+    }
   }
 }
 

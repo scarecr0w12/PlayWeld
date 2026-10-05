@@ -5,6 +5,7 @@ import {
   uuidv7,
   type Model,
   type ModelCapabilities,
+  type ModelFieldMetadata,
   type ModelPool,
   type ModelPoolTarget,
   type ModelPricing,
@@ -13,12 +14,19 @@ import {
 } from '@gamecrafter/contracts';
 import type { Database } from '../db/database';
 import { CredentialStore } from '../profile/credential-store';
-import type { ModelProvider, ModelProviderRegistry, ProviderRuntimeAccount } from './providers';
+import { enrichDiscoveredModel } from './model-catalog';
+import type {
+  DiscoveredModel,
+  ModelProvider,
+  ModelProviderRegistry,
+  ProviderRuntimeAccount,
+} from './providers';
 
 export interface AddProviderAccountInput {
   providerKind: ProviderKind;
   displayName: string;
   baseUrl: string;
+  providerOptions?: Record<string, string>;
   apiKey?: string;
   headers?: Record<string, string>;
   isLocal?: boolean;
@@ -27,6 +35,7 @@ export interface AddProviderAccountInput {
 export interface ProviderAccountPatch {
   displayName?: string;
   baseUrl?: string;
+  providerOptions?: Record<string, string>;
   apiKey?: string | null;
   headers?: Record<string, string>;
   enabled?: boolean;
@@ -36,8 +45,9 @@ export interface ProviderAccountPatch {
 export interface ModelUpdatePatch {
   enabled?: boolean;
   displayName?: string;
+  catalogModelId?: string | null;
   capabilities?: Partial<ModelCapabilities>;
-  pricing?: ModelPricing;
+  pricing?: Partial<ModelPricing>;
   tags?: string[];
   workTypes?: string[];
   roles?: string[];
@@ -67,6 +77,7 @@ interface ProviderAccountRow {
   credentialRef: string | null;
   hasCredential: number;
   headersJson: string;
+  providerOptionsJson: string;
   isLocal: number;
   privacy: ProviderAccount['privacy'];
   enabled: number;
@@ -78,6 +89,7 @@ interface ModelRow {
   modelId: string;
   accountId: string;
   providerModelId: string;
+  catalogModelId: string | null;
   displayName: string;
   capabilitiesJson: string;
   pricingJson: string;
@@ -87,6 +99,7 @@ interface ModelRow {
   tagsJson: string;
   workTypesJson: string;
   rolesJson: string;
+  metadataFieldsJson: string;
 }
 
 interface ModelPoolRow {
@@ -107,12 +120,15 @@ interface AccountSecrets {
 
 const accountColumns = `account_id AS accountId, provider_kind AS providerKind,
   display_name AS displayName, base_url AS baseUrl, credential_ref AS credentialRef,
-  has_credential AS hasCredential, headers AS headersJson, is_local AS isLocal,
+  provider_options AS providerOptionsJson, has_credential AS hasCredential,
+  headers AS headersJson, is_local AS isLocal,
   privacy, enabled, created_at AS createdAt, updated_at AS updatedAt`;
 const modelColumns = `model_id AS modelId, account_id AS accountId,
-  provider_model_id AS providerModelId, display_name AS displayName,
+  provider_model_id AS providerModelId, catalog_model_id AS catalogModelId,
+  display_name AS displayName,
   capabilities AS capabilitiesJson, pricing AS pricingJson,
   metadata_source AS metadataSource, metadata_updated_at AS metadataUpdatedAt,
+  metadata_fields AS metadataFieldsJson,
   enabled, tags AS tagsJson, work_types AS workTypesJson, roles AS rolesJson`;
 const poolColumns = `pool_id AS poolId, name, scope, project_id AS projectId,
   target AS targetJson, model_ids AS modelIdsJson,
@@ -170,8 +186,8 @@ export class ModelRegistry {
       .prepare(
         `INSERT INTO provider_accounts (
           account_id, provider_kind, display_name, base_url, credential_ref,
-          has_credential, headers, is_local, privacy, enabled, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          provider_options, has_credential, headers, is_local, privacy, enabled, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         accountId,
@@ -179,6 +195,7 @@ export class ModelRegistry {
         input.displayName,
         input.baseUrl,
         hasCredential ? credentialRef : null,
+        JSON.stringify(input.providerOptions ?? {}),
         Number(hasCredential),
         JSON.stringify(publicHeaders),
         Number(isLocal),
@@ -221,13 +238,14 @@ export class ModelRegistry {
     const updatedAt = this.now().toISOString();
     this.database
       .prepare(
-        `UPDATE provider_accounts SET display_name = ?, base_url = ?, credential_ref = ?,
-          has_credential = ?, headers = ?, is_local = ?, privacy = ?, enabled = ?, updated_at = ?
+        `UPDATE provider_accounts SET display_name = ?, base_url = ?, provider_options = ?,
+          credential_ref = ?, has_credential = ?, headers = ?, is_local = ?, privacy = ?, enabled = ?, updated_at = ?
          WHERE account_id = ?`,
       )
       .run(
         patch.displayName ?? current.displayName,
         patch.baseUrl ?? current.baseUrl,
+        JSON.stringify(patch.providerOptions ?? current.providerOptions),
         hasCredential ? credentialRef : null,
         Number(hasCredential),
         JSON.stringify(publicHeaders),
@@ -296,7 +314,9 @@ export class ModelRegistry {
         RpcErrorCode.ProviderRequestFailed,
       );
     }
-    const discovered = await provider.listModels(account);
+    const discovered = (await provider.listModels(account)).map((model) =>
+      enrichDiscoveredModel(account.providerKind, model),
+    );
     const selected = options.providerModelIds && new Set(options.providerModelIds);
     if (selected) {
       const available = new Set(discovered.map((item) => item.providerModelId));
@@ -317,30 +337,53 @@ export class ModelRegistry {
       if (selected && !selected.has(item.providerModelId)) continue;
       const modelId = `${accountId}/${item.providerModelId}`;
       const existing = this.getModel(modelId);
-      const model: Model = existing
-        ? existing.metadataSource === 'manual'
-          ? { ...existing, metadataUpdatedAt }
-          : {
-              ...existing,
-              displayName: item.displayName ?? existing.displayName,
-              capabilities: mergeCapabilities({ ...existing.capabilities, ...item.capabilities }),
-              pricing: mergePricing(item.pricing),
-              metadataUpdatedAt,
-            }
-        : {
-            modelId,
-            accountId,
-            providerModelId: item.providerModelId,
-            displayName: item.displayName ?? item.providerModelId,
-            capabilities: mergeCapabilities(item.capabilities),
-            pricing: mergePricing(item.pricing),
-            metadataSource: 'provider',
-            metadataUpdatedAt,
-            enabled: true,
-            tags: [],
-            workTypes: [],
-            roles: [],
-          };
+      const discoveredFields = discoveredFieldMetadata(item, metadataUpdatedAt);
+      const metadataFields = mergeFieldMetadata(existing?.metadataFields ?? {}, discoveredFields);
+      const canReplace = (field: string): boolean =>
+        discoveredFields[field] !== undefined &&
+        metadataPriority(discoveredFields[field]!.source) >=
+          metadataPriority(existing?.metadataFields[field]?.source ?? 'legacy');
+      const capabilities = mergeDiscoveredObject(
+        existing?.capabilities ?? emptyCapabilities(),
+        item.capabilities,
+        'capabilities',
+        canReplace,
+      );
+      const pricing = mergeDiscoveredObject(
+        existing?.pricing ?? mergePricing(),
+        item.pricing,
+        'pricing',
+        canReplace,
+      );
+      const model: Model = {
+        modelId,
+        accountId,
+        providerModelId: item.providerModelId,
+        catalogModelId:
+          item.catalogModelId !== undefined && canReplace('catalogModelId')
+            ? item.catalogModelId
+            : (existing?.catalogModelId ?? null),
+        displayName:
+          item.displayName !== undefined && canReplace('displayName')
+            ? item.displayName
+            : (existing?.displayName ?? item.displayName ?? item.providerModelId),
+        capabilities,
+        pricing,
+        metadataSource: Object.values(metadataFields).some((field) => field.source === 'manual')
+          ? 'manual'
+          : 'provider',
+        metadataUpdatedAt,
+        metadataFields,
+        enabled: existing?.enabled ?? true,
+        tags: mergeDiscoveredArray(existing?.tags ?? [], item.tags, 'tags', canReplace),
+        workTypes: mergeDiscoveredArray(
+          existing?.workTypes ?? [],
+          item.workTypes,
+          'workTypes',
+          canReplace,
+        ),
+        roles: mergeDiscoveredArray(existing?.roles ?? [], item.roles, 'roles', canReplace),
+      };
       models.push(model);
       if (options.preview) continue;
       this.writeModel(model);
@@ -353,16 +396,40 @@ export class ModelRegistry {
   updateModel(modelId: string, patch: ModelUpdatePatch): Model {
     const current = this.getModel(modelId);
     if (!current) throw new RpcError(`Model not found: ${modelId}`, RpcErrorCode.ModelNotFound);
-    const metadataManual = patch.capabilities !== undefined || patch.pricing !== undefined;
+    const metadataFields = { ...current.metadataFields };
+    const updatedAt = this.now().toISOString();
+    if (patch.displayName !== undefined)
+      metadataFields.displayName = manualFieldMetadata(updatedAt);
+    if (patch.catalogModelId !== undefined) {
+      if (patch.catalogModelId === null) delete metadataFields.catalogModelId;
+      else metadataFields.catalogModelId = manualFieldMetadata(updatedAt);
+    }
+    for (const key of Object.keys(patch.capabilities ?? {})) {
+      const field = `capabilities.${key}`;
+      if (patch.capabilities?.[key as keyof ModelCapabilities] === null)
+        delete metadataFields[field];
+      else metadataFields[field] = manualFieldMetadata(updatedAt);
+    }
+    for (const key of Object.keys(patch.pricing ?? {})) {
+      const field = `pricing.${key}`;
+      if (patch.pricing?.[key as keyof ModelPricing] === null) delete metadataFields[field];
+      else metadataFields[field] = manualFieldMetadata(updatedAt);
+    }
+    if (patch.tags !== undefined) metadataFields.tags = manualFieldMetadata(updatedAt);
+    if (patch.workTypes !== undefined) metadataFields.workTypes = manualFieldMetadata(updatedAt);
+    if (patch.roles !== undefined) metadataFields.roles = manualFieldMetadata(updatedAt);
     const updated: Model = {
       ...current,
       ...patch,
       capabilities: patch.capabilities
         ? mergeCapabilities({ ...current.capabilities, ...patch.capabilities })
         : current.capabilities,
-      pricing: patch.pricing ?? current.pricing,
-      metadataSource: metadataManual ? 'manual' : current.metadataSource,
-      metadataUpdatedAt: this.now().toISOString(),
+      pricing: patch.pricing ? { ...current.pricing, ...patch.pricing } : current.pricing,
+      metadataSource: Object.values(metadataFields).some((field) => field.source === 'manual')
+        ? 'manual'
+        : 'provider',
+      metadataUpdatedAt: updatedAt,
+      metadataFields,
     };
     this.writeModel(updated);
     return updated;
@@ -522,15 +589,18 @@ export class ModelRegistry {
     this.database
       .prepare(
         `INSERT INTO models (
-          model_id, account_id, provider_model_id, display_name, capabilities, pricing,
-          metadata_source, metadata_updated_at, enabled, tags, work_types, roles
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          model_id, account_id, provider_model_id, catalog_model_id, display_name,
+          capabilities, pricing, metadata_source, metadata_updated_at, metadata_fields,
+          enabled, tags, work_types, roles
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(model_id) DO UPDATE SET
+          catalog_model_id = excluded.catalog_model_id,
           display_name = excluded.display_name,
           capabilities = excluded.capabilities,
           pricing = excluded.pricing,
           metadata_source = excluded.metadata_source,
           metadata_updated_at = excluded.metadata_updated_at,
+          metadata_fields = excluded.metadata_fields,
           enabled = excluded.enabled,
           tags = excluded.tags,
           work_types = excluded.work_types,
@@ -540,11 +610,13 @@ export class ModelRegistry {
         model.modelId,
         model.accountId,
         model.providerModelId,
+        model.catalogModelId,
         model.displayName,
         JSON.stringify(model.capabilities),
         JSON.stringify(model.pricing),
         model.metadataSource,
         model.metadataUpdatedAt,
+        JSON.stringify(model.metadataFields),
         Number(model.enabled),
         JSON.stringify(model.tags),
         JSON.stringify(model.workTypes),
@@ -585,6 +657,7 @@ function accountFromRow(row: ProviderAccountRow): ProviderAccount {
     providerKind: row.providerKind,
     displayName: row.displayName,
     baseUrl: row.baseUrl,
+    providerOptions: JSON.parse(row.providerOptionsJson) as Record<string, string>,
     hasCredential: row.hasCredential === 1,
     headers: JSON.parse(row.headersJson) as Record<string, string>,
     isLocal: row.isLocal === 1,
@@ -596,15 +669,34 @@ function accountFromRow(row: ProviderAccountRow): ProviderAccount {
 }
 
 function modelFromRow(row: ModelRow): Model {
+  const storedFields = JSON.parse(row.metadataFieldsJson) as Record<string, ModelFieldMetadata>;
+  const legacy = Object.keys(storedFields).length === 0;
+  const rawCapabilities = JSON.parse(row.capabilitiesJson) as ModelCapabilities;
+  const capabilities =
+    legacy && row.metadataSource === 'provider'
+      ? (Object.fromEntries(
+          Object.entries(rawCapabilities).map(([key, value]) => [
+            key,
+            typeof value === 'boolean' ? null : value,
+          ]),
+        ) as ModelCapabilities)
+      : rawCapabilities;
   return {
     modelId: row.modelId,
     accountId: row.accountId,
     providerModelId: row.providerModelId,
+    catalogModelId: row.catalogModelId,
     displayName: row.displayName,
-    capabilities: JSON.parse(row.capabilitiesJson) as ModelCapabilities,
+    capabilities,
     pricing: JSON.parse(row.pricingJson) as ModelPricing,
     metadataSource: row.metadataSource,
     metadataUpdatedAt: row.metadataUpdatedAt,
+    metadataFields: legacy
+      ? legacyFieldMetadata(
+          row.metadataSource === 'manual' ? 'manual' : 'legacy',
+          row.metadataUpdatedAt,
+        )
+      : storedFields,
     enabled: row.enabled === 1,
     tags: JSON.parse(row.tagsJson) as string[],
     workTypes: JSON.parse(row.workTypesJson) as string[],
@@ -627,16 +719,20 @@ function poolFromRow(row: ModelPoolRow): ModelPool {
 
 function mergeCapabilities(discovered?: Partial<ModelCapabilities>): ModelCapabilities {
   return {
-    chat: true,
-    tools: false,
-    vision: false,
-    structuredOutput: false,
-    streaming: false,
-    embeddings: false,
+    chat: null,
+    tools: null,
+    vision: null,
+    structuredOutput: null,
+    streaming: null,
+    embeddings: null,
     contextWindow: null,
     maxOutputTokens: null,
     ...discovered,
   };
+}
+
+function emptyCapabilities(): ModelCapabilities {
+  return mergeCapabilities();
 }
 
 function mergePricing(discovered?: Partial<ModelPricing>): ModelPricing {
@@ -645,6 +741,129 @@ function mergePricing(discovered?: Partial<ModelPricing>): ModelPricing {
     outputPerMTokUsd: null,
     ...discovered,
   };
+}
+
+function discoveredFieldMetadata(
+  model: DiscoveredModel,
+  updatedAt: string,
+): Record<string, ModelFieldMetadata> {
+  const source = model.metadataSource ?? 'provider-api';
+  const confidence = model.confidence ?? (source === 'provider-catalog' ? 'high' : 'medium');
+  const metadata: Record<string, ModelFieldMetadata> = {};
+  const add = (field: string) => {
+    metadata[field] = model.fieldMetadata?.[field] ?? {
+      source,
+      updatedAt,
+      sourceUrl: model.sourceUrl ?? null,
+      confidence,
+    };
+  };
+
+  if (model.displayName !== undefined) add('displayName');
+  if (model.catalogModelId !== undefined) add('catalogModelId');
+  for (const [key, value] of Object.entries(model.capabilities ?? {})) {
+    if (value !== undefined && value !== null) add(`capabilities.${key}`);
+  }
+  for (const [key, value] of Object.entries(model.pricing ?? {})) {
+    if (value !== undefined && value !== null) add(`pricing.${key}`);
+  }
+  if (model.tags !== undefined) add('tags');
+  if (model.workTypes !== undefined) add('workTypes');
+  if (model.roles !== undefined) add('roles');
+  return metadata;
+}
+
+function mergeFieldMetadata(
+  existing: Record<string, ModelFieldMetadata>,
+  incoming: Record<string, ModelFieldMetadata>,
+): Record<string, ModelFieldMetadata> {
+  const result = { ...existing };
+  for (const [field, metadata] of Object.entries(incoming)) {
+    if (
+      metadataPriority(metadata.source) >= metadataPriority(existing[field]?.source ?? 'legacy')
+    ) {
+      result[field] = metadata;
+    }
+  }
+  return result;
+}
+
+function metadataPriority(source: ModelFieldMetadata['source']): number {
+  switch (source) {
+    case 'manual':
+      return 5;
+    case 'account-config':
+      return 4.5;
+    case 'provider-api':
+      return 4;
+    case 'provider-catalog':
+      return 3;
+    case 'derived':
+      return 2;
+    case 'legacy':
+      return 1;
+  }
+}
+
+function mergeDiscoveredObject<T extends object>(
+  current: T,
+  discovered: Partial<T> | undefined,
+  prefix: string,
+  canReplace: (field: string) => boolean,
+): T {
+  const result = { ...current };
+  for (const [key, value] of Object.entries(discovered ?? {})) {
+    if (value === undefined || value === null || !canReplace(`${prefix}.${key}`)) continue;
+    (result as Record<string, unknown>)[key] = value;
+  }
+  return result;
+}
+
+function mergeDiscoveredArray(
+  current: string[],
+  discovered: string[] | undefined,
+  field: string,
+  canReplace: (field: string) => boolean,
+): string[] {
+  if (discovered === undefined || !canReplace(field)) return current;
+  return [...new Set(discovered)];
+}
+
+function manualFieldMetadata(updatedAt: string): ModelFieldMetadata {
+  return { source: 'manual', updatedAt, sourceUrl: null, confidence: 'high' };
+}
+
+function legacyFieldMetadata(
+  source: 'manual' | 'legacy',
+  updatedAt: string,
+): Record<string, ModelFieldMetadata> {
+  const metadata: Record<string, ModelFieldMetadata> = {};
+  for (const field of [
+    'displayName',
+    'catalogModelId',
+    'capabilities.chat',
+    'capabilities.tools',
+    'capabilities.vision',
+    'capabilities.structuredOutput',
+    'capabilities.streaming',
+    'capabilities.embeddings',
+    'capabilities.contextWindow',
+    'capabilities.maxInputTokens',
+    'capabilities.maxOutputTokens',
+    'pricing.inputPerMTokUsd',
+    'pricing.outputPerMTokUsd',
+    'tags',
+    'workTypes',
+    'roles',
+  ]) {
+    metadata[field] = {
+      source,
+      updatedAt,
+      sourceUrl: null,
+      confidence: 'low',
+    };
+  }
+  return metadata;
 }
 
 function splitHeaders(

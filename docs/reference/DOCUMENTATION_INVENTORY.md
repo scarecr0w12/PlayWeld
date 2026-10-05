@@ -2,12 +2,13 @@
 
 Generated from built contracts, built setting definitions, and service source paths. Regenerate with `node scripts/generate-documentation-inventory.cjs`; check freshness with `--check`. Counts do not establish acceptance. The [coverage record](../DOCUMENTATION_COVERAGE.md) owns gaps and observed results.
 
-Request methods: **188**; notifications: **28**; settings: **85**; setting groups: **17**. Full names and test paths are in [the JSON inventory](documentation-inventory.json).
+Request methods: **198**; notifications: **28**; settings: **85**; setting groups: **17**. Full names and test paths are in [the JSON inventory](documentation-inventory.json).
 
 ## RPC families
 
 | Family | Methods | Guide | Implementation |
 | --- | --- | --- | --- |
+| a2a | 10 | [Guide](../USER_GUIDE.md) | [Source](../../packages/platform-service/src/a2a/) |
 | asset | 15 | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/assets/) |
 | audit | 1 | [Guide](../OPERATIONS_GUIDE.md) | [Source](../../packages/platform-service/src/tools/) |
 | backup | 19 | [Guide](../OPERATIONS_GUIDE.md) | [Source](../../packages/platform-service/src/backup/) |
@@ -61,6 +62,7 @@ Request methods: **188**; notifications: **28**; settings: **85**; setting group
 
 | Area | Explanation | Source | Test files |
 | --- | --- | --- | --- |
+| a2a | [Guide](../USER_GUIDE.md) | [Source](../../packages/platform-service/src/a2a/) | 2 |
 | agents | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/agents/) | 3 |
 | assets | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/assets/) | 5 |
 | backup | [Guide](../OPERATIONS_GUIDE.md) | [Source](../../packages/platform-service/src/backup/) | 9 |
@@ -73,7 +75,7 @@ Request methods: **188**; notifications: **28**; settings: **85**; setting group
 | ipc | [Guide](../SERVICE_RECIPES.md) | [Source](../../packages/platform-service/src/ipc/) | 3 |
 | knowledge | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/knowledge/) | 11 |
 | mcp | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/mcp/) | 13 |
-| models | [Guide](../USER_GUIDE.md) | [Source](../../packages/platform-service/src/models/) | 8 |
+| models | [Guide](../USER_GUIDE.md) | [Source](../../packages/platform-service/src/models/) | 10 |
 | plugins | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/plugins/) | 4 |
 | processes | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/processes/) | 1 |
 | profile | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/profile/) | 2 |

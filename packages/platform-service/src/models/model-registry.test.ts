@@ -40,6 +40,7 @@ describe('ModelRegistry', () => {
         providerKind: 'openai-compatible' as const,
         displayName: 'Selection',
         baseUrl: 'http://localhost:1234/v1',
+        providerOptions: {},
         isLocal: true,
       };
       const first = registry.addAccount(input);
@@ -91,14 +92,35 @@ describe('ModelRegistry', () => {
         inputPerMTokUsd: 0.2,
         outputPerMTokUsd: 0.4,
       };
+      let providerWorkTypes = ['code'];
+      let providerRoles = ['programmer'];
+      let providerCatalogModelId = 'catalog-model-from-provider';
       const provider: ModelProvider = {
         async listModels() {
           return [
             {
               providerModelId: 'test-model',
+              catalogModelId: providerCatalogModelId,
               displayName: providerName,
               capabilities: providerCapabilities,
               pricing: providerPricing,
+              workTypes: providerWorkTypes,
+              roles: providerRoles,
+              metadataSource: 'provider-api',
+              fieldMetadata: {
+                workTypes: {
+                  source: 'provider-catalog',
+                  updatedAt: now.toISOString(),
+                  sourceUrl: 'https://provider.example/models/test-model',
+                  confidence: 'high',
+                },
+                roles: {
+                  source: 'provider-catalog',
+                  updatedAt: now.toISOString(),
+                  sourceUrl: 'https://provider.example/models/test-model',
+                  confidence: 'high',
+                },
+              },
             },
           ];
         },
@@ -116,11 +138,13 @@ describe('ModelRegistry', () => {
         providerKind: 'openai-compatible',
         displayName: 'Test account',
         baseUrl: 'http://localhost:1234/v1',
+        providerOptions: { apiVersion: '2026-01-01' },
         apiKey: 'account-secret',
         headers: { 'X-Provider-Tag': 'local', Authorization: 'Bearer header-secret' },
         isLocal: true,
       });
       expect(account.hasCredential).toBe(true);
+      expect(account.providerOptions).toEqual({ apiVersion: '2026-01-01' });
       expect(account.headers.Authorization).toBe('[REDACTED]');
       expect('apiKey' in account).toBe(false);
       expect(registry.getRuntimeAccount(account.accountId)).toMatchObject({
@@ -133,26 +157,69 @@ describe('ModelRegistry', () => {
       const model = discovered.models[0]!;
       expect(model).toMatchObject({
         modelId: `${account.accountId}/test-model`,
-        capabilities: { chat: true, tools: false, vision: false },
+        catalogModelId: 'catalog-model-from-provider',
+        capabilities: { chat: true, tools: false, vision: null, structuredOutput: null },
         pricing: { inputPerMTokUsd: 0.2, outputPerMTokUsd: 0.4 },
         metadataSource: 'provider',
+        workTypes: ['code'],
+        roles: ['programmer'],
+        metadataFields: {
+          'capabilities.chat': { source: 'provider-api', confidence: 'medium' },
+          'pricing.inputPerMTokUsd': { source: 'provider-api', confidence: 'medium' },
+          workTypes: { source: 'provider-catalog', confidence: 'high' },
+          roles: { source: 'provider-catalog', confidence: 'high' },
+        },
       });
-      const manualCapabilities = { ...model.capabilities, tools: true };
-      const manualPricing = { inputPerMTokUsd: 0.1, outputPerMTokUsd: 0.3 };
       await registry.updateModel(model.modelId, {
-        capabilities: manualCapabilities,
-        pricing: manualPricing,
+        capabilities: { tools: true },
+        pricing: { inputPerMTokUsd: 0.1 },
+        catalogModelId: 'manual-catalog-model',
+        workTypes: ['manual-work-type'],
       });
       providerName = 'Changed provider name';
       providerCapabilities = { chat: false, tools: false };
       providerPricing = { inputPerMTokUsd: 0.8, outputPerMTokUsd: 1.2 };
+      providerWorkTypes = ['review'];
+      providerRoles = ['designer'];
+      providerCatalogModelId = 'new-provider-catalog-model';
       now = new Date('2026-09-28T00:01:00.000Z');
       const refreshed = await registry.discover(account.accountId);
       expect(refreshed).toMatchObject({ added: 0, updated: 1 });
       expect(refreshed.models[0]).toMatchObject({
-        capabilities: manualCapabilities,
-        pricing: manualPricing,
+        displayName: 'Changed provider name',
+        catalogModelId: 'manual-catalog-model',
+        capabilities: { chat: false, tools: true, vision: null, structuredOutput: null },
+        pricing: { inputPerMTokUsd: 0.1, outputPerMTokUsd: 1.2 },
+        workTypes: ['manual-work-type'],
+        roles: ['designer'],
         metadataSource: 'manual',
+        metadataFields: {
+          catalogModelId: { source: 'manual', confidence: 'high' },
+        },
+      });
+
+      const cleared = registry.updateModel(model.modelId, {
+        capabilities: { tools: null },
+        pricing: { inputPerMTokUsd: null },
+        catalogModelId: null,
+      });
+      expect(cleared.metadataFields['capabilities.tools']).toBeUndefined();
+      expect(cleared.metadataFields['pricing.inputPerMTokUsd']).toBeUndefined();
+      expect(cleared.metadataFields.catalogModelId).toBeUndefined();
+      providerCapabilities = { chat: true, tools: true };
+      providerPricing = { inputPerMTokUsd: 0.9, outputPerMTokUsd: 1.3 };
+      providerCatalogModelId = 'refreshed-catalog-model';
+      now = new Date('2026-09-28T00:02:00.000Z');
+      const reloaded = await registry.discover(account.accountId);
+      expect(reloaded.models[0]).toMatchObject({
+        catalogModelId: 'refreshed-catalog-model',
+        capabilities: { tools: true },
+        pricing: { inputPerMTokUsd: 0.9 },
+        metadataFields: {
+          'capabilities.tools': { source: 'provider-api' },
+          'pricing.inputPerMTokUsd': { source: 'provider-api' },
+          catalogModelId: { source: 'provider-api' },
+        },
       });
 
       const pool = registry.createPool({
@@ -166,6 +233,79 @@ describe('ModelRegistry', () => {
       expect(registry.listPools()).toMatchObject([{ poolId: pool.poolId, modelIds: [] }]);
       expect(registry.listAccounts()).toEqual([]);
       expect(registry.getRuntimeAccount(account.accountId)).toBeUndefined();
+    } finally {
+      database.close();
+      rmSync(profileDir, { recursive: true, force: true });
+    }
+  });
+
+  it('treats legacy provider-default false flags as unknown without changing manual false flags', () => {
+    const profileDir = mkdtempSync(path.join(tmpdir(), 'gc-model-legacy-'));
+    const database = Database.open(':memory:');
+    try {
+      migrate(database, profileMigrations);
+      const capabilities = JSON.stringify({
+        chat: true,
+        tools: false,
+        vision: false,
+        structuredOutput: false,
+        streaming: false,
+        embeddings: false,
+        contextWindow: null,
+        maxInputTokens: null,
+        maxOutputTokens: null,
+      });
+      const insert = database.prepare(
+        `INSERT INTO models (
+          model_id, account_id, provider_model_id, display_name, capabilities, pricing,
+          metadata_source, metadata_updated_at, enabled, tags, work_types, roles
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      );
+      insert.run(
+        'legacy-provider/model',
+        '019535d4-2c00-7000-8000-000000000301',
+        'model',
+        'Provider model',
+        capabilities,
+        '{"inputPerMTokUsd":null,"outputPerMTokUsd":null}',
+        'provider',
+        '2026-09-28T00:00:00.000Z',
+        1,
+        '[]',
+        '[]',
+        '[]',
+      );
+      insert.run(
+        'legacy-manual/model',
+        '019535d4-2c00-7000-8000-000000000301',
+        'model',
+        'Manual model',
+        capabilities,
+        '{"inputPerMTokUsd":null,"outputPerMTokUsd":null}',
+        'manual',
+        '2026-09-28T00:00:00.000Z',
+        1,
+        '[]',
+        '[]',
+        '[]',
+      );
+      const registry = new ModelRegistry(
+        database,
+        new CredentialStore(database, profileDir),
+        new ModelProviderRegistry(),
+      );
+
+      expect(registry.getModel('legacy-provider/model')).toMatchObject({
+        capabilities: { chat: null, tools: null, vision: null },
+        metadataFields: {
+          'capabilities.tools': { source: 'legacy', confidence: 'low' },
+        },
+      });
+      expect(registry.getModel('legacy-manual/model')?.capabilities).toMatchObject({
+        chat: true,
+        tools: false,
+        vision: false,
+      });
     } finally {
       database.close();
       rmSync(profileDir, { recursive: true, force: true });

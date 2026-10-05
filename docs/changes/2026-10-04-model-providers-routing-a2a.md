@@ -1,0 +1,125 @@
+# Model Providers, Routing Metadata, and A2A Connectivity
+
+**Release:** 0.10.0
+
+**Impact:** minor
+
+**Category:** Added
+
+## Summary
+
+Expanded provider account/model discovery and added bidirectional A2A v1.0 agent connectivity. The implementation distinguishes provider-declared, catalog-sourced, account-configured, manual, and unknown model metadata; keeps the existing access/broker boundaries for external task execution; and exposes account/A2A controls in the Theia Connections and Models & Routing views.
+
+## Details
+
+- Added named API adapters for OpenAI, Google Gemini Developer API, OpenRouter, xAI, Mistral, DeepSeek, Groq, and Azure OpenAI, retaining Anthropic and generic OpenAI-compatible endpoints. Account records remain independent and unlimited. Settings now provide provider endpoint presets, account edit/credential replacement/removal, and custom secret headers.
+- Added Azure API-version/deployment configuration. The callable deployment name remains `providerModelId`; its separately configured/reported base model uses `catalogModelId`. Catalog enrichment never treats an unmapped Azure deployment name as a base-model ID.
+- Added a versioned exact-ID provider catalog sourced to vendor model cards/APIs. Added researched capability/limit/price entries for exact current models where the source supports fields. Tiered or unrepresentable prices remain unknown; no silent paid completion probes are used. Research is recorded in [`docs/research/model-providers-and-a2a.md`](../research/model-providers-and-a2a.md).
+- Model capabilities now distinguish `true`, `false`, and `null`/unknown. Metadata provenance, source URL, timestamp, and confidence are stored per field; account configuration has its own provenance. Discovery preserves non-null manual overrides, while setting a field to unknown clears that override for later discovery. Legacy provider capability values without per-field evidence (including the old implicit `chat: true`) are shown as unverified/unknown; existing model/account IDs and encrypted credentials are preserved.
+- Completion routing requires known `chat: true`; unknown values do not satisfy required capability filters. Vision is recorded as a provider fact but is not routable while the common chat request is text-only. Embeddings use the dedicated embedding operation. Provider-category tags are descriptive; the reviewed provider categories do not exactly match builtin hard role/work-type restrictions, which therefore remain unrestricted unless a future sourced mapping matches.
+- Added A2A v1.0 outbound Agent Card discovery and brokered send, send-stream, resubscribe, get, cancel, and Project-scoped remote-task list operations. Existing remote task IDs require a matching ledger owner Project before get/cancel/resubscribe/send-with-task-ID, so possession of a remote ID alone grants no cross-Project authority. Stream updates are forwarded through the broker to persisted local `a2a.remote_progress` TaskEvents. The remote-task ledger records connection/task/context/status and local Project/task/call correlation for reconciliation. Static API-key, bearer, basic, and custom-header credentials are stored in the encrypted profile credential store; credential values are never returned to list/discovery results.
+- Granted `a2a/*` to the builtin coordinator role for external delegation; other builtin roles remain excluded by default and all calls still pass Project access/approval policy. Bounded streamed updates enter the local task event history when delegation runs in a local Task context.
+- Added an opt-in inbound A2A JSON-RPC gateway bound only to `127.0.0.1`. One-time bearer credentials are stored as hashes and have explicit Project/role/task-operation grants. The gateway maps task create/get/continue/stream/cancel to durable TaskService operations; continuation cannot approve broker requests. Revoking a token or changing a grant terminates active streams. Create and failed-task retry results are revalidated after deduplication against Project, role, A2A client, and context ownership.
+- Split inbound rate/concurrency controls so unauthenticated loopback requests cannot exhaust authenticated-client quotas. Agent Cards have a separate public-read limit. Host/Origin checks, no permissive CORS, request/stream/result bounds, and no credential forwarding across redirects/origins are enforced.
+- Added A2A agent and inbound gateway/client management to Connections; added provider account/header, Azure deployment/catalog mapping, tri-state capability, editable token limits, per-field provenance, and manual override/reset controls to Models & Routing.
+- Added profile database migrations 16–18 for provider options/model provenance/catalog IDs, A2A connections/client grants/task mappings, and durable outbound remote-task reconciliation. Added the stable `@a2a-js/sdk@1.2.1`, Express 5, and matching Express typings; the SDK version meets the repository's dependency-age rule.
+- Fixed the first packaged Windows smoke: Electron's broad `node_modules/**/src` exclusion had removed the JavaScript entry point used by `debug`, so the packaged service sidecar could not start. Packaging now excludes TypeScript source files without dropping runtime JavaScript, and the Windows verifier launches the packaged sidecar in an isolated profile to check token, lock, status, and shutdown.
+- Updated platform design, technical architecture, agent/tool contracts, the open decision register, development work packages, user/operations handbooks, routing guide, generated API/RPC/settings references, and documentation inventory. A2A support is documented as distinct from MCP; public/LAN ingress, OAuth/OIDC, gRPC, webhooks, inbound task listing, and non-text inbound parts remain unsupported.
+
+## Validation
+
+- `npm run build -w @gamecrafter/contracts` — passed.
+- `npm run typecheck -w @gamecrafter/platform-service` — passed.
+- `npm run lint -w @gamecrafter/platform-service` — passed.
+- `npm run typecheck -w @gamecrafter/theia-control-room` — passed.
+- `npm run lint -w @gamecrafter/theia-control-room` — passed.
+- `npm test -w @gamecrafter/contracts` — 20 files, 71 tests passed.
+- `npm test -w @gamecrafter/theia-control-room` — 25 files, 102 tests passed.
+- `npm test -w @gamecrafter/platform-service -- src/a2a/inbound-server.test.ts` — 10 tests passed, including token/grant revocation, failed-retry client/context dedup isolation, create-only grants, streamed artifacts, and rate isolation.
+- `npm test -w @gamecrafter/platform-service -- src/a2a/a2a-service.integration.test.ts src/profile/migrations.test.ts` — 13 tests passed.
+- `npm test -w @gamecrafter/platform-service -- src/roles/role-registry.test.ts` — 2 tests passed; confirms the coordinator's default A2A tool grant.
+- `npm test -w @gamecrafter/platform-service -- src/models/providers src/models/model-registry.test.ts src/models/model-catalog.test.ts src/models/router.test.ts src/models/models.integration.test.ts src/tools/tool-broker.integration.test.ts` — 8 files, 75 tests passed.
+- `npm test -w @gamecrafter/theia-control-room -- src/browser/connections-widget.test.tsx src/browser/operations-pages-layout.test.tsx` — 14 tests passed.
+- `npx turbo run build typecheck lint test --output-logs=errors-only --force` — 33 tasks successful with fresh execution.
+- `npm ci` — installed the exact synchronized lockfile.
+- `npm run release:version -- 0.10.0`, `node scripts/check-release-version.cjs v0.10.0`, `npm run changelog:check -- --release --base HEAD`, and `npm run test:changes` — passed; all nine workspaces and the lockfile are versioned `0.10.0`.
+- `npm run package:win -w @gamecrafter/control-room` — passed Windows x64 packaging, native-module/skill/license checks, and the new packaged service token/lock/status/start/stop verifier.
+- `node scripts/stage-windows-release.cjs` — staged `Windows-Release/0.10.0`; the initial broken staging/package is preserved separately as `0.10.0-pre-fix` and was caused by the prior `node_modules/**/src` exclusion dropping `debug/src/index.js`. `local-build.json` records the pre-commit source commit, changed-path hashes, and `workingTreeDirty: true`.
+- `node scripts/verify-documentation-electron.cjs` with `GAMECRAFTER_ELECTRON_EXECUTABLE` set to the staged executable — 30 packaged Electron UI/service checks passed with zero renderer errors, including authenticated `service/info` version verification. It used an isolated versioned test profile; it did not install over the normal profile.
+- `npm run format:check` — passed.
+- `bash scripts/check-links.sh` — passed.
+- `node scripts/generate-system-reference.cjs --check` — passed.
+- `node scripts/generate-documentation-inventory.cjs --check` — passed.
+- `git diff --check` — passed.
+- `npm audit --workspace=@gamecrafter/platform-service --omit=dev` found no production service advisories. `npm audit --omit=dev` reports 43 existing low/moderate advisories in the pinned Theia/Electron dependency tree; the full development tree reports 56 advisories. No broad override/downgrade was applied because the repo pins Theia packages together. No Windows signing certificate or GitHub signing key is configured, so the local installer and planned GitHub testing prerelease are unsigned; the packaged test manifest labels this explicitly.
+- Provider and A2A fixtures use local fake endpoints; no authenticated live provider calls or live external A2A interoperability were performed. Published catalog data is not proof that a configured account has permission/deployment access. An outbound send interrupted before the remote task ID is returned cannot be automatically reconciled or retried. Automated background catalog refresh cadence and exact local role/work-type mappings remain open. The local Electron run is not installer install/uninstall, upgrade, rollback, or stable-release acceptance.
+
+## Files
+
+- `.kilo/plans/1791138077002-model-providers-routing-a2a.md`
+- `apps/control-room/electron-builder.yml`
+- `apps/control-room/scripts/verify-windows-native.cjs`
+- `docs/API_REFERENCE.md`
+- `CHANGELOG.md`
+- `docs/CONTROL_ROOM_HANDBOOK.md`
+- `docs/DEVELOPMENT_PLAN.md`
+- `docs/RELEASE_GUIDE.md`
+- `docs/MODEL_ROUTING_GUIDE.md`
+- `docs/OPEN_DECISIONS.md`
+- `docs/PLATFORM_DESIGN.md`
+- `docs/SKILLS_AGENTS_AND_TOOLS.md`
+- `docs/STATUS.md`
+- `docs/SYSTEM_ARCHITECTURE.md`
+- `docs/TECHNICAL_ARCHITECTURE.md`
+- `docs/USER_GUIDE.md`
+- `docs/changes/2026-10-04-model-providers-routing-a2a.md`
+- `docs/reference/DOCUMENTATION_INVENTORY.md`
+- `docs/reference/documentation-inventory.json`
+- `docs/reference/rpc-schemas.json`
+- `docs/research/model-providers-and-a2a.md`
+- `package-lock.json`
+- `packages/contracts/src/a2a/index.ts`
+- `packages/contracts/src/a2a/schema.ts`
+- `packages/contracts/src/index.ts`
+- `packages/contracts/src/models/models.test.ts`
+- `packages/contracts/src/models/schema.ts`
+- `packages/contracts/src/rpc/protocol.ts`
+- `packages/platform-service/package.json`
+- `packages/platform-service/src/a2a/a2a-service.integration.test.ts`
+- `packages/platform-service/src/a2a/a2a-service.ts`
+- `packages/platform-service/src/a2a/inbound-server.test.ts`
+- `packages/platform-service/src/a2a/inbound-server.ts`
+- `packages/platform-service/src/models/completion-service.ts`
+- `packages/platform-service/src/models/model-catalog.test.ts`
+- `packages/platform-service/src/models/model-catalog.ts`
+- `packages/platform-service/src/models/model-registry.test.ts`
+- `packages/platform-service/src/models/model-registry.ts`
+- `packages/platform-service/src/models/models.integration.test.ts`
+- `packages/platform-service/src/models/providers/anthropic.ts`
+- `packages/platform-service/src/models/providers/google-gemini.ts`
+- `packages/platform-service/src/models/providers/http-utils.ts`
+- `packages/platform-service/src/models/providers/index.ts`
+- `packages/platform-service/src/models/providers/openai-compatible.ts`
+- `packages/platform-service/src/models/providers/openai-providers.ts`
+- `packages/platform-service/src/models/providers/provider-adapters.test.ts`
+- `packages/platform-service/src/models/providers/provider.ts`
+- `packages/platform-service/src/models/providers/providers.test.ts`
+- `packages/platform-service/src/models/router.test.ts`
+- `packages/platform-service/src/models/router.ts`
+- `packages/platform-service/src/profile/migrations.test.ts`
+- `packages/platform-service/src/profile/migrations.ts`
+- `packages/platform-service/roles/coordinator/ROLE.md`
+- `packages/platform-service/src/roles/role-registry.test.ts`
+- `packages/platform-service/src/service.ts`
+- `packages/platform-service/src/tasks/task-service.integration.test.ts`
+- `packages/platform-service/src/tasks/task-service.ts`
+- `packages/platform-service/src/tools/tool-broker.ts`
+- `packages/platform-service/src/tools/tool-broker.integration.test.ts`
+- `packages/platform-service/src/tools/tool-registry.ts`
+- `packages/theia-control-room/src/browser/connections-widget.test.tsx`
+- `packages/theia-control-room/src/browser/connections-widget.tsx`
+- `packages/theia-control-room/src/browser/models-widget.tsx`
+- `packages/theia-control-room/src/browser/operations-pages-layout.test.tsx`
+- `packages/theia-control-room/src/common/control-room-protocol.ts`
+- `packages/theia-control-room/src/node/control-room-service.ts`
+- `scripts/generate-documentation-inventory.cjs`

@@ -1,5 +1,7 @@
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 
 const expectedVersion = JSON.parse(
   fs.readFileSync(path.join(__dirname, '..', 'package.json')),
@@ -60,6 +62,13 @@ const serviceDir = path.join(appDir, 'node_modules', '@gamecrafter', 'platform-s
 const servicePackage = JSON.parse(fs.readFileSync(path.join(serviceDir, 'package.json')));
 if (servicePackage.version !== expectedVersion)
   throw new Error('Packaged service version does not match the application.');
+const serviceCli = path.join(serviceDir, 'lib', 'cli.js');
+if (!fs.existsSync(serviceCli)) throw new Error(`Packaged service CLI is missing: ${serviceCli}`);
+const debugPackageDir = path.join(appDir, 'node_modules', 'debug');
+const debugPackage = JSON.parse(fs.readFileSync(path.join(debugPackageDir, 'package.json'), 'utf8'));
+const debugEntry = path.resolve(debugPackageDir, debugPackage.main ?? 'index.js');
+if (!fs.existsSync(debugEntry))
+  throw new Error(`Packaged dependency entry point is missing: ${debugEntry}`);
 const { BUNDLED_SKILL_NAMES } = require(path.join(serviceDir, 'lib/skills/bundled-skill-names.js'));
 const authoredRoot = path.resolve(__dirname, '../../../.agents/skills');
 for (const name of BUNDLED_SKILL_NAMES) {
@@ -74,6 +83,63 @@ for (const name of ['LICENSE.GameCrafter.txt', 'NOTICE.GameCrafter.txt']) {
   if (!fs.existsSync(path.join(unpackedDir, 'resources', name)))
     throw new Error(`Missing distribution notice: ${name}`);
 }
+verifyPackagedServiceStartup(unpackedDir, serviceCli);
 process.stdout.write(
   `Packaged version ${expectedVersion}, service and ${BUNDLED_SKILL_NAMES.length} bundled skills verified.\n`,
 );
+
+function verifyPackagedServiceStartup(unpackedDir, serviceCli) {
+  const executable = path.join(unpackedDir, 'GameCrafter.exe');
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'playweld-packaged-service-'));
+  const env = {
+    PATH: process.env.PATH ?? '',
+    SYSTEMROOT: process.env.SYSTEMROOT ?? '',
+    WINDIR: process.env.WINDIR ?? '',
+    TEMP: process.env.TEMP ?? os.tmpdir(),
+    TMP: process.env.TMP ?? os.tmpdir(),
+    APPDATA: process.env.APPDATA ?? '',
+    LOCALAPPDATA: process.env.LOCALAPPDATA ?? '',
+    USERPROFILE: process.env.USERPROFILE ?? os.homedir(),
+    GAMECRAFTER_PROFILE_DIR: profileDir,
+    ELECTRON_RUN_AS_NODE: '1',
+  };
+  const tokenPath = path.join(profileDir, 'service.token');
+  const lockPath = path.join(profileDir, 'service.lock');
+  const runCli = (command) =>
+    spawnSync(executable, [serviceCli, command], {
+      cwd: appDir,
+      env,
+      encoding: 'utf8',
+      timeout: 20_000,
+      windowsHide: true,
+    });
+
+  try {
+    const start = runCli('start');
+    if (start.error || start.status !== 0) {
+      throw new Error(
+        `Packaged platform service failed to start: ${start.stderr || start.error?.message || `exit ${start.status}`}`,
+      );
+    }
+    if (!fs.existsSync(tokenPath) || !fs.existsSync(lockPath)) {
+      throw new Error('Packaged platform service did not create its isolated token and lock files.');
+    }
+    const status = runCli('status');
+    if (status.error || status.status !== 0 || !status.stdout.includes('running')) {
+      throw new Error(
+        `Packaged platform service status failed: ${status.stderr || status.error?.message || status.stdout}`,
+      );
+    }
+    const stop = runCli('stop');
+    if (stop.error || stop.status !== 0) {
+      throw new Error(
+        `Packaged platform service shutdown failed: ${stop.stderr || stop.error?.message || stop.stdout}`,
+      );
+    }
+    if (fs.existsSync(lockPath)) throw new Error('Packaged platform service did not remove its lock.');
+    process.stdout.write('Packaged platform-service startup and shutdown verified.\n');
+  } finally {
+    if (fs.existsSync(lockPath) && fs.existsSync(tokenPath)) runCli('stop');
+    if (!fs.existsSync(lockPath)) fs.rmSync(profileDir, { recursive: true, force: true });
+  }
+}

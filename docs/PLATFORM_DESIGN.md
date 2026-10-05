@@ -66,6 +66,8 @@ A free, open-source system that runs locally and coordinates game development fr
 - Run agent orchestration in the local platform service. Persist recursive task trees, discussion, checkpoints, retries, and results in Project-local SQLite; supervised worker processes execute agents and tools. Do not require a separate workflow server.
 - Coordinate independent parallel code and documentation edits in isolated Git worktrees. Use resource locks for live engine and asset operations that share a session or mutable workspace; detect and resolve conflicts before integrating work.
 - Agents may dynamically spawn agents, sub-agents, and deeper descendants to delegate work. They may form a swarm of concurrent specialists when the task warrants it; delegation is not limited to agents launched directly by the central coordinator.
+- **Confirmed by the user, 2026-10-04:** Use A2A v1.0 for both outbound delegation to external agents and inbound control by local harnesses. “ACP” is not a separate new protocol here. Inbound A2A is loopback-only and limited to authorized Project task operations; LAN/WAN exposure is deferred.
+- **Confirmed by the user, 2026-10-04:** Inbound A2A clients have explicit Project, role, task-kind, and task-operation grants. Task work uses the existing scheduler, access modes, broker, and approval rules; an external harness cannot use A2A to reach settings, credentials, arbitrary tools, or service administration.
 - Agents across a swarm can communicate directly through a centralized **Project discussion board** for organized questions, proposals, findings, and coordination.
 - The user can read and participate in the same board and mark decisions as binding guidance for the Project.
 - Binding board decisions trigger updates to the relevant Markdown canon or design records under the Project's current access mode.
@@ -92,7 +94,10 @@ A free, open-source system that runs locally and coordinates game development fr
 - Routing outcomes from all Projects on the user's installation contribute to one shared learning history. Selection still considers task type, engine, genre, agent, and Project context rather than treating every observation as interchangeable.
 - A smaller manager model helps decide which eligible model should handle a task. The routing system must retain explicit eligibility and access rules so a model decision cannot override user configuration.
 - Connect to cloud model providers and separately running local model servers. Do not bundle a model inference runtime with the desktop application; keep the platform installation slim.
-- Support different models for different tasks, including planning, coding, narrative, asset prompting, review, and validation. The exact provider integrations and scoring formula remain open.
+- **Confirmed by the user, 2026-10-04:** Add first-class model provider integrations for OpenAI, Google Gemini, OpenRouter, xAI, Mistral, DeepSeek, Groq, and Azure OpenAI, retaining Anthropic and generic OpenAI-compatible local/cloud endpoints. Provider accounts use API keys and custom headers; OAuth, device login, and cloud-native IAM are outside this scope.
+- **Confirmed by the user, 2026-10-04:** Discover model capabilities and enrich incomplete provider responses from a PlayWeld-maintained, provider-sourced catalog. Store field-level provenance/freshness, distinguish unknown from unsupported, preserve manual overrides, and never run billable completion probes silently. Unknown capability data must not make a model eligible for a required capability.
+- **Confirmed by the user, 2026-10-04:** Automatically apply only high-confidence deterministic routing mappings; absent or mismatched evidence must not be interpreted as incompatibility. Current provider categories do not exactly match builtin hard role/work-type restrictions, so leave those restrictions unrestricted unless a sourced catalog rule matches the local taxonomy; descriptive catalog tags remain non-restrictive.
+- Support different models for different tasks, including planning, coding, narrative, asset prompting, review, and validation. The full provider ecosystem and scoring formula remain open.
 
 ## Proposed architecture for discussion
 
@@ -221,6 +226,10 @@ Use the delegated best-practice judgment for these details, record the choice, a
 | Full access really permits high-risk actions; Restricted and Ask always are also available | Confirmed | User discussion |
 | Multiple providers, accounts, selectable models, agent/work eligibility, dynamic routing using provider and local feedback data | Confirmed | User discussion |
 | Connect to cloud providers or separately running local model servers; do not bundle an inference runtime | Confirmed | User discussion |
+| First-class OpenAI, Gemini, OpenRouter, xAI, Mistral, DeepSeek, Groq, and Azure OpenAI integrations, retaining Anthropic and generic OpenAI-compatible endpoints; use API keys/custom headers, not OAuth/IAM | Confirmed | User discussion, 2026-10-04 |
+| Source and timestamp model metadata per field; distinguish unknown from unsupported, preserve manual overrides, and do not run silent billable probes | Confirmed | User discussion, 2026-10-04 |
+| Apply routing restrictions automatically only from high-confidence deterministic mappings; do not assign or infer a restriction from unmatched provider categories | Confirmed | User discussion, 2026-10-04 |
+| Use bidirectional A2A v1.0; inbound listener is loopback-only, per-client Project/role/task scoped, and uses the existing task/broker/approval boundary | Confirmed | User discussion, 2026-10-04 |
 | Chat and backend work offer Auto selection from user-configured provider/account model pools scoped by agent and/or task type | Confirmed | User discussion |
 | Auto routing favors quality by default under configurable cost and latency limits | Confirmed | User discussion |
 | Auto intersects agent and task-type model pools and reports an empty intersection instead of silently widening eligibility | Confirmed | User discussion |

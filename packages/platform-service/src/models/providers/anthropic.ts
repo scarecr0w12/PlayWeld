@@ -40,7 +40,7 @@ export class AnthropicProvider implements ModelProvider {
   async listModels(account: ProviderRuntimeAccount): Promise<DiscoveredModel[]> {
     const response = await providerJson<AnthropicModelList>(
       account,
-      endpoint(account.baseUrl, 'v1/models'),
+      anthropicEndpoint(account, 'v1/models'),
       { method: 'GET', headers: this.headers(account) },
     );
     if (!Array.isArray(response.data)) return [];
@@ -50,6 +50,9 @@ export class AnthropicProvider implements ModelProvider {
         providerModelId: String(entry.id),
         ...(typeof entry.display_name === 'string' ? { displayName: entry.display_name } : {}),
         capabilities: {
+          chat: true,
+          streaming: true,
+          embeddings: false,
           ...pickCapabilities(objectValue(entry.capabilities) ? entry.capabilities : {}),
           ...(typeof entry.max_input_tokens === 'number'
             ? { maxInputTokens: entry.max_input_tokens }
@@ -96,7 +99,7 @@ export class AnthropicProvider implements ModelProvider {
     const startedAt = Date.now();
     const response = await providerJson<AnthropicMessage>(
       account,
-      endpoint(account.baseUrl, 'v1/messages'),
+      anthropicEndpoint(account, 'v1/messages'),
       {
         method: 'POST',
         headers: this.headers(account),
@@ -145,7 +148,7 @@ export class AnthropicProvider implements ModelProvider {
     hooks: ProviderCompletionHooks,
   ): Promise<ChatResponse> {
     const startedAt = Date.now();
-    const response = await providerFetch(account, endpoint(account.baseUrl, 'v1/messages'), {
+    const response = await providerFetch(account, anthropicEndpoint(account, 'v1/messages'), {
       method: 'POST',
       headers: this.headers(account),
       body: JSON.stringify(this.requestBody(model, request, true)),
@@ -377,11 +380,25 @@ function pickCapabilities(value: Record<string, unknown>): Partial<Model['capabi
   ] as const) {
     if (typeof value[key] === 'boolean') result[key] = value[key];
   }
+  for (const [modelKey, apiKey] of [
+    ['vision', 'image_input'],
+    ['structuredOutput', 'structured_outputs'],
+  ] as const) {
+    const support = value[apiKey];
+    if (objectValue(support) && typeof support.supported === 'boolean') {
+      result[modelKey] = support.supported;
+    }
+  }
   for (const key of ['contextWindow', 'maxInputTokens', 'maxOutputTokens'] as const) {
     if (typeof value[key] === 'number' || value[key] === null)
       result[key] = value[key] as number | null;
   }
   return result;
+}
+
+function anthropicEndpoint(account: ProviderRuntimeAccount, path: string): string {
+  const baseUrl = account.baseUrl.replace(/\/v1\/?$/i, '');
+  return endpoint(baseUrl, path);
 }
 
 function pickPricing(value: Record<string, unknown>): Partial<Model['pricing']> {

@@ -511,20 +511,39 @@ describe('Anthropic provider', () => {
   it('reads independent input/output capacity and rejects an unknown mandatory output limit', async () => {
     let completions = 0;
     const server = createServer((request, response) => {
-      if (request.method !== 'GET') completions++;
+      if (request.method === 'GET') expect(request.url).toBe('/v1/models');
+      else completions++;
       response.end(
         JSON.stringify({
-          data: [{ id: 'reported', max_input_tokens: 1_000_000, max_tokens: 128_000 }],
+          data: [
+            {
+              id: 'reported',
+              max_input_tokens: 1_000_000,
+              max_tokens: 128_000,
+              capabilities: {
+                image_input: { supported: true },
+                structured_outputs: { supported: false },
+              },
+            },
+          ],
         }),
       );
     });
     try {
-      const account = anthropicAccount(await listen(server));
+      const account = anthropicAccount(`${await listen(server)}/v1`);
       const provider = new AnthropicProvider();
       expect(await provider.listModels(account)).toEqual([
         {
           providerModelId: 'reported',
-          capabilities: { maxInputTokens: 1_000_000, maxOutputTokens: 128_000 },
+          capabilities: {
+            chat: true,
+            streaming: true,
+            embeddings: false,
+            vision: true,
+            structuredOutput: false,
+            maxInputTokens: 1_000_000,
+            maxOutputTokens: 128_000,
+          },
         },
       ]);
       const unknown = model(account, 'unknown');
@@ -617,7 +636,11 @@ describe('Anthropic provider', () => {
       const account = anthropicAccount(baseUrl);
       const provider = new AnthropicProvider();
       expect(await provider.listModels(account)).toEqual([
-        { providerModelId: 'claude-fake', displayName: 'Claude Fake', capabilities: {} },
+        {
+          providerModelId: 'claude-fake',
+          displayName: 'Claude Fake',
+          capabilities: { chat: true, streaming: true, embeddings: false },
+        },
       ]);
       const modelData = model(account, 'claude-fake');
       const response = await provider.complete(account, modelData, chatRequest(), {
@@ -780,6 +803,7 @@ function openAIAccount(baseUrl: string): ProviderRuntimeAccount {
     providerKind: 'openai-compatible',
     displayName: 'Fake OpenAI-compatible',
     baseUrl,
+    providerOptions: {},
     hasCredential: true,
     headers: {},
     isLocal: true,
@@ -797,6 +821,7 @@ function anthropicAccount(baseUrl: string): ProviderRuntimeAccount {
     providerKind: 'anthropic',
     displayName: 'Fake Anthropic',
     baseUrl,
+    providerOptions: {},
     hasCredential: true,
     headers: {},
     isLocal: true,
@@ -813,6 +838,7 @@ function model(account: ProviderRuntimeAccount, providerModelId: string): Model 
     modelId: `${account.accountId}/${providerModelId}`,
     accountId: account.accountId,
     providerModelId,
+    catalogModelId: null,
     displayName: providerModelId,
     capabilities: {
       chat: true,
@@ -827,6 +853,7 @@ function model(account: ProviderRuntimeAccount, providerModelId: string): Model 
     pricing: { inputPerMTokUsd: 1, outputPerMTokUsd: 2 },
     metadataSource: 'provider',
     metadataUpdatedAt: '2026-09-28T00:00:00.000Z',
+    metadataFields: {},
     enabled: true,
     tags: [],
     workTypes: [],

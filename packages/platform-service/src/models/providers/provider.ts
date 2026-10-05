@@ -3,6 +3,7 @@ import type {
   ChatResponse,
   Model,
   ModelCapabilities,
+  ModelFieldMetadata,
   ModelPricing,
   ProviderAccount,
 } from '@gamecrafter/contracts';
@@ -13,9 +14,17 @@ export interface ProviderRuntimeAccount extends ProviderAccount {
 
 export interface DiscoveredModel {
   providerModelId: string;
+  catalogModelId?: string;
   displayName?: string;
   capabilities?: Partial<ModelCapabilities>;
   pricing?: Partial<ModelPricing>;
+  fieldMetadata?: Record<string, ModelFieldMetadata>;
+  tags?: string[];
+  workTypes?: string[];
+  roles?: string[];
+  metadataSource?: Extract<ModelFieldMetadata['source'], 'provider-api' | 'provider-catalog'>;
+  sourceUrl?: string | null;
+  confidence?: ModelFieldMetadata['confidence'];
 }
 
 export interface ProviderCompletionHooks {

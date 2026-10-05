@@ -39,44 +39,67 @@ interface OpenAIChatResponse {
   };
 }
 
+export interface OpenAICompatibleProviderOptions {
+  defaultBaseUrl?: string;
+  modelsPath?: (account: ProviderRuntimeAccount) => string;
+  chatPath?: (account: ProviderRuntimeAccount, model: Model) => string;
+  embeddingsPath?: (account: ProviderRuntimeAccount, model: Model) => string;
+  headers?: (account: ProviderRuntimeAccount) => Record<string, string>;
+  parseModels?: (
+    entries: Record<string, unknown>[],
+    account: ProviderRuntimeAccount,
+  ) => DiscoveredModel[];
+  supportsEmbeddings?: boolean;
+  mapChatRequest?: (
+    account: ProviderRuntimeAccount,
+    model: Model,
+    body: Record<string, unknown>,
+  ) => Record<string, unknown>;
+}
+
 export class OpenAICompatibleProvider implements ModelProvider {
   private readonly completionTokenModels = new Set<string>();
   private readonly toolReasoningNoneModels = new Set<string>();
 
+  constructor(private readonly options: OpenAICompatibleProviderOptions = {}) {}
+
   async listModels(account: ProviderRuntimeAccount): Promise<DiscoveredModel[]> {
     const response = await providerJson<OpenAIModelList>(
       account,
-      endpoint(account.baseUrl, 'models'),
-      { method: 'GET' },
+      endpoint(this.baseUrl(account), this.options.modelsPath?.(account) ?? 'models'),
+      { method: 'GET', headers: this.headers(account) },
     );
     const entries = Array.isArray(response.data)
       ? response.data
       : Array.isArray(response.models)
         ? response.models
         : [];
-    return entries
-      .filter((entry) => typeof entry.id === 'string')
-      .map((entry) => ({
-        providerModelId: String(entry.id),
-        ...(typeof entry.display_name === 'string'
-          ? { displayName: entry.display_name }
-          : typeof entry.name === 'string'
-            ? { displayName: entry.name }
+    return (
+      this.options.parseModels?.(entries, account) ??
+      entries
+        .filter((entry) => typeof entry.id === 'string')
+        .map((entry) => ({
+          providerModelId: String(entry.id),
+          ...(typeof entry.display_name === 'string'
+            ? { displayName: entry.display_name }
+            : typeof entry.name === 'string'
+              ? { displayName: entry.name }
+              : {}),
+          capabilities: {
+            ...pickCapabilities(objectValue(entry.capabilities) ? entry.capabilities : {}),
+            ...(typeof entry.context_length === 'number'
+              ? { contextWindow: entry.context_length }
+              : {}),
+            ...(objectValue(entry.top_provider) &&
+            typeof entry.top_provider.max_completion_tokens === 'number'
+              ? { maxOutputTokens: entry.top_provider.max_completion_tokens }
+              : {}),
+          },
+          ...(objectValue(entry.pricing)
+            ? { pricing: pickPricing(entry.pricing as Record<string, unknown>) }
             : {}),
-        capabilities: {
-          ...pickCapabilities(objectValue(entry.capabilities) ? entry.capabilities : {}),
-          ...(typeof entry.context_length === 'number'
-            ? { contextWindow: entry.context_length }
-            : {}),
-          ...(objectValue(entry.top_provider) &&
-          typeof entry.top_provider.max_completion_tokens === 'number'
-            ? { maxOutputTokens: entry.top_provider.max_completion_tokens }
-            : {}),
-        },
-        ...(objectValue(entry.pricing)
-          ? { pricing: pickPricing(entry.pricing as Record<string, unknown>) }
-          : {}),
-      }));
+        }))
+    );
   }
 
   async complete(
@@ -100,14 +123,27 @@ export class OpenAICompatibleProvider implements ModelProvider {
     model: Model,
     inputs: string[],
   ): Promise<{ vectors: number[][]; usage: ChatResponse['usage'] }> {
+    if (this.options.supportsEmbeddings === false) {
+      throw new RpcError(
+        'This provider adapter does not expose an embeddings API',
+        RpcErrorCode.ProviderUnsupportedFeature,
+      );
+    }
     const response = await providerJson<{
       data?: { embedding?: number[]; index?: number }[];
       usage?: { prompt_tokens?: number };
-    }>(account, endpoint(account.baseUrl, 'embeddings'), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ model: model.providerModelId, input: inputs }),
-    });
+    }>(
+      account,
+      endpoint(
+        this.baseUrl(account),
+        this.options.embeddingsPath?.(account, model) ?? 'embeddings',
+      ),
+      {
+        method: 'POST',
+        headers: { ...this.headers(account), 'content-type': 'application/json' },
+        body: JSON.stringify({ model: model.providerModelId, input: inputs }),
+      },
+    );
     if (!Array.isArray(response.data)) {
       throw new RpcError(
         'Provider embedding response did not contain vectors',
@@ -131,12 +167,19 @@ export class OpenAICompatibleProvider implements ModelProvider {
   ): Promise<ChatResponse> {
     const startedAt = Date.now();
     const response = await this.sendChat(account, model, this.requestBody(model, request), (body) =>
-      providerJson<OpenAIChatResponse>(account, endpoint(account.baseUrl, 'chat/completions'), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-        signal: hooks.signal,
-      }),
+      providerJson<OpenAIChatResponse>(
+        account,
+        endpoint(
+          this.baseUrl(account),
+          this.options.chatPath?.(account, model) ?? 'chat/completions',
+        ),
+        {
+          method: 'POST',
+          headers: { ...this.headers(account), 'content-type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: hooks.signal,
+        },
+      ),
     );
     const choice = response.choices?.[0];
     if (!choice || !choice.message) {
@@ -180,12 +223,19 @@ export class OpenAICompatibleProvider implements ModelProvider {
       stream_options: { include_usage: true },
     };
     const response = await this.sendChat(account, model, body, (wireBody) =>
-      providerFetch(account, endpoint(account.baseUrl, 'chat/completions'), {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(wireBody),
-        signal: hooks.signal,
-      }),
+      providerFetch(
+        account,
+        endpoint(
+          this.baseUrl(account),
+          this.options.chatPath?.(account, model) ?? 'chat/completions',
+        ),
+        {
+          method: 'POST',
+          headers: { ...this.headers(account), 'content-type': 'application/json' },
+          body: JSON.stringify(wireBody),
+          signal: hooks.signal,
+        },
+      ),
     );
     if (!response.body) {
       throw new RpcError(
@@ -308,7 +358,9 @@ export class OpenAICompatibleProvider implements ModelProvider {
       }
       if (reasoningNone) wireBody.reasoning_effort = 'none';
       try {
-        const result = await send(wireBody);
+        const result = await send(
+          this.options.mapChatRequest?.(account, model, wireBody) ?? wireBody,
+        );
         if (modernLimit) this.completionTokenModels.add(key);
         if (reasoningNone) this.toolReasoningNoneModels.add(key);
         return result;
@@ -323,7 +375,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
     }
   }
 
-  private requestBody(model: Model, request: ChatRequest): Record<string, unknown> {
+  protected requestBody(model: Model, request: ChatRequest): Record<string, unknown> {
     return {
       model: model.providerModelId,
       messages: request.messages.map(openAiMessage),
@@ -357,6 +409,14 @@ export class OpenAICompatibleProvider implements ModelProvider {
           : {}),
       ...(request.stream ? { stream: true } : {}),
     };
+  }
+
+  protected baseUrl(account: ProviderRuntimeAccount): string {
+    return account.baseUrl.trim() || this.options.defaultBaseUrl || '';
+  }
+
+  private headers(account: ProviderRuntimeAccount): Record<string, string> {
+    return this.options.headers?.(account) ?? {};
   }
 }
 

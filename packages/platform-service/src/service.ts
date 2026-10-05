@@ -82,6 +82,7 @@ import { UpdateStore } from './updates/update-store';
 import { UpdateService } from './updates/update-service';
 import { SqliteUpdateDismissalStore } from './updates/update-dismissal-store';
 import { projectMigrations } from './projects/migrations';
+import { A2AService } from './a2a/a2a-service';
 
 export interface PlatformServiceOptions {
   paths: ServicePaths;
@@ -122,6 +123,7 @@ export class PlatformService {
     private readonly workerSupervisor: WorkerSupervisor,
     private readonly toolBroker: ToolBroker,
     private readonly mcpConnections: McpConnectionManager,
+    private readonly a2aService: A2AService,
     private readonly boardMaintenanceScheduler: BoardMaintenanceScheduler,
     private readonly pluginHost: PluginHost,
     private readonly knowledgeService: KnowledgeService,
@@ -349,6 +351,14 @@ export class PlatformService {
         }
       },
       approvalTimeoutOverrideMs: options.approvalTimeoutOverrideMs,
+    });
+    const a2aService = new A2AService({
+      database,
+      credentials,
+      projects: profile,
+      roles: roleRegistry,
+      tasks: taskService,
+      tools: toolRegistry,
     });
     const workerSupervisor = new WorkerSupervisor({
       tasks: taskService,
@@ -623,6 +633,19 @@ export class PlatformService {
           projectId: params.projectId,
           sessionId: sessionIdForRequest(params.sessionId, context.sessionId),
         }),
+      'a2a/outbound/list': () => ({ connections: a2aService.listOutbound() }),
+      'a2a/outbound/upsert': (input) => a2aService.upsertOutbound(input),
+      'a2a/outbound/delete': ({ connectionId }) => ({
+        removed: a2aService.deleteOutbound(connectionId),
+      }),
+      'a2a/outbound/discover': ({ connectionId }) => a2aService.discover(connectionId),
+      'a2a/inbound/get': () => a2aService.getInboundConfig(),
+      'a2a/inbound/configure': ({ enabled, port }) => a2aService.configureInbound(enabled, port),
+      'a2a/inbound/clients': () => ({ clients: a2aService.listInboundClients() }),
+      'a2a/inbound/client/upsert': (input) => a2aService.upsertInboundClient(input),
+      'a2a/inbound/client/issueToken': ({ clientId }) =>
+        a2aService.issueInboundClientToken(clientId),
+      'a2a/inbound/client/revoke': ({ clientId }) => a2aService.revokeInboundClient(clientId),
       'change/request': (input) => {
         const request = changes().request(input);
         server.broadcast('change/requestChanged', { projectId: request.projectId, request });
@@ -1233,6 +1256,7 @@ export class PlatformService {
       workerSupervisor,
       toolBroker,
       mcpConnections,
+      a2aService,
       boardMaintenance(),
       pluginHost,
       knowledge(),
@@ -1275,7 +1299,17 @@ export class PlatformService {
       await toolBroker.recoverOnStart();
       workerSupervisor.recoverOnStart();
       await server.listen();
+      try {
+        await a2aService.startConfigured();
+      } catch (error) {
+        const config = a2aService.getInboundConfig();
+        await a2aService.configureInbound(false, config.port).catch(() => undefined);
+        log('warn', 'A2A loopback listener disabled after startup failure', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
     } catch (error) {
+      await a2aService.stop();
       await server.close();
       projectDatabases.close();
       database.close();
@@ -1302,6 +1336,7 @@ export class PlatformService {
     if (this.stopped) return;
     this.stopped = true;
     if (this.updateTimer) clearInterval(this.updateTimer);
+    await this.a2aService.stop();
     await this.assetService.stop();
     await this.backupService.stop();
     await this.knowledgeService.stop();

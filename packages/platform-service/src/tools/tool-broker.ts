@@ -497,6 +497,17 @@ export class ToolBroker {
         accessMode: record.accessMode,
         callId: record.callId,
         signal: controller.signal,
+        ...(record.taskId
+          ? {
+              reportProgress: (progress: unknown) => {
+                this.options.tasks.recordExternalProgress(record.projectId, record.taskId!, {
+                  toolId: record.toolId,
+                  callId: record.callId,
+                  progress,
+                });
+              },
+            }
+          : {}),
       };
       const result: ToolExecutionResult = await tool.handler(context, input);
       const costUsd = result.costUsd === null ? null : (result.costUsd ?? null);

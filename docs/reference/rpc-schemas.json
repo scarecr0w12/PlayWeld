@@ -13461,6 +13461,1030 @@
         }
       }
     },
+    "a2a/outbound/list": {
+      "params": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {}
+      },
+      "result": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["connections"],
+        "properties": {
+          "connections": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "schemaVersion",
+                "connectionId",
+                "name",
+                "endpoint",
+                "authKind",
+                "credentialConfigured",
+                "agentCard",
+                "createdAt",
+                "updatedAt"
+              ],
+              "properties": {
+                "schemaVersion": {
+                  "const": 1,
+                  "type": "number"
+                },
+                "connectionId": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "name": {
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                "endpoint": {
+                  "minLength": 1,
+                  "maxLength": 2048,
+                  "type": "string"
+                },
+                "authKind": {
+                  "anyOf": [
+                    {
+                      "const": "none",
+                      "type": "string"
+                    },
+                    {
+                      "const": "api-key",
+                      "type": "string"
+                    },
+                    {
+                      "const": "bearer",
+                      "type": "string"
+                    },
+                    {
+                      "const": "basic",
+                      "type": "string"
+                    },
+                    {
+                      "const": "custom-headers",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "credentialConfigured": {
+                  "type": "boolean"
+                },
+                "agentCard": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": [
+                        "name",
+                        "description",
+                        "version",
+                        "supportedBindings",
+                        "skills",
+                        "streaming"
+                      ],
+                      "properties": {
+                        "name": {
+                          "maxLength": 256,
+                          "type": "string"
+                        },
+                        "description": {
+                          "maxLength": 4096,
+                          "type": "string"
+                        },
+                        "version": {
+                          "maxLength": 128,
+                          "type": "string"
+                        },
+                        "supportedBindings": {
+                          "maxItems": 16,
+                          "type": "array",
+                          "items": {
+                            "maxLength": 64,
+                            "type": "string"
+                          }
+                        },
+                        "skills": {
+                          "maxItems": 128,
+                          "type": "array",
+                          "items": {
+                            "additionalProperties": false,
+                            "type": "object",
+                            "required": ["id", "name"],
+                            "properties": {
+                              "id": {
+                                "maxLength": 128,
+                                "type": "string"
+                              },
+                              "name": {
+                                "maxLength": 256,
+                                "type": "string"
+                              }
+                            }
+                          }
+                        },
+                        "streaming": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "createdAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "a2a/outbound/upsert": {
+      "params": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["name", "endpoint", "auth"],
+        "properties": {
+          "connectionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "maxLength": 128,
+            "type": "string"
+          },
+          "endpoint": {
+            "minLength": 1,
+            "maxLength": 2048,
+            "type": "string"
+          },
+          "auth": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "type": "object",
+                "required": ["kind"],
+                "properties": {
+                  "kind": {
+                    "const": "none",
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "additionalProperties": false,
+                "type": "object",
+                "required": ["kind", "headerName", "value"],
+                "properties": {
+                  "kind": {
+                    "const": "api-key",
+                    "type": "string"
+                  },
+                  "headerName": {
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "type": "string"
+                  },
+                  "value": {
+                    "minLength": 1,
+                    "maxLength": 4096,
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "additionalProperties": false,
+                "type": "object",
+                "required": ["kind", "token"],
+                "properties": {
+                  "kind": {
+                    "const": "bearer",
+                    "type": "string"
+                  },
+                  "token": {
+                    "minLength": 1,
+                    "maxLength": 4096,
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "additionalProperties": false,
+                "type": "object",
+                "required": ["kind", "username", "password"],
+                "properties": {
+                  "kind": {
+                    "const": "basic",
+                    "type": "string"
+                  },
+                  "username": {
+                    "minLength": 1,
+                    "maxLength": 512,
+                    "type": "string"
+                  },
+                  "password": {
+                    "minLength": 1,
+                    "maxLength": 4096,
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "additionalProperties": false,
+                "type": "object",
+                "required": ["kind", "headers"],
+                "properties": {
+                  "kind": {
+                    "const": "custom-headers",
+                    "type": "string"
+                  },
+                  "headers": {
+                    "minProperties": 1,
+                    "maxProperties": 32,
+                    "type": "object",
+                    "patternProperties": {
+                      "^(.*)$": {
+                        "maxLength": 4096,
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "result": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "connectionId",
+          "name",
+          "endpoint",
+          "authKind",
+          "credentialConfigured",
+          "agentCard",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": 1,
+            "type": "number"
+          },
+          "connectionId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "maxLength": 128,
+            "type": "string"
+          },
+          "endpoint": {
+            "minLength": 1,
+            "maxLength": 2048,
+            "type": "string"
+          },
+          "authKind": {
+            "anyOf": [
+              {
+                "const": "none",
+                "type": "string"
+              },
+              {
+                "const": "api-key",
+                "type": "string"
+              },
+              {
+                "const": "bearer",
+                "type": "string"
+              },
+              {
+                "const": "basic",
+                "type": "string"
+              },
+              {
+                "const": "custom-headers",
+                "type": "string"
+              }
+            ]
+          },
+          "credentialConfigured": {
+            "type": "boolean"
+          },
+          "agentCard": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "type": "object",
+                "required": [
+                  "name",
+                  "description",
+                  "version",
+                  "supportedBindings",
+                  "skills",
+                  "streaming"
+                ],
+                "properties": {
+                  "name": {
+                    "maxLength": 256,
+                    "type": "string"
+                  },
+                  "description": {
+                    "maxLength": 4096,
+                    "type": "string"
+                  },
+                  "version": {
+                    "maxLength": 128,
+                    "type": "string"
+                  },
+                  "supportedBindings": {
+                    "maxItems": 16,
+                    "type": "array",
+                    "items": {
+                      "maxLength": 64,
+                      "type": "string"
+                    }
+                  },
+                  "skills": {
+                    "maxItems": 128,
+                    "type": "array",
+                    "items": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": ["id", "name"],
+                      "properties": {
+                        "id": {
+                          "maxLength": 128,
+                          "type": "string"
+                        },
+                        "name": {
+                          "maxLength": 256,
+                          "type": "string"
+                        }
+                      }
+                    }
+                  },
+                  "streaming": {
+                    "type": "boolean"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "a2a/outbound/delete": {
+      "params": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["connectionId"],
+        "properties": {
+          "connectionId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        }
+      },
+      "result": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["removed"],
+        "properties": {
+          "removed": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "a2a/outbound/discover": {
+      "params": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["connectionId"],
+        "properties": {
+          "connectionId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        }
+      },
+      "result": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["name", "description", "version", "supportedBindings", "skills", "streaming"],
+        "properties": {
+          "name": {
+            "maxLength": 256,
+            "type": "string"
+          },
+          "description": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "version": {
+            "maxLength": 128,
+            "type": "string"
+          },
+          "supportedBindings": {
+            "maxItems": 16,
+            "type": "array",
+            "items": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          "skills": {
+            "maxItems": 128,
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": ["id", "name"],
+              "properties": {
+                "id": {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                "name": {
+                  "maxLength": 256,
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "streaming": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "a2a/inbound/get": {
+      "params": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {}
+      },
+      "result": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["schemaVersion", "enabled", "address", "port", "active"],
+        "properties": {
+          "schemaVersion": {
+            "const": 1,
+            "type": "number"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "address": {
+            "const": "127.0.0.1",
+            "type": "string"
+          },
+          "port": {
+            "minimum": 1024,
+            "maximum": 65535,
+            "type": "integer"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "a2a/inbound/configure": {
+      "params": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["enabled", "port"],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "port": {
+            "minimum": 1024,
+            "maximum": 65535,
+            "type": "integer"
+          }
+        }
+      },
+      "result": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["schemaVersion", "enabled", "address", "port", "active"],
+        "properties": {
+          "schemaVersion": {
+            "const": 1,
+            "type": "number"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "address": {
+            "const": "127.0.0.1",
+            "type": "string"
+          },
+          "port": {
+            "minimum": 1024,
+            "maximum": 65535,
+            "type": "integer"
+          },
+          "active": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "a2a/inbound/clients": {
+      "params": {
+        "additionalProperties": false,
+        "type": "object",
+        "properties": {}
+      },
+      "result": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["clients"],
+        "properties": {
+          "clients": {
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": [
+                "schemaVersion",
+                "clientId",
+                "name",
+                "grants",
+                "credentialConfigured",
+                "revokedAt",
+                "createdAt",
+                "updatedAt"
+              ],
+              "properties": {
+                "schemaVersion": {
+                  "const": 1,
+                  "type": "number"
+                },
+                "clientId": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "name": {
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                "grants": {
+                  "maxItems": 64,
+                  "type": "array",
+                  "items": {
+                    "additionalProperties": false,
+                    "type": "object",
+                    "required": ["projectId", "role", "taskKinds", "permissions"],
+                    "properties": {
+                      "projectId": {
+                        "format": "uuid",
+                        "type": "string"
+                      },
+                      "role": {
+                        "minLength": 1,
+                        "maxLength": 128,
+                        "type": "string"
+                      },
+                      "taskKinds": {
+                        "minItems": 1,
+                        "maxItems": 1,
+                        "type": "array",
+                        "items": {
+                          "const": "agent.run",
+                          "type": "string"
+                        }
+                      },
+                      "permissions": {
+                        "minItems": 1,
+                        "maxItems": 5,
+                        "type": "array",
+                        "items": {
+                          "anyOf": [
+                            {
+                              "const": "create",
+                              "type": "string"
+                            },
+                            {
+                              "const": "get",
+                              "type": "string"
+                            },
+                            {
+                              "const": "continue",
+                              "type": "string"
+                            },
+                            {
+                              "const": "stream",
+                              "type": "string"
+                            },
+                            {
+                              "const": "cancel",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                },
+                "credentialConfigured": {
+                  "type": "boolean"
+                },
+                "revokedAt": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "createdAt": {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "updatedAt": {
+                  "format": "date-time",
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "a2a/inbound/client/upsert": {
+      "params": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["name", "grants"],
+        "properties": {
+          "clientId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "maxLength": 128,
+            "type": "string"
+          },
+          "grants": {
+            "minItems": 1,
+            "maxItems": 64,
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": ["projectId", "role", "taskKinds", "permissions"],
+              "properties": {
+                "projectId": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "role": {
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                "taskKinds": {
+                  "minItems": 1,
+                  "maxItems": 1,
+                  "type": "array",
+                  "items": {
+                    "const": "agent.run",
+                    "type": "string"
+                  }
+                },
+                "permissions": {
+                  "minItems": 1,
+                  "maxItems": 5,
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "const": "create",
+                        "type": "string"
+                      },
+                      {
+                        "const": "get",
+                        "type": "string"
+                      },
+                      {
+                        "const": "continue",
+                        "type": "string"
+                      },
+                      {
+                        "const": "stream",
+                        "type": "string"
+                      },
+                      {
+                        "const": "cancel",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "result": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "clientId",
+          "name",
+          "grants",
+          "credentialConfigured",
+          "revokedAt",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": 1,
+            "type": "number"
+          },
+          "clientId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "maxLength": 128,
+            "type": "string"
+          },
+          "grants": {
+            "maxItems": 64,
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": ["projectId", "role", "taskKinds", "permissions"],
+              "properties": {
+                "projectId": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "role": {
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                "taskKinds": {
+                  "minItems": 1,
+                  "maxItems": 1,
+                  "type": "array",
+                  "items": {
+                    "const": "agent.run",
+                    "type": "string"
+                  }
+                },
+                "permissions": {
+                  "minItems": 1,
+                  "maxItems": 5,
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "const": "create",
+                        "type": "string"
+                      },
+                      {
+                        "const": "get",
+                        "type": "string"
+                      },
+                      {
+                        "const": "continue",
+                        "type": "string"
+                      },
+                      {
+                        "const": "stream",
+                        "type": "string"
+                      },
+                      {
+                        "const": "cancel",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "credentialConfigured": {
+            "type": "boolean"
+          },
+          "revokedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "a2a/inbound/client/issueToken": {
+      "params": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["clientId"],
+        "properties": {
+          "clientId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        }
+      },
+      "result": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["clientId", "token"],
+        "properties": {
+          "clientId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "token": {
+            "minLength": 32,
+            "type": "string"
+          }
+        }
+      }
+    },
+    "a2a/inbound/client/revoke": {
+      "params": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": ["clientId"],
+        "properties": {
+          "clientId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        }
+      },
+      "result": {
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "clientId",
+          "name",
+          "grants",
+          "credentialConfigured",
+          "revokedAt",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "schemaVersion": {
+            "const": 1,
+            "type": "number"
+          },
+          "clientId": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "name": {
+            "minLength": 1,
+            "maxLength": 128,
+            "type": "string"
+          },
+          "grants": {
+            "maxItems": 64,
+            "type": "array",
+            "items": {
+              "additionalProperties": false,
+              "type": "object",
+              "required": ["projectId", "role", "taskKinds", "permissions"],
+              "properties": {
+                "projectId": {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                "role": {
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                "taskKinds": {
+                  "minItems": 1,
+                  "maxItems": 1,
+                  "type": "array",
+                  "items": {
+                    "const": "agent.run",
+                    "type": "string"
+                  }
+                },
+                "permissions": {
+                  "minItems": 1,
+                  "maxItems": 5,
+                  "type": "array",
+                  "items": {
+                    "anyOf": [
+                      {
+                        "const": "create",
+                        "type": "string"
+                      },
+                      {
+                        "const": "get",
+                        "type": "string"
+                      },
+                      {
+                        "const": "continue",
+                        "type": "string"
+                      },
+                      {
+                        "const": "stream",
+                        "type": "string"
+                      },
+                      {
+                        "const": "cancel",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "credentialConfigured": {
+            "type": "boolean"
+          },
+          "revokedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string"
+          }
+        }
+      }
+    },
     "task/create": {
       "params": {
         "additionalProperties": false,
@@ -21055,6 +22079,7 @@
                 "providerKind",
                 "displayName",
                 "baseUrl",
+                "providerOptions",
                 "hasCredential",
                 "headers",
                 "isLocal",
@@ -21075,7 +22100,39 @@
                       "type": "string"
                     },
                     {
+                      "const": "openai",
+                      "type": "string"
+                    },
+                    {
                       "const": "anthropic",
+                      "type": "string"
+                    },
+                    {
+                      "const": "google-gemini",
+                      "type": "string"
+                    },
+                    {
+                      "const": "openrouter",
+                      "type": "string"
+                    },
+                    {
+                      "const": "xai",
+                      "type": "string"
+                    },
+                    {
+                      "const": "mistral",
+                      "type": "string"
+                    },
+                    {
+                      "const": "deepseek",
+                      "type": "string"
+                    },
+                    {
+                      "const": "groq",
+                      "type": "string"
+                    },
+                    {
+                      "const": "azure-openai",
                       "type": "string"
                     }
                   ]
@@ -21086,6 +22143,14 @@
                 "baseUrl": {
                   "format": "uri",
                   "type": "string"
+                },
+                "providerOptions": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^(.*)$": {
+                      "type": "string"
+                    }
+                  }
                 },
                 "hasCredential": {
                   "type": "boolean"
@@ -21143,7 +22208,39 @@
                 "type": "string"
               },
               {
+                "const": "openai",
+                "type": "string"
+              },
+              {
                 "const": "anthropic",
+                "type": "string"
+              },
+              {
+                "const": "google-gemini",
+                "type": "string"
+              },
+              {
+                "const": "openrouter",
+                "type": "string"
+              },
+              {
+                "const": "xai",
+                "type": "string"
+              },
+              {
+                "const": "mistral",
+                "type": "string"
+              },
+              {
+                "const": "deepseek",
+                "type": "string"
+              },
+              {
+                "const": "groq",
+                "type": "string"
+              },
+              {
+                "const": "azure-openai",
                 "type": "string"
               }
             ]
@@ -21154,6 +22251,14 @@
           "baseUrl": {
             "format": "uri",
             "type": "string"
+          },
+          "providerOptions": {
+            "type": "object",
+            "patternProperties": {
+              "^(.*)$": {
+                "type": "string"
+              }
+            }
           },
           "apiKey": {
             "type": "string"
@@ -21179,6 +22284,7 @@
           "providerKind",
           "displayName",
           "baseUrl",
+          "providerOptions",
           "hasCredential",
           "headers",
           "isLocal",
@@ -21199,7 +22305,39 @@
                 "type": "string"
               },
               {
+                "const": "openai",
+                "type": "string"
+              },
+              {
                 "const": "anthropic",
+                "type": "string"
+              },
+              {
+                "const": "google-gemini",
+                "type": "string"
+              },
+              {
+                "const": "openrouter",
+                "type": "string"
+              },
+              {
+                "const": "xai",
+                "type": "string"
+              },
+              {
+                "const": "mistral",
+                "type": "string"
+              },
+              {
+                "const": "deepseek",
+                "type": "string"
+              },
+              {
+                "const": "groq",
+                "type": "string"
+              },
+              {
+                "const": "azure-openai",
                 "type": "string"
               }
             ]
@@ -21210,6 +22348,14 @@
           "baseUrl": {
             "format": "uri",
             "type": "string"
+          },
+          "providerOptions": {
+            "type": "object",
+            "patternProperties": {
+              "^(.*)$": {
+                "type": "string"
+              }
+            }
           },
           "hasCredential": {
             "type": "boolean"
@@ -21272,6 +22418,14 @@
                 "format": "uri",
                 "type": "string"
               },
+              "providerOptions": {
+                "type": "object",
+                "patternProperties": {
+                  "^(.*)$": {
+                    "type": "string"
+                  }
+                }
+              },
               "apiKey": {
                 "anyOf": [
                   {
@@ -21308,6 +22462,7 @@
           "providerKind",
           "displayName",
           "baseUrl",
+          "providerOptions",
           "hasCredential",
           "headers",
           "isLocal",
@@ -21328,7 +22483,39 @@
                 "type": "string"
               },
               {
+                "const": "openai",
+                "type": "string"
+              },
+              {
                 "const": "anthropic",
+                "type": "string"
+              },
+              {
+                "const": "google-gemini",
+                "type": "string"
+              },
+              {
+                "const": "openrouter",
+                "type": "string"
+              },
+              {
+                "const": "xai",
+                "type": "string"
+              },
+              {
+                "const": "mistral",
+                "type": "string"
+              },
+              {
+                "const": "deepseek",
+                "type": "string"
+              },
+              {
+                "const": "groq",
+                "type": "string"
+              },
+              {
+                "const": "azure-openai",
                 "type": "string"
               }
             ]
@@ -21339,6 +22526,14 @@
           "baseUrl": {
             "format": "uri",
             "type": "string"
+          },
+          "providerOptions": {
+            "type": "object",
+            "patternProperties": {
+              "^(.*)$": {
+                "type": "string"
+              }
+            }
           },
           "hasCredential": {
             "type": "boolean"
@@ -21466,11 +22661,13 @@
                 "modelId",
                 "accountId",
                 "providerModelId",
+                "catalogModelId",
                 "displayName",
                 "capabilities",
                 "pricing",
                 "metadataSource",
                 "metadataUpdatedAt",
+                "metadataFields",
                 "enabled",
                 "tags",
                 "workTypes",
@@ -21488,6 +22685,17 @@
                 "providerModelId": {
                   "minLength": 1,
                   "type": "string"
+                },
+                "catalogModelId": {
+                  "anyOf": [
+                    {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "displayName": {
                   "type": "string"
@@ -21507,22 +22715,64 @@
                   ],
                   "properties": {
                     "chat": {
-                      "type": "boolean"
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "tools": {
-                      "type": "boolean"
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "vision": {
-                      "type": "boolean"
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "structuredOutput": {
-                      "type": "boolean"
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "streaming": {
-                      "type": "boolean"
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "embeddings": {
-                      "type": "boolean"
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "contextWindow": {
                       "anyOf": [
@@ -21601,6 +22851,77 @@
                 "metadataUpdatedAt": {
                   "format": "date-time",
                   "type": "string"
+                },
+                "metadataFields": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^(.*)$": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": ["source", "updatedAt", "sourceUrl", "confidence"],
+                      "properties": {
+                        "source": {
+                          "anyOf": [
+                            {
+                              "const": "provider-api",
+                              "type": "string"
+                            },
+                            {
+                              "const": "provider-catalog",
+                              "type": "string"
+                            },
+                            {
+                              "const": "account-config",
+                              "type": "string"
+                            },
+                            {
+                              "const": "manual",
+                              "type": "string"
+                            },
+                            {
+                              "const": "derived",
+                              "type": "string"
+                            },
+                            {
+                              "const": "legacy",
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "sourceUrl": {
+                          "anyOf": [
+                            {
+                              "format": "uri",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "confidence": {
+                          "anyOf": [
+                            {
+                              "const": "high",
+                              "type": "string"
+                            },
+                            {
+                              "const": "medium",
+                              "type": "string"
+                            },
+                            {
+                              "const": "low",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
                 },
                 "enabled": {
                   "type": "boolean"
@@ -21674,11 +22995,13 @@
                 "modelId",
                 "accountId",
                 "providerModelId",
+                "catalogModelId",
                 "displayName",
                 "capabilities",
                 "pricing",
                 "metadataSource",
                 "metadataUpdatedAt",
+                "metadataFields",
                 "enabled",
                 "tags",
                 "workTypes",
@@ -21696,6 +23019,17 @@
                 "providerModelId": {
                   "minLength": 1,
                   "type": "string"
+                },
+                "catalogModelId": {
+                  "anyOf": [
+                    {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "displayName": {
                   "type": "string"
@@ -21715,22 +23049,64 @@
                   ],
                   "properties": {
                     "chat": {
-                      "type": "boolean"
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "tools": {
-                      "type": "boolean"
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "vision": {
-                      "type": "boolean"
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "structuredOutput": {
-                      "type": "boolean"
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "streaming": {
-                      "type": "boolean"
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "embeddings": {
-                      "type": "boolean"
+                      "anyOf": [
+                        {
+                          "type": "boolean"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "contextWindow": {
                       "anyOf": [
@@ -21810,6 +23186,77 @@
                   "format": "date-time",
                   "type": "string"
                 },
+                "metadataFields": {
+                  "type": "object",
+                  "patternProperties": {
+                    "^(.*)$": {
+                      "additionalProperties": false,
+                      "type": "object",
+                      "required": ["source", "updatedAt", "sourceUrl", "confidence"],
+                      "properties": {
+                        "source": {
+                          "anyOf": [
+                            {
+                              "const": "provider-api",
+                              "type": "string"
+                            },
+                            {
+                              "const": "provider-catalog",
+                              "type": "string"
+                            },
+                            {
+                              "const": "account-config",
+                              "type": "string"
+                            },
+                            {
+                              "const": "manual",
+                              "type": "string"
+                            },
+                            {
+                              "const": "derived",
+                              "type": "string"
+                            },
+                            {
+                              "const": "legacy",
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "updatedAt": {
+                          "format": "date-time",
+                          "type": "string"
+                        },
+                        "sourceUrl": {
+                          "anyOf": [
+                            {
+                              "format": "uri",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "confidence": {
+                          "anyOf": [
+                            {
+                              "const": "high",
+                              "type": "string"
+                            },
+                            {
+                              "const": "medium",
+                              "type": "string"
+                            },
+                            {
+                              "const": "low",
+                              "type": "string"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  }
+                },
                 "enabled": {
                   "type": "boolean"
                 },
@@ -21856,27 +23303,80 @@
               "displayName": {
                 "type": "string"
               },
+              "catalogModelId": {
+                "anyOf": [
+                  {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "capabilities": {
                 "additionalProperties": false,
                 "type": "object",
                 "properties": {
                   "chat": {
-                    "type": "boolean"
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "tools": {
-                    "type": "boolean"
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "vision": {
-                    "type": "boolean"
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "structuredOutput": {
-                    "type": "boolean"
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "streaming": {
-                    "type": "boolean"
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "embeddings": {
-                    "type": "boolean"
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "contextWindow": {
                     "anyOf": [
@@ -21916,7 +23416,6 @@
               "pricing": {
                 "additionalProperties": false,
                 "type": "object",
-                "required": ["inputPerMTokUsd", "outputPerMTokUsd"],
                 "properties": {
                   "inputPerMTokUsd": {
                     "anyOf": [
@@ -21969,11 +23468,13 @@
           "modelId",
           "accountId",
           "providerModelId",
+          "catalogModelId",
           "displayName",
           "capabilities",
           "pricing",
           "metadataSource",
           "metadataUpdatedAt",
+          "metadataFields",
           "enabled",
           "tags",
           "workTypes",
@@ -21991,6 +23492,17 @@
           "providerModelId": {
             "minLength": 1,
             "type": "string"
+          },
+          "catalogModelId": {
+            "anyOf": [
+              {
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "displayName": {
             "type": "string"
@@ -22010,22 +23522,64 @@
             ],
             "properties": {
               "chat": {
-                "type": "boolean"
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "tools": {
-                "type": "boolean"
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "vision": {
-                "type": "boolean"
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "structuredOutput": {
-                "type": "boolean"
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "streaming": {
-                "type": "boolean"
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "embeddings": {
-                "type": "boolean"
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "contextWindow": {
                 "anyOf": [
@@ -22104,6 +23658,77 @@
           "metadataUpdatedAt": {
             "format": "date-time",
             "type": "string"
+          },
+          "metadataFields": {
+            "type": "object",
+            "patternProperties": {
+              "^(.*)$": {
+                "additionalProperties": false,
+                "type": "object",
+                "required": ["source", "updatedAt", "sourceUrl", "confidence"],
+                "properties": {
+                  "source": {
+                    "anyOf": [
+                      {
+                        "const": "provider-api",
+                        "type": "string"
+                      },
+                      {
+                        "const": "provider-catalog",
+                        "type": "string"
+                      },
+                      {
+                        "const": "account-config",
+                        "type": "string"
+                      },
+                      {
+                        "const": "manual",
+                        "type": "string"
+                      },
+                      {
+                        "const": "derived",
+                        "type": "string"
+                      },
+                      {
+                        "const": "legacy",
+                        "type": "string"
+                      }
+                    ]
+                  },
+                  "updatedAt": {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  "sourceUrl": {
+                    "anyOf": [
+                      {
+                        "format": "uri",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "confidence": {
+                    "anyOf": [
+                      {
+                        "const": "high",
+                        "type": "string"
+                      },
+                      {
+                        "const": "medium",
+                        "type": "string"
+                      },
+                      {
+                        "const": "low",
+                        "type": "string"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
           },
           "enabled": {
             "type": "boolean"
@@ -45155,6 +46780,8 @@
     "UpdateVerificationFailed": -32131,
     "UpdateIncompatible": -32132,
     "UpdateNotDownloaded": -32133,
+    "A2AConnectionNotFound": -32134,
+    "A2AClientNotFound": -32135,
     "InvalidParams": -32602
   }
 }
