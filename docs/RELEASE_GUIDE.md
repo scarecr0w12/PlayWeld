@@ -128,6 +128,8 @@ The current [0.9.0 local deployment](changes/2026-10-04-local-0.9.0-deployment.m
 
 The [0.10.0 provider/A2A release work record](changes/2026-10-04-model-providers-routing-a2a.md) records the new local Windows package and a 30-check packaged Electron/service smoke in an isolated profile. The package remains unsigned because no signing certificate or GitHub signing key is configured; its local-build manifest identifies the pre-commit source and dirty paths. This does not verify NSIS installation/uninstall, upgrade/rollback, a published GitHub workflow, live provider accounts, or live external A2A interoperability.
 
+The v0.10.0 GitHub tag remains unchanged after its Windows job hit a five-second SQLite vector-test timeout. The v0.10.1 patch raises that test timeout and the Qdrant wrong-version fixture readiness limit without changing production code. The local v0.10.1 package passed native and sidecar startup checks plus the same 30-check isolated Electron/service smoke; its `local-build.json` records dirty pre-commit source fingerprints. The v0.10.1 GitHub workflow and testing-prerelease publication are still pending, and package signing is unavailable.
+
 Keep quality logs, package logs, screenshots, UI reports, metadata/checksum verification and the exact GitHub workflow/tag IDs with each build. Source fixtures and sanitized records are versioned; generated artifacts live in ignored local output or GitHub release assets.
 
 Testing prereleases do not certify production games, every engine version, live provider accounts, installer rollback or Windows plugin isolation. Read [status](STATUS.md), [operations](OPERATIONS_GUIDE.md), and the version's [release notes](releases/v0.1.2.md) for the current boundary.

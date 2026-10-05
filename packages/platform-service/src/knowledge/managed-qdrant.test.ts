@@ -53,12 +53,12 @@ describe('ManagedQdrant', () => {
 
   it('rejects a service that does not report the pinned version', async () => {
     const fixture = await createFixture({ version: '1.19.0' });
-    const manager = createManager(fixture, 1500);
+    const manager = createManager(fixture, 10_000);
 
     await withFixtureEnvironment(fixture, async () => {
       await expect(manager.endpoint()).rejects.toThrow('expected Qdrant 1.19.1');
     });
-  });
+  }, 15_000);
 
   it('times out readiness and terminates the child process', async () => {
     const fixture = await createFixture({ listen: false });

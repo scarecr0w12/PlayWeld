@@ -6,6 +6,16 @@ Generated from permanent [work records](docs/changes/README.md). Run `npm run ch
 
 No pending work records.
 
+## 0.10.1
+
+### Fixed
+
+- **Stabilize Windows Vector-Store Release Tests** (patch): Increase test-only timing bounds for the SQLite and managed-Qdrant vector-store integration tests. The v0.10.0 Windows package job exceeded the default five-second Vitest timeout on the SQLite persistence test. A subsequent full Windows-equivalent local run exposed a 1.5-second Qdrant readiness timeout firing before its fake server returned the expected wrong-version response. The failed v0.10.0 tag remains unchanged; both timing-only corrections are assigned to a new patch release. [Full details and validation](docs/changes/2026-10-05-windows-sqlite-ci-timeout.md).
+
+### Maintenance
+
+- **Prepare version 0.10.1** (none): Prepare version 0.10.1 from 0.10.0, retaining all pending work records in the changelog and detailed release notes. [Full details and validation](docs/changes/2026-10-04-release-0.10.1.md).
+
 ## 0.10.0
 
 ### Added

@@ -63,7 +63,7 @@ describe('SqliteVectorStore', () => {
     expect(await reopened.search(nextVersion, [0, 0, 1], {}, 10)).toMatchObject([
       { id: 'same-id', score: 1, payload: { revision: 'new-profile' } },
     ]);
-  });
+  }, 20_000);
 
   it('applies payload filters before ranking and excludes inactive points by default', async () => {
     const projectId = uuidv7();
