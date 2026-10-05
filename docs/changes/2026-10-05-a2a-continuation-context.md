@@ -1,6 +1,6 @@
 # Preserve A2A Continuation Context
 
-**Release:** Unreleased
+**Release:** 0.10.3
 
 **Impact:** patch
 

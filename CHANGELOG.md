@@ -4,12 +4,20 @@ Generated from permanent [work records](docs/changes/README.md). Run `npm run ch
 
 ## Unreleased
 
+No pending work records.
+
+## 0.10.3
+
 ### Fixed
 
 - **Preserve A2A Continuation Context** (patch): Outbound A2A `send` and `stream` continuations now reuse the remote context ID stored with the remote task owned by the current connection and Project. If that owned record has no context ID, continuation is rejected before agent discovery or network access instead of sending an invalid empty context. [Full details and validation](docs/changes/2026-10-05-a2a-continuation-context.md).
+- **Guide Embedding Model Discovery** (patch): Knowledge settings now explain why connected provider credentials alone do not populate the embedding-model selector and provide a direct route to Models & Routing. [Full details and validation](docs/changes/2026-10-05-knowledge-embedding-model-discovery.md).
 
 ### Maintenance
 
+- **Prepare version 0.10.3** (none): Prepare version 0.10.3 from 0.10.2, retaining all pending work records in the changelog and detailed release notes. [Full details and validation](docs/changes/2026-10-04-release-0.10.3.md).
+- **Launch the Embedding Selector Update Locally** (none): Built and launched the updated Electron Control Room from the working checkout for local testing, connected to the already-running platform service and profile. [Full details and validation](docs/changes/2026-10-05-local-embedding-selector-test-deployment.md).
+- **Verify Live OpenAI Embedding Model Access** (none): Used an authorized OpenAI development credential to distinguish model-discovery filtering from provider model access. The live API responses matched discovery and denied direct embedding requests, so the UI was not hiding models returned by the API. [Full details and validation](docs/changes/2026-10-05-openai-embedding-key-access-diagnostic.md).
 - **Publish the PlayWeld 0.10.2 Testing Release** (none): The v0.10.2 Desktop Release workflow completed successfully on Windows and Linux, and the generated unsigned testing prerelease was published on GitHub. This follow-up records the hosted result after the tag commit and updates the current release status; it does not move or modify the v0.10.2 tag. [Full details and validation](docs/changes/2026-10-05-publish-0.10.2-testing-release.md).
 
 ## 0.10.2

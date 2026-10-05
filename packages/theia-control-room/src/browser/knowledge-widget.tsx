@@ -1,6 +1,7 @@
 import React from 'react';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import { Message } from '@theia/core/lib/browser/widgets/widget';
+import { CommandService } from '@theia/core/lib/common/command';
 import { ControlRoomReactWidget } from './control-room-react-widget';
 import type {
   CanonRecord,
@@ -20,6 +21,7 @@ import {
   type ControlRoomService as ControlRoomServiceApi,
 } from '../common/control-room-protocol';
 import { ControlRoomClientEvents } from './control-room-client';
+import { MODELS_OPEN_COMMAND_ID } from './models-view-contribution';
 
 const sourceFilters: Array<IndexSource | 'all'> = [
   'all',
@@ -80,6 +82,8 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
     private readonly service: ControlRoomServiceApi,
     @inject(ControlRoomClientEvents)
     private readonly clientEvents: ControlRoomClientEvents,
+    @inject(CommandService)
+    private readonly commands: CommandService,
   ) {
     super();
     this.id = KnowledgeWidget.ID;
@@ -461,6 +465,7 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
           <label>
             Embedding model
             <select
+              aria-label="Embedding model"
               value={this.modelId}
               onChange={(event) => {
                 this.modelId = event.currentTarget.value;
@@ -477,6 +482,22 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
                 ))}
             </select>
           </label>
+          {!this.models.some((model) => model.enabled && model.capabilities.embeddings) && (
+            <div className="gamecrafter-page-empty">
+              <p>
+                No enabled embedding models are available. Connecting an API key does not add its
+                models automatically. In Models &amp; Routing, discover models for the account and
+                add an embedding-capable model before selecting it here. If discovery lists no
+                embedding models, verify that this API key can use one in its project.
+              </p>
+              <button
+                type="button"
+                onClick={() => void this.commands.executeCommand(MODELS_OPEN_COMMAND_ID)}
+              >
+                Open Models &amp; Routing
+              </button>
+            </div>
+          )}
           <label>
             Provider account
             <select
