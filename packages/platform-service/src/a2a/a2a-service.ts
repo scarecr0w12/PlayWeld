@@ -318,7 +318,11 @@ export class A2AService {
   ): Promise<unknown> {
     const row = this.connectionRow(connectionId);
     if (!row) throw new RpcError('A2A connection not found', RpcErrorCode.A2AConnectionNotFound);
-    if (input.taskId) this.assertRemoteTaskProject(connectionId, input.taskId, context.projectId);
+    const remoteContextId = input.taskId
+      ? this.ownedRemoteTaskContext(connectionId, input.taskId, context.projectId)
+      : '';
+    if (input.taskId && (operation === 'send' || operation === 'stream') && !remoteContextId)
+      throw new Error('A2A remote task context is not available');
     const { client } = await this.createClient(row);
     const signal = context.signal;
     if (signal.aborted) throw abortError(signal.reason);
@@ -327,7 +331,7 @@ export class A2AService {
         if (!input.message) throw new Error('A2A send requires a message');
         const result = await client.sendMessage(
           {
-            message: makeMessage(input.message, input.taskId),
+            message: makeMessage(input.message, input.taskId, remoteContextId ?? ''),
             metadata: {},
             tenant: '',
             configuration: undefined,
@@ -341,7 +345,7 @@ export class A2AService {
         if (!input.message) throw new Error('A2A stream requires a message');
         const stream = client.sendMessageStream(
           {
-            message: makeMessage(input.message, input.taskId),
+            message: makeMessage(input.message, input.taskId, remoteContextId ?? ''),
             metadata: {},
             tenant: '',
             configuration: undefined,
@@ -444,18 +448,19 @@ export class A2AService {
     return { tasks: rows.map((row) => this.publicRemoteTask(row)) };
   }
 
-  private assertRemoteTaskProject(
+  private ownedRemoteTaskContext(
     connectionId: string,
     remoteTaskId: string,
     projectId: string,
-  ): void {
+  ): string | null {
     const owned = this.options.database
       .prepare(
-        `SELECT 1 AS found FROM a2a_remote_tasks
+        `SELECT remote_context_id AS remoteContextId FROM a2a_remote_tasks
          WHERE connection_id = ? AND remote_task_id = ? AND project_id = ?`,
       )
-      .get<{ found: number }>(connectionId, remoteTaskId, projectId);
+      .get<{ remoteContextId: string | null }>(connectionId, remoteTaskId, projectId);
     if (!owned) throw new Error('A2A remote task is not available in this Project');
+    return owned.remoteContextId;
   }
 
   private persistRemoteTask(value: unknown, context: ToolContext, connectionId: string): void {
@@ -829,10 +834,10 @@ function summarizeAgentCard(card: AgentCardValue): A2AAgentCardSummary {
   };
 }
 
-function makeMessage(text: string, taskId = '') {
+function makeMessage(text: string, taskId = '', contextId = '') {
   return {
     messageId: uuidv7(),
-    contextId: '',
+    contextId,
     taskId,
     role: 1,
     parts: [

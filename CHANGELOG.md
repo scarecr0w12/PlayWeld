@@ -4,6 +4,10 @@ Generated from permanent [work records](docs/changes/README.md). Run `npm run ch
 
 ## Unreleased
 
+### Fixed
+
+- **Preserve A2A Continuation Context** (patch): Outbound A2A `send` and `stream` continuations now reuse the remote context ID stored with the remote task owned by the current connection and Project. If that owned record has no context ID, continuation is rejected before agent discovery or network access instead of sending an invalid empty context. [Full details and validation](docs/changes/2026-10-05-a2a-continuation-context.md).
+
 ### Maintenance
 
 - **Publish the PlayWeld 0.10.2 Testing Release** (none): The v0.10.2 Desktop Release workflow completed successfully on Windows and Linux, and the generated unsigned testing prerelease was published on GitHub. This follow-up records the hosted result after the tag commit and updates the current release status; it does not move or modify the v0.10.2 tag. [Full details and validation](docs/changes/2026-10-05-publish-0.10.2-testing-release.md).

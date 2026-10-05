@@ -177,6 +177,141 @@ describe('A2A outbound service and broker integration', () => {
     }
   });
 
+  it('reuses recorded remote context and rejects missing context before discovery', async () => {
+    const messages: Array<{ method: string; taskId: string; contextId: string }> = [];
+    let discoveryRequests = 0;
+    const fixture = await startFixture((request, response, port) => {
+      if (request.url === '/.well-known/agent-card.json') {
+        discoveryRequests += 1;
+        sendJson(response, publicCard(port));
+        return;
+      }
+      readBody(request).then((rpc) => {
+        const message = (
+          rpc.params as { message?: { taskId?: string; contextId?: string } } | undefined
+        )?.message;
+        if (message && rpc.method) {
+          messages.push({
+            method: rpc.method,
+            taskId: message.taskId ?? '',
+            contextId: message.contextId ?? '',
+          });
+        }
+        const task = {
+          id: 'remote-continuation-task',
+          contextId: 'remote-continuation-context',
+          status: { state: 'TASK_STATE_COMPLETED' },
+          artifacts: [],
+          history: [],
+        };
+        if (rpc.method === 'SendStreamingMessage') {
+          response.writeHead(200, { 'content-type': 'text/event-stream' });
+          writeSse(response, rpc.id, { task });
+          response.end();
+          return;
+        }
+        sendJson(response, { jsonrpc: '2.0', id: rpc.id, result: { task } });
+      });
+    });
+    const connection = await client!.call('a2a/outbound/upsert', {
+      name: 'Context continuation fixture',
+      endpoint: `http://127.0.0.1:${fixture.port}`,
+      auth: { kind: 'none' },
+    });
+    await setAccess('full');
+
+    const initial = await client!.call('tool/call', {
+      projectId,
+      toolId: 'a2a/send-message',
+      input: { connectionId: connection.connectionId, message: 'Start a remote task' },
+    });
+    expect(initial.status).toBe('completed');
+
+    const continued = await client!.call('tool/call', {
+      projectId,
+      toolId: 'a2a/send-message',
+      input: {
+        connectionId: connection.connectionId,
+        message: 'Continue the remote task',
+        taskId: 'remote-continuation-task',
+      },
+    });
+    expect(continued.status).toBe('completed');
+
+    const streamed = await client!.call('tool/call', {
+      projectId,
+      toolId: 'a2a/send-message-stream',
+      input: {
+        connectionId: connection.connectionId,
+        message: 'Continue the remote task with streaming',
+        taskId: 'remote-continuation-task',
+      },
+    });
+    expect(streamed.status).toBe('completed');
+    expect(messages).toEqual([
+      { method: 'SendMessage', taskId: '', contextId: '' },
+      {
+        method: 'SendMessage',
+        taskId: 'remote-continuation-task',
+        contextId: 'remote-continuation-context',
+      },
+      {
+        method: 'SendStreamingMessage',
+        taskId: 'remote-continuation-task',
+        contextId: 'remote-continuation-context',
+      },
+    ]);
+
+    const missingSendConnection = await client!.call('a2a/outbound/upsert', {
+      name: 'Missing-context send fixture',
+      endpoint: `http://127.0.0.1:${fixture.port}`,
+      auth: { kind: 'none' },
+    });
+    const missingStreamConnection = await client!.call('a2a/outbound/upsert', {
+      name: 'Missing-context stream fixture',
+      endpoint: `http://127.0.0.1:${fixture.port}`,
+      auth: { kind: 'none' },
+    });
+    const database = Database.open(paths.profileDbPath);
+    try {
+      const now = new Date().toISOString();
+      const insert = database.prepare(
+        `INSERT INTO a2a_remote_tasks (
+          connection_id, remote_task_id, remote_context_id, project_id, local_task_id,
+          call_id, status_state, status_timestamp, created_at, updated_at
+        ) VALUES (?, ?, NULL, ?, NULL, NULL, NULL, NULL, ?, ?)`,
+      );
+      insert.run(missingSendConnection.connectionId, 'missing-send-task', projectId, now, now);
+      insert.run(missingStreamConnection.connectionId, 'missing-stream-task', projectId, now, now);
+    } finally {
+      database.close();
+    }
+    const handlerContext: ToolContext = {
+      projectId,
+      projectPath: path.join(projectsRoot, 'a2a-project'),
+      taskId: null,
+      agentId: null,
+      agentRole: 'explorer',
+      accessMode: 'full',
+      callId: 'missing-remote-context-call',
+      signal: new AbortController().signal,
+    };
+    for (const [toolId, connectionId, taskId] of [
+      ['a2a/send-message', missingSendConnection.connectionId, 'missing-send-task'],
+      ['a2a/send-message-stream', missingStreamConnection.connectionId, 'missing-stream-task'],
+    ] as const) {
+      await expect(
+        getA2AToolHandler(toolId)(handlerContext, {
+          connectionId,
+          message: 'Context must be required',
+          taskId,
+        }),
+      ).rejects.toThrow('A2A remote task context is not available');
+    }
+    expect(discoveryRequests).toBe(1);
+    expect(messages).toHaveLength(3);
+  });
+
   it('rejects outbound task operations from a Project that does not own the remote task', async () => {
     const remoteCalls: string[] = [];
     const fixture = await startFixture((request, response, port) => {
@@ -1026,10 +1161,12 @@ async function waitUntil(predicate: () => boolean, timeoutMs = 5_000): Promise<v
   throw new Error('Timed out waiting for A2A fixture condition');
 }
 
-async function readBody(request: IncomingMessage): Promise<{ id?: string; method?: string }> {
+async function readBody(
+  request: IncomingMessage,
+): Promise<{ id?: string; method?: string; params?: unknown }> {
   let body = '';
   for await (const chunk of request) body += chunk.toString();
-  return JSON.parse(body) as { id?: string; method?: string };
+  return JSON.parse(body) as { id?: string; method?: string; params?: unknown };
 }
 
 async function closeServer(server: Server): Promise<void> {
