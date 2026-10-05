@@ -4,7 +4,9 @@ Generated from permanent [work records](docs/changes/README.md). Run `npm run ch
 
 ## Unreleased
 
-No pending work records.
+### Maintenance
+
+- **Publish the PlayWeld 0.10.2 Testing Release** (none): The v0.10.2 Desktop Release workflow completed successfully on Windows and Linux, and the generated unsigned testing prerelease was published on GitHub. This follow-up records the hosted result after the tag commit and updates the current release status; it does not move or modify the v0.10.2 tag. [Full details and validation](docs/changes/2026-10-05-publish-0.10.2-testing-release.md).
 
 ## 0.10.2
 
