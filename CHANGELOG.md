@@ -6,6 +6,16 @@ Generated from permanent [work records](docs/changes/README.md). Run `npm run ch
 
 No pending work records.
 
+## 0.10.2
+
+### Fixed
+
+- **Stabilize Windows CI Test Timeouts** (patch): The v0.10.0 Windows release job exceeded Vitest's default five-second timeout in a SQLite vector-store test; v0.10.1 then timed out in the Project clone test. A previous full Windows-equivalent run also exposed a Qdrant readiness bound, fixed in v0.10.1; during v0.10.2 preparation, the Git-heavy release-ledger test exceeded five seconds locally. This test-only patch sets a 15-second platform-service default, adds 20-second deadlines to the Project-clone and release-ledger tests, and retains the SQLite/Qdrant bounds from v0.10.1. It does not change production behavior. The v0.10.0 and v0.10.1 tags remain unchanged, so the correction uses v0.10.2. [Full details and validation](docs/changes/2026-10-05-windows-workspace-test-timeout.md).
+
+### Maintenance
+
+- **Prepare version 0.10.2** (none): Prepare version 0.10.2 from 0.10.1, retaining all pending work records in the changelog and detailed release notes. [Full details and validation](docs/changes/2026-10-04-release-0.10.2.md).
+
 ## 0.10.1
 
 ### Fixed

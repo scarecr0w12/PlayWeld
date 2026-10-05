@@ -125,7 +125,7 @@ describe('permanent work tracking', () => {
     expect(() => prepare(root, '0.1.6')).toThrow('requires pending');
     save(root, 'unrecorded.txt', 'new source after preparation');
     expect(() => check(root, { release: true })).toThrow('Untracked work: unrecorded.txt');
-  });
+  }, 20_000);
   it('enforces feature and breaking impacts without mutating on rejection', () => {
     const root = fixture();
     record(root, 'minor');

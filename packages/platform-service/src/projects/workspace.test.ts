@@ -194,7 +194,7 @@ describe('Project instructions template', () => {
       database.close();
       rmSync(parentDirectory, { recursive: true, force: true });
     }
-  });
+  }, 20_000);
 
   it('removes a newly created Project folder when Git initialization fails', async () => {
     const parentDirectory = mkdtempSync(path.join(tmpdir(), 'gc-workspace-'));

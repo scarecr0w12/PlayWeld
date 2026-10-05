@@ -1,6 +1,6 @@
 {
   "name": "@gamecrafter/platform-service",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "private": true,
   "license": "Apache-2.0",
   "main": "lib/index.js",
@@ -12,13 +12,13 @@
     "build": "tsc -b && node scripts/copy-assets.cjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src",
-    "test": "vitest run --maxWorkers=1",
+    "test": "vitest run --maxWorkers=1 --testTimeout=15000",
     "test:watch": "vitest"
   },
   "dependencies": {
     "@a2a-js/sdk": "1.2.1",
-    "@gamecrafter/contracts": "0.10.1",
-    "@gamecrafter/service-client": "0.10.1",
+    "@gamecrafter/contracts": "0.10.2",
+    "@gamecrafter/service-client": "0.10.2",
     "@lancedb/lancedb": "0.29.0",
     "apache-arrow": "18.1.0",
     "cross-spawn": "7.0.6",
@@ -29,7 +29,7 @@
     "yaml": "2.9.1"
   },
   "devDependencies": {
-    "@gamecrafter/plugin-sample-hello": "0.10.1",
+    "@gamecrafter/plugin-sample-hello": "0.10.2",
     "@modelcontextprotocol/sdk": "1.30.0",
     "@types/cross-spawn": "6.0.6",
     "@types/express": "5.0.3",
