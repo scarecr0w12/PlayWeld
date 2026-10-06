@@ -6,6 +6,74 @@ Complete tracked work, grouped by version and category, with full details, valid
 
 No pending work records.
 
+## 0.17.0
+
+### Fixed
+
+#### Portable installer-handoff fixtures and corrected public release
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-06-release-0.17.0-portable-handoff-tests.md).
+
+##### Summary
+
+Repair Windows-only parameterized installer tests that failed in hosted Linux, then prepare a new 0.17.0 testing release while preserving the failed 0.16.0 tag and validated local deployment.
+
+##### Details
+
+- Hosted Linux quality and release runs for v0.16.0 failed two installer fixture cases because it.each supplied the case value but no second callback context. The attempted context.skip call therefore threw before reporting an intentional platform skip. This was a test portability defect; Windows source/package/installed checks and ordinary data retention had passed.
+- Apply the platform condition through it.skipIf before parameterizing the two native cases. Non-Windows runs explicitly skip the Windows executable lifecycle; Windows continues to run both real waiting/tampering cases. The portable digest/confinement test still runs everywhere. No application runtime, schema, engine bridge or isolation policy is weakened or changed.
+- Preserve source commit 4fa7938205a56f62ee68f378e125734c5d0d4303, failed v0.16.0 tag/workflow diagnostics and the local 0.15.0/0.16.0 artifacts. Cancel remaining redundant work in failed runs; do not move the tag or publish a failed release. Prepare a new 0.17.0 minor version, retaining full cumulative release records and notes.
+- Build and deploy the version-correct Windows package with the same profile checkpoint/backup, installed source/native checks and configuration/task retention. Verify the corrected hosted Windows/Linux matrix before publishing the explicitly authorized unsigned testing prerelease. Publication receives its own immutable-source receipt.
+
+##### Validation
+
+- Failed Linux release job 112551205852 and quality job 112551168765: 549 passing tests, 12 explicit skips and two context.skip failures. Actual API job logs are retained under .artifacts/local-deployment/0.16.0-1791327287740. The tag's browser build and live smoke passed before the failed matrix was canceled.
+- Corrected Windows native handoff fixtures passed all three tests. An isolated WSL Node 24.20.0/Vitest 5.0.1 copy of the exact two source files passed the portable test and explicitly skipped the two native Windows cases. Its retained report is .artifacts/local-deployment/0.17.0-1791329647605/linux-handoff.log; the fixture is /tmp/playweld-ci-handoff-6unGkP. This direct platform check does not substitute for the complete hosted matrix.
+- Clean npm ci and all 33 uncached quality tasks passed for 0.17.0, with 557 platform tests/six skips, 128 extension tests and 25 tracking checks. Formatting, generated references/inventory/evidence, version/lockfile agreement and release-ledger checks passed. Source is committed/tagged before final package/deployment so hosted and local verification can run concurrently; the separate receipt records actual completion before publication.
+- The ordinary installed service remains verified at 0.16.0 until the version-correct upgrade completes. 0.17.0 packaging, installed retention and hosted publication are not claimed by these source checks.
+
+##### Files
+
+- `packages/platform-service/src/updates/installer-handoff.test.ts`
+- `docs/STATUS.md`
+- `docs/RELEASE_GUIDE.md`
+- `docs/changes/2026-10-06-release-0.17.0-portable-handoff-tests.md`
+
+### Maintenance
+
+#### Prepare version 0.17.0
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-06-release-0.17.0.md).
+
+##### Summary
+
+Prepare version 0.17.0 from 0.16.0, retaining all pending work records in the changelog and detailed release notes.
+
+##### Details
+
+Synchronize first-party workspace and internal dependency versions. The lockfile must be refreshed separately. No tag, publication, or build is performed by version preparation.
+
+##### Validation
+
+Clean npm ci and version/lockfile agreement passed. All 33 uncached quality tasks passed with 557 platform tests/six skips and 128 extension tests, plus 25 tracking checks, formatting, references/inventory/evidence and release coverage. Corrected handoff tests pass three real Windows cases and one portable WSL case/two explicit native skips. Application runtime is unchanged from the validated 0.16.0 deployment apart from release metadata. Final local package/deployment and hosted publication are recorded in a separate receipt after the tagged source becomes immutable.
+
+##### Files
+
+- `packages/archive-extractor/package.json`
+- `packages/contracts/package.json`
+- `packages/platform-service/package.json`
+- `packages/plugin-sdk/package.json`
+- `packages/service-client/package.json`
+- `packages/theia-control-room/package.json`
+- `packages/plugins/sample-hello/package.json`
+- `apps/control-room/package.json`
+- `apps/control-room-browser/package.json`
+- `package-lock.json`
+
 ## 0.16.0
 
 ### Fixed

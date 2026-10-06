@@ -29,10 +29,9 @@ it('detects modified packages and confines handoff to the owned update cache', (
   }
 });
 
-it.each([false, true])(
+it.skipIf(process.platform !== 'win32').each([false, true])(
   'waits for the owned desktop process and refuses modified installer bytes=%s',
-  async (tamper, context) => {
-    if (process.platform !== 'win32') context.skip('Requires a real Windows executable.');
+  async (tamper) => {
     const artifactRoot = path.resolve(__dirname, '../../../../.artifacts/installer-handoff-tests');
     mkdirSync(artifactRoot, { recursive: true });
     const root = mkdtempSync(path.join(artifactRoot, 'native-'));

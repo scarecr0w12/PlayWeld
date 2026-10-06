@@ -120,6 +120,8 @@ Inspect the packaged service over authenticated RPC as well: check `service/info
 
 ## Release evidence and limitations
 
+The [0.17.0 publication retry](changes/2026-10-06-release-0.17.0-portable-handoff-tests.md) repairs a hosted-Linux test-context error while keeping native Windows lifecycle cases and the portable hash check. The prior v0.16.0 tag is preserved. Local/hosted packaging, the version-correct upgrade and publication receive a separate acceptance receipt after tagged records become immutable.
+
 The [0.16.0 local deployment](changes/2026-10-06-local-0.16.0-deployment.md) ships the cumulative provider/worker/MCP/adversarial/editor/IDE/isolation/update repairs and the final Program Files LPAC access correction. The 0.15.0 candidate remains preserved after exposing that defect before installation. Local 0.16.0 passed 33 uncached quality tasks, package/native/source checks, 29 staged and 29 installed desktop checks, installed LPAC and four-Project configuration/task retention. It is an unsigned testing build; publisher signing and a complete uninstall/rollback lifecycle remain separate. The tagged hosted Windows/Linux publication receives its own permanent receipt rather than rewriting committed release records.
 
 ### Protected metadata keys and Windows handoff
