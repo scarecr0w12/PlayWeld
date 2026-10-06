@@ -110,7 +110,7 @@ import {
   SkillRecordSchema,
   SkillValidationResultSchema,
 } from '../skills';
-import { UpdateStateSchema } from '../updates';
+import { InstallerHandoffSchema, UpdateStateSchema } from '../updates';
 import {
   A2AInboundClientInputSchema,
   A2AInboundClientSchema,
@@ -2198,14 +2198,24 @@ export const RpcMethods = {
   'update/install': {
     params: EmptyParams,
     result: Type.Object(
-      { launched: Type.Boolean(), instructions: Type.String() },
+      {
+        launched: Type.Boolean(),
+        instructions: Type.String(),
+        handoff: Type.Optional(InstallerHandoffSchema),
+        handoffStarted: Type.Optional(Type.Boolean()),
+      },
       { additionalProperties: false },
     ),
   },
   'update/rollback': {
     params: EmptyParams,
     result: Type.Object(
-      { launched: Type.Boolean(), instructions: Type.String() },
+      {
+        launched: Type.Boolean(),
+        instructions: Type.String(),
+        handoff: Type.Optional(InstallerHandoffSchema),
+        handoffStarted: Type.Optional(Type.Boolean()),
+      },
       { additionalProperties: false },
     ),
   },

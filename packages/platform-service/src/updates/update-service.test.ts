@@ -61,7 +61,7 @@ function updatesDir(): string {
 }
 
 function assetPath(): string {
-  return path.join(updatesDir(), ASSET_NAME);
+  return path.join(updatesDir(), '1.2.3', ASSET_NAME);
 }
 
 function manifest(overrides: Partial<ReleaseManifest> = {}): ReleaseManifest {
@@ -409,7 +409,13 @@ describe('UpdateService download', () => {
       verified: { sha256: true, signature: 'unavailable' },
     });
     expect(readFileSync(assetPath(), 'utf8')).toBe(ASSET_BYTES);
-    expect(readdirSync(updatesDir())).toEqual([ASSET_NAME]);
+    expect(readdirSync(path.dirname(assetPath()))).toEqual([ASSET_NAME]);
+    const metadata = readdirSync(updatesDir()).find((name) => name.startsWith('verified-'))!;
+    expect(JSON.parse(readFileSync(path.join(updatesDir(), metadata), 'utf8'))).toMatchObject({
+      schemaVersion: 1,
+      path: assetPath(),
+      sha256: ASSET_SHA,
+    });
     const rechecked = await update.check();
     expect(rechecked.downloaded?.path).toBe(assetPath());
   });
@@ -431,7 +437,7 @@ describe('UpdateService download', () => {
     await update.check();
     await expectRpcRejection(update.download(), RpcErrorCode.UpdateVerificationFailed);
     expect(existsSync(assetPath())).toBe(false);
-    expect(readdirSync(updatesDir())).toEqual([]);
+    expect(readdirSync(path.dirname(assetPath()))).toEqual([]);
     expect(store.get().downloaded).toBeNull();
     expect(store.get().error).toContain('SHA-256');
   });
@@ -506,7 +512,7 @@ describe('UpdateService download', () => {
     await update.check();
     await expectRpcRejection(update.download(), RpcErrorCode.UpdateVerificationFailed);
     expect(existsSync(assetPath())).toBe(false);
-    expect(readdirSync(updatesDir())).toEqual([]);
+    expect(readdirSync(path.dirname(assetPath()))).toEqual([]);
     expect(store.get().downloaded).toBeNull();
   });
 
@@ -561,6 +567,25 @@ describe('UpdateService dismissal', () => {
 });
 
 describe('UpdateService install and rollback', () => {
+  it('retains the current verified package when a newer release reuses its asset filename', async () => {
+    const first = createService({ fetch: releaseFetch() });
+    await first.check();
+    await first.download();
+    const retained = assetPath();
+    store = new UpdateStore(database, '1.2.3');
+    const next = createService({
+      currentVersion: '1.2.3',
+      fetch: releaseFetch({ version: '2.0.0', tag: 'v2.0.0' }),
+    });
+    await next.check();
+    const downloaded = await next.download();
+    expect(downloaded.previous).toEqual({ version: '1.2.3', path: retained });
+    expect(downloaded.downloaded?.path).toBe(path.join(updatesDir(), '2.0.0', ASSET_NAME));
+    expect(readFileSync(retained, 'utf8')).toBe(ASSET_BYTES);
+    expect(downloaded.currentVersion).toBe('1.2.3');
+    expect(downloaded.schemaVersion).toBe(1);
+    expect(Object.keys(downloaded.previous!)).toEqual(['version', 'path']);
+  });
   it('returns manual install instructions without installing or recording state', async () => {
     const update = createService({ fetch: releaseFetch() });
     await update.check();

@@ -1,8 +1,23 @@
 # PlayWeld integration and extension guide
 
-**Last updated:** 2026-10-04
+**Last updated:** 2026-10-06
 
 **Audience:** Engine, DCC, MCP, skill, role, plugin and provider integrators. [Documentation index](README.md).
+
+## Choose what you are connecting
+
+| Integration                            | Section                                                             |
+| -------------------------------------- | ------------------------------------------------------------------- |
+| Unity                                  | [Unity connector](#unity)                                           |
+| Unreal Engine                          | [Unreal connector and editor bridge](#unreal)                       |
+| Godot or a DCC application             | [Godot and DCC](#godot-and-dcc)                                     |
+| An MCP server                          | [MCP connections](#mcp-connections)                                 |
+| Agent instructions or responsibilities | [Skills](#agent-skills) · [Roles](#roles)                           |
+| Executable platform extensions         | [Plugins](#executable-plugins)                                      |
+| Model or asset-generation providers    | [Providers](#model-and-generation-providers)                        |
+| Validation for a new integration       | [Acceptance checklist](#acceptance-checklist-for-a-new-integration) |
+
+Start by identifying the installation, connection, and Project binding you need. Check the capability report before requesting an operation; available actions depend on the connector and execution layer.
 
 ## Integration boundaries
 
@@ -26,6 +41,8 @@ Installations record family, executable, kind, version and whether detection or 
 
 ## Unity
 
+PlayWeld now supplies a dependency-free Editor bridge as well. **Engine → Live bridge → Install editor plugin** applies its source to the native `game` folder; Unity starts it automatically when importing the Project. Pairing validates that exact Project. [Managed editor acceptance](EDITOR_BRIDGE_ACCEPTANCE.md) records real installation, credential retention, owned-object edits, user-object refusal and viewport capture. The optional official CLI/Pipeline evidence below remains separate.
+
 The Unity connector separates filesystem inspection, batchmode CLI runs and a connected live editor bridge. Baseline real evidence uses Unity **6000.6.0f1** on Windows with EditMode/PlayMode tests, Windows build and player assertions. Extended evidence includes Windows and Linux players, WebGL rendering/input/audio, and a live brokered editor identity/screenshot.
 
 The installed official CLI is 1.0.0, with MCP server identity `unity-mcp` 1.0.0-beta.9. The fixture uses Pipeline 0.8.0-exp.1. Those experimental package/version results do not establish support across other versions or projects.
@@ -38,9 +55,13 @@ The extended Linux player ran with llvmpipe software rendering; WebGL used Swift
 
 ## Unreal
 
+**Install editor plugin** defaults to compiling the owned bridge through a registered matching `RunUAT.bat` installation. **Build editor plugin** can retry while the native editor is closed. Source/engine fingerprints permit reuse of matching owned binaries; modified or untracked files are preserved. See [managed editor acceptance](EDITOR_BRIDGE_ACCEPTANCE.md) for install/build/pair steps and current direct-authoring evidence.
+
 Baseline evidence uses Unreal **5.8.3** on Windows, automation tests, packaging and a Win64 player save/load assertion. Extended evidence adds real editor identity, a saved Basic-template map, viewport PNG and master-output audio recordings in editor executable game mode.
 
-CodeFizz CLI **2.23.1** and editor plugin **1.17.0** were tested. Its SDK handshake discovered 61 editor tools. The platform acceptance uses [codefizz-acceptance-mcp.cjs](../scripts/codefizz-acceptance-mcp.cjs), a two-tool adapter exposing identity and screenshots. It is checkout acceptance tooling, not a bundled general-purpose released connector.
+The current owned bridge is [PlayWeldEditor](../integrations/unreal/PlayWeldEditor/README.md), an editor-only plugin built from repository source with no third-party editor-plugin dependency or in-editor AI. Windows/Unreal5.8.3 live checks cover authenticated identity/inspection, owned-actor edits, viewport PNG, console restrictions and Project scope. `engine/editor-bridge-install` and `engine/editor-bridge-connect` are native broker tools taking an explicit Project-relative `.uproject` path. Installation preserves source edits and plugin choices, protects pairing with Windows DPAPI and reports the required editor build; connection verifies the actual editor identity and uses encrypted MCP credentials. Broader authoring/lifecycle and packaged deployment remain separate gates.
+
+Historical acceptance used CodeFizz CLI **2.23.1** and editor plugin **1.17.0**, with 61 SDK tools and the [codefizz-acceptance-mcp.cjs](../scripts/codefizz-acceptance-mcp.cjs) identity/screenshot adapter. Those records and compatibility support remain historical/optional; the current first-party work does not depend on them.
 
 The adapter takes an explicit `.uproject`, reads the active bridge port and validates a real CLI health reply against that exact native project. It rejects mismatched identity before capture. Automatic CodeFizz discovery failed on the tested host; an observed port worked after health validation. Do not hardcode a remembered port and assume it belongs to the intended editor.
 
@@ -48,7 +69,7 @@ Audio evidence records positive playing/resumed PCM and zero paused PCM using th
 
 ## Godot and DCC
 
-Godot **4.7.2** has real headless evidence. A live editor bridge and broader version/export-target matrix remain outstanding. Treat file/headless support separately from a live connected scene editor.
+Godot **4.7.2** has real headless and managed live editor evidence. PlayWeld installs/enables its addon alongside existing addons and pairs the Windows or tested WSL editor through protected Windows credentials. [Managed editor acceptance](EDITOR_BRIDGE_ACCEPTANCE.md) covers identity, owned scene edits, user-object refusal and viewport capture. Other native OS credential paths and broader version/export-target matrices remain outstanding.
 
 Blender **5.2.2 LTS** has live headless scene creation, inspection, GLB export and PNG render evidence under WSL/native Windows. Other DCC connectors have fixture tests and require actual installed-application verification. Use DCC installation/capability/run records to assess the current host.
 

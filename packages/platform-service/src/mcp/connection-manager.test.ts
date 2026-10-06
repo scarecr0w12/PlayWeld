@@ -22,6 +22,41 @@ afterEach(() => {
 });
 
 describe('McpConnectionManager persistence and credentials', () => {
+  it('coalesces concurrent connects into one fully catalogued session', async () => {
+    const fixture = makeManagerFixture();
+    try {
+      const config = fixture.manager.add({
+        name: 'concurrent-server',
+        scope: 'platform',
+        projectId: null,
+        mode: 'command',
+        command: {
+          command: process.execPath,
+          args: [path.resolve(__dirname, '../../lib/mcp/__fixtures__/server-2026-07-28.js')],
+          env: {},
+        },
+        enabled: false,
+      });
+      const results = await Promise.all(
+        Array.from({ length: 4 }, () => fixture.manager.connect(config.connectionId)),
+      );
+      expect(results.every((result) => result.status === 'connected')).toBe(true);
+      expect((await fixture.manager.tools(config.connectionId)).tools.length).toBeGreaterThan(0);
+      const connecting = fixture.events.stateChanged.mock.calls.filter((args) =>
+        args.some(
+          (value) =>
+            value &&
+            typeof value === 'object' &&
+            'status' in value &&
+            value.status === 'connecting',
+        ),
+      );
+      // One manager transition and one session transition, independent of caller count.
+      expect(connecting).toHaveLength(2);
+    } finally {
+      await fixture.close();
+    }
+  });
   it('keeps credential values out of connection RPC results and removes them with the connection', async () => {
     const profileDir = mkdtempSync(path.join(tmpdir(), 'gc-mcp-manager-'));
     directories.push(profileDir);

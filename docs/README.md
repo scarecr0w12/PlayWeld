@@ -1,71 +1,111 @@
 # PlayWeld documentation
 
-**Last updated:** 2026-10-04
+**Last updated:** 2026-10-06
 
-PlayWeld is a local game-development workspace with a Theia desktop Control Room, a persistent platform service, model-assisted agents, and engine/DCC integrations. These guides explain the current repository. Design documents describe the complete target system; verification records identify which capabilities have actual live evidence.
+Find instructions for using PlayWeld, maintaining your workspace, and contributing to the platform. Start with a task below; use the references when you need exact settings or API details.
 
-**Product identity:** [PlayWeld branding and compatibility](BRANDING.md) records the name, selected domain, retained technical identifiers, and remaining identity work.
+## Start with your goal
+
+| You want to…                                   | Start here                                                                                                                                                 |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Install, launch, and create your first Project | [User guide](USER_GUIDE.md)                                                                                                                                |
+| Follow a hands-on example                      | [Lantern Workshop tutorial](WORKED_TUTORIAL.md)                                                                                                            |
+| Understand a Control Room screen               | [Control Room handbook](CONTROL_ROOM_HANDBOOK.md)                                                                                                          |
+| Ask an agent to make a change                  | [Chat and agent work](USER_GUIDE.md#chat-and-agent-work) · [Workflow cookbook](WORKFLOW_COOKBOOK.md#ask-an-agent-to-make-a-change-and-inspect-integration) |
+| Configure models or diagnose routing           | [Model setup](USER_GUIDE.md#configure-models-and-routing) · [Model routing guide](MODEL_ROUTING_GUIDE.md)                                                  |
+| Connect an engine or external tool             | [Integration guide](INTEGRATION_GUIDE.md)                                                                                                                  |
+| Apply a direct editor plugin                  | [Managed Unity, Unreal and Godot bridges](EDITOR_BRIDGE_ACCEPTANCE.md)                                                                                     |
+| Connect an external IDE to PlayWeld            | [External IDE MCP and native Theia integration](EXTERNAL_IDE_INTEGRATION.md)                                                                                |
+| Back up, restore, or troubleshoot              | [Operations guide](OPERATIONS_GUIDE.md) · [Profile recovery runbook](RECOVERY_RUNBOOK.md)                                                                  |
+| Change PlayWeld's code or documentation        | [Developer guide](DEVELOPER_GUIDE.md)                                                                                                                      |
+
+For terminology, use the [glossary](GLOSSARY.md). For current capabilities and known gaps, use [implementation status](STATUS.md).
 
 ## Learn through a testing Project
 
-Start with [Lantern Workshop: worked tutorial](WORKED_TUTORIAL.md) for project creation, reusable native/design files, a discussion, model/chat configuration, and cited Knowledge search. The [Control Room handbook](CONTROL_ROOM_HANDBOOK.md) explains every surface with screenshots, practical examples, and evidence to inspect. The [service recipes](SERVICE_RECIPES.md) connect these workflows to the local typed API and component boundaries. The [documentation coverage record](DOCUMENTATION_COVERAGE.md) lists checks, repaired documentation/fixture problems, and unverified operations.
+[Lantern Workshop](WORKED_TUTORIAL.md) walks through Project creation, native game and design files, a discussion, model/chat configuration, and cited Knowledge search. It uses a disposable Project so you can practice separately from your game.
 
-The [reusable fixture](examples/lantern-workshop/README.md) and [capture script](../scripts/capture-documentation.cjs) keep the walkthrough reproducible. Current screenshots show the grouped PlayWeld navigation, sectioned Control Room pages, and compact Chat layout in the built development browser with a real isolated service. The chat endpoint is an explicitly labeled local fixture. The dated [workflow image set and capture report](images/lantern-workflows-2026-10-04/capture-report.json) record the 2026-10-04 browser/service 0.6.0 run and its boundaries. These captures do not establish paid-provider, native-gameplay, installer, or live-editor acceptance.
+Continue with the [workflow cookbook](WORKFLOW_COOKBOOK.md) for agent questions, approvals, decision records, settings transfer, asset review, indexing, and recovery. Use the [annotated screenshot gallery](WORKFLOW_SCREENSHOTS.md) to inspect configuration, results, and recovery states.
+
+The [reusable fixture](examples/lantern-workshop/README.md) and [capture script](../scripts/capture-documentation.cjs) support reproducing the walkthrough. Screenshot versions and verification limits are listed under [Verification and research](#verification-and-research).
 
 ## Guides by audience
 
-The [model routing and failure guide](MODEL_ROUTING_GUIDE.md) explains eligibility stages, applicable pool intersections, manual selection, streaming fallback, estimates/budgets and the boundary between provider, task, tool and integration failures.
+| Guide                                             | Who it helps               | What you will find                                                      |
+| ------------------------------------------------- | -------------------------- | ----------------------------------------------------------------------- |
+| [User guide](USER_GUIDE.md)                       | People making games        | Setup, Projects, models, chat, agents, assets, Knowledge, and approvals |
+| [Control Room handbook](CONTROL_ROOM_HANDBOOK.md) | People using the interface | Screens, controls, examples, and signs of success or failure            |
+| [Operations guide](OPERATIONS_GUIDE.md)           | Workspace maintainers      | Service lifecycle, storage, credentials, backups, and troubleshooting   |
+| [Developer guide](DEVELOPER_GUIDE.md)             | Platform contributors      | Repository setup, code conventions, tests, and documentation updates    |
+| [Integration guide](INTEGRATION_GUIDE.md)         | Integration authors        | Engines, MCP, DCC, skills, roles, plugins, and provider boundaries      |
+| [System architecture](SYSTEM_ARCHITECTURE.md)     | Contributors and reviewers | Current components, data ownership, persistence, and task lifecycle     |
 
-The [profile recovery runbook](RECOVERY_RUNBOOK.md) adds a complete service-level recovery drill, an executable read-only diagnostic command, full index rebuild acceptance and a safe demonstration of the credential-key recovery limit. It distinguishes profile relocation from restoring the game workspace and preserves a [passing recovery report](examples/lantern-workshop/verification/profile-recovery.json).
+## Reference and advanced workflows
 
-The [workflow cookbook](WORKFLOW_COOKBOOK.md) adds agent/question/integration, binding-decision, settings transfer, asset review, indexing and native-operation exercises. The [contributor extension cookbook](EXTENSION_COOKBOOK.md) explains skills, roles, platform plugins, Theia/editor extensions, connectors, contracts, notifications and migrations. The [annotated screenshot gallery](WORKFLOW_SCREENSHOTS.md) explains actual configuration, results and recovery states. Use the [glossary](GLOSSARY.md) for shared meanings and the [generated surface inventory](reference/DOCUMENTATION_INVENTORY.md) to find every RPC family, service area and settings group. [Current standards research](research/documentation-standards-verification.md) records sources and inaccessible material explicitly.
+| Resource                                                  | Use it for                                                                        |
+| --------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| [Settings reference](SETTINGS_REFERENCE.md)               | Setting keys, defaults, allowed scopes, and value schemas                         |
+| [RPC API reference](API_REFERENCE.md)                     | Requests, notifications, error codes, and machine-readable schemas                |
+| [Model routing guide](MODEL_ROUTING_GUIDE.md)             | Eligibility, pools, manual selection, fallback, budgets, and failure diagnosis    |
+| [Profile recovery runbook](RECOVERY_RUNBOOK.md)           | Recovery drills, read-only diagnostics, index rebuilds, and credential-key limits |
+| [Service recipes](SERVICE_RECIPES.md)                     | Worked examples using the local typed API                                         |
+| [Extension cookbook](EXTENSION_COOKBOOK.md)               | Skills, roles, plugins, editor extensions, connectors, and migrations             |
+| [Game-development skills](GAME_DEVELOPMENT_SKILLS.md)     | Bundled skills, domain coverage, references, and evaluation evidence              |
+| [Surface inventory](reference/DOCUMENTATION_INVENTORY.md) | Finding documentation for RPC families, service areas, and settings groups        |
 
-| Reader or task                         | Start here                                            | Coverage                                                                                             |
-| -------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| New user                               | [User guide](USER_GUIDE.md)                           | Setup, Projects, Control Room views, models, chat, agents, assets, knowledge, approvals              |
-| System maintainer                      | [Operations guide](OPERATIONS_GUIDE.md)               | Service lifecycle, storage, credentials, backup/restore, diagnostics, release and dependency audit   |
-| Contributor                            | [Developer guide](DEVELOPER_GUIDE.md)                 | Repository setup, contracts, typed client, code conventions, meaningful tests, documentation updates |
-| Integration author                     | [Integration guide](INTEGRATION_GUIDE.md)             | Engine layers, MCP, DCC, skills, roles, plugin SDK, provider boundaries                              |
-| Architecture reviewer                  | [System architecture](SYSTEM_ARCHITECTURE.md)         | Components, ownership, data flows, persistence, task lifecycle, trust boundaries                     |
-| API consumer                           | [RPC reference](API_REFERENCE.md)                     | All 186 requests, 28 notifications, error codes, complete machine-readable schemas                   |
-| Administrator configuring defaults     | [Settings reference](SETTINGS_REFERENCE.md)           | All 75 builtin settings, defaults, valid scopes, value schemas                                       |
-| Game-development agent or skill author | [Game-development skills](GAME_DEVELOPMENT_SKILLS.md) | Bundled skills, domain coverage, reference loading, research and evaluation evidence                 |
+Generated schema files live under [reference/](reference/).
 
 ## Versioned builds
 
-The [changelog](../CHANGELOG.md) summarizes the permanent [work records](changes/README.md). Every task is tracked, including removals, docs, tests, assets and maintenance. Records retain full details, affected paths, version impact and validation; CI checks coverage and release preparation collects them into detailed notes.
+The [adversarial system review](ADVERSARIAL_SYSTEM_REVIEW.md) records current repairs, larger desktop checks, local workflows, live engine/provider results and remaining implementation/acceptance gaps.
 
-See the [release and local Windows testing guide](RELEASE_GUIDE.md) for version/tag agreement, GitHub draft prereleases, checksums, package commands and isolated local test launchers. [0.1.1 testing notes](releases/v0.1.1.md) describe the contents and limitations. [Release acceptance](RELEASE_ACCEPTANCE.md) records source identity, local packaging, runtime/UI verification, and hosted publication results.
+Read the [release and local Windows testing guide](RELEASE_GUIDE.md) for testing builds, package commands, checksums, and isolated launchers. The [changelog](../CHANGELOG.md) lists pending work and recorded versions; [release notes](releases/) describe each recorded release.
+
+[Release acceptance](RELEASE_ACCEPTANCE.md) records source identity, packaging, runtime/UI verification, and hosted publication results. Historical notes such as [0.1.1 testing notes](releases/v0.1.1.md) describe that version's contents and limitations.
+
+Contributors must keep permanent [work records](changes/README.md) covering changes, affected files, version impact, and actual validation.
 
 ## Design authority
 
-- [Platform design](PLATFORM_DESIGN.md) owns user-confirmed requirements and the complete product design.
-- [Technical architecture](TECHNICAL_ARCHITECTURE.md) owns selected engineering defaults.
-- [Skills, agents, and tools](SKILLS_AGENTS_AND_TOOLS.md) owns extension and connection contracts.
-- [Decision register](OPEN_DECISIONS.md) retains decisions and verification questions in place.
-- [Development plan](DEVELOPMENT_PLAN.md) is the sole authority for work-package status and dependency ordering.
-- [Implementation status](STATUS.md) summarizes existing behavior and remaining work by area.
-- [Repository instructions](../AGENTS.md) govern code and documentation changes.
+The user guides explain the current repository. The design documents describe the complete target system, including proposed and unverified work. Use each document for the information it owns:
 
-These guides do not confirm new requirements, settle open product decisions, or expand an engine acceptance result into a guarantee for every engine version or production Project.
+| Document                                                | Authority                                                     |
+| ------------------------------------------------------- | ------------------------------------------------------------- |
+| [Platform design](PLATFORM_DESIGN.md)                   | User-confirmed requirements and complete product design       |
+| [Technical architecture](TECHNICAL_ARCHITECTURE.md)     | Selected engineering defaults                                 |
+| [Skills, agents, and tools](SKILLS_AGENTS_AND_TOOLS.md) | Extension and connection contracts                            |
+| [Decision register](OPEN_DECISIONS.md)                  | Retained decisions and verification questions                 |
+| [Development plan](DEVELOPMENT_PLAN.md)                 | Work-package status and technical dependency ordering         |
+| [Implementation status](STATUS.md)                      | Current behavior, evidence levels, and remaining work by area |
+| [Repository instructions](../AGENTS.md)                 | Rules for code and documentation contributions                |
+| [Branding guide](BRANDING.md)                           | Public identity and retained compatibility identifiers        |
+
+Only the user confirms new requirements and product decisions. Documentation edits do not change their status.
 
 ## Verification and research
 
-The [documentation review](DOCUMENTATION_REVIEW.md) maps current guides to implementation surfaces and evidence, records corrected findings and preserves verification limits. Run `node scripts/check-documentation-evidence.cjs` after building to check method/setting/view coverage and retained screenshot-report integrity.
+Read evidence in context: repository tests, browser fixtures, live engine checks, and installer acceptance establish different things. A fixture result applies to the recorded operation, Project, version, and host.
 
-| Record                                                      | What it establishes                                                                             |
-| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| [Full project review](FULL_PROJECT_REVIEW.md)               | Repaired code defects, package tests, dependency audit, remaining implementation gaps           |
-| [Program review](PROGRAM_REVIEW.md)                         | Earlier native Windows UI, packaging, service, and Blender evidence                             |
-| [Live engine acceptance](LIVE_ENGINE_ACCEPTANCE.md)         | Disposable Unity/Unreal Windows fixtures, tests, packaging, players and access-policy checks    |
-| [Extended engine acceptance](EXTENDED_ENGINE_ACCEPTANCE.md) | Real editor identity/screenshot, rendering, audio, WebGL input and additional installed targets |
-| [Research library](research/)                               | Dated, sourced engine, asset, protocol and production workflow notes                            |
+| Record                                                                               | What it covers                                                                      |
+| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| [Documentation coverage](DOCUMENTATION_COVERAGE.md)                                  | Walkthrough checks, repaired fixture problems, and unverified operations            |
+| [Documentation review](DOCUMENTATION_REVIEW.md)                                      | Guide-to-implementation mappings, corrected findings, and verification limits       |
+| [Full project review](FULL_PROJECT_REVIEW.md)                                        | Repaired defects, package tests, dependency audit, and remaining gaps               |
+| [Program review](PROGRAM_REVIEW.md)                                                  | Earlier native Windows UI, packaging, service, and Blender evidence                 |
+| [Live engine acceptance](LIVE_ENGINE_ACCEPTANCE.md)                                  | Disposable Unity/Unreal Windows fixtures, tests, packaging, and access checks       |
+| [Extended engine acceptance](EXTENDED_ENGINE_ACCEPTANCE.md)                          | Editor identity, screenshots, rendering, audio, WebGL input, and additional targets |
+| [Research library](research/)                                                        | Dated, sourced engine, asset, protocol, and production workflow notes               |
+| [Documentation standards research](research/documentation-standards-verification.md) | Sources consulted and inaccessible material                                         |
 
-On 2026-10-01, the extended acceptance record reports 33 successful repository tasks on Linux and Windows, 426 Linux tests, 414 Windows tests with 12 explicit skips, plus separate live-engine fixture results. A fixture test proves the named operation on that fixture and host. It does not certify an existing game, production frame budget, installer lifecycle, or every integration.
+The [2026-10-04 workflow capture report](images/lantern-workflows-2026-10-04/capture-report.json) records browser/service version 0.6.0. Those screenshots show grouped navigation, sectioned pages, and compact Chat in the built development browser connected to an isolated service. Chat uses a labeled local fixture. These captures do not establish paid-provider, native-gameplay, installer, or live-editor acceptance.
+
+The [passing profile recovery report](examples/lantern-workshop/verification/profile-recovery.json) records a service-level recovery drill. The recovery runbook explains the distinction between profile relocation, restoring game files, and credential-key recovery.
 
 ## Keeping documentation current
 
-When changing behavior, update the relevant guide and evidence record. Changes to work-package or decision status also require a matching [status](STATUS.md) update. Generate RPC and settings references after building their source packages:
+When changing behavior, update the relevant guide and evidence record. Work-package or decision status changes also need a matching [status](STATUS.md) update. Follow the [documentation writing guidance](DEVELOPER_GUIDE.md#documentation-and-contribution-review) to keep instructions readable.
+
+After building the source packages, generate and check the RPC/settings references:
 
 ```bash
 npm run build
@@ -74,4 +114,4 @@ node scripts/generate-system-reference.cjs --check
 bash scripts/check-links.sh
 ```
 
-Generated references export the complete schemas as JSON under [reference/](reference/). They omit runtime secrets. Review links, examples, and the distinction between implemented, fixture-tested and live-verified behavior before publishing documentation.
+Run `node scripts/check-documentation-evidence.cjs` to check method/setting/view coverage and retained screenshot-report integrity. This check does not assess prose quality or prove live integrations. Review examples, navigation, and capability claims as well as automated results.

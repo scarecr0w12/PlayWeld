@@ -13,6 +13,69 @@ import { estimateRequestTokens, modelContext } from './model-context';
 const timestamp = '2026-09-29T00:00:00.000Z';
 
 describe('agent runtime', () => {
+  it('repairs interrupted checkpoint tool calls before asking the provider to continue', async () => {
+    const calls = [
+      { id: 'written', name: 'fs/write-file', arguments: '{}' },
+      { id: 'question', name: 'tasks/ask_user', arguments: '{"prompt":"Choose direction"}' },
+      { id: 'uncertain', name: 'process/run', arguments: '{}' },
+    ];
+    const requests: Array<Array<Record<string, unknown>>> = [];
+    const tools = vi.fn();
+    const context = createContext(
+      [
+        response([
+          {
+            id: 'done',
+            name: 'tasks/complete',
+            arguments: JSON.stringify({
+              summary: 'Recovered',
+              artifacts: [],
+              evidence: [],
+              claims: [],
+            }),
+          },
+        ]),
+      ],
+      {
+        initialCheckpoint: {
+          transcript: [
+            { role: 'system', content: 'Retained instructions' },
+            { role: 'assistant', content: '', toolCalls: calls },
+            {
+              role: 'tool',
+              toolCallId: 'written',
+              name: 'fs/write-file',
+              content: '{"saved":true}',
+            },
+          ],
+          turn: 1,
+          pinnedCount: 1,
+          activatedSkills: [],
+          eligibleSkills: [],
+          evidence: [],
+        },
+        tool: async (id, args) => {
+          if (id === 'model/complete')
+            requests.push(
+              structuredClone(
+                (args as { request: { messages: Array<Record<string, unknown>> } }).request
+                  .messages,
+              ),
+            );
+          if (id === 'process/run' || id === 'fs/write-file') tools(id);
+        },
+      },
+    );
+    context.ask = vi.fn(async () => 'Grounded realism');
+    await runAgentTask(context);
+    expect(context.ask).toHaveBeenCalledWith('Choose direction', undefined);
+    expect(tools).not.toHaveBeenCalled();
+    const outputs = requests[0]!.filter((m) => m.role === 'tool');
+    expect(outputs.map((m) => m.toolCallId)).toEqual(['written', 'question', 'uncertain']);
+    expect(outputs[1]!.content).toContain('Grounded realism');
+    expect(outputs[2]!.content).toContain('interrupted');
+  });
+
   it.each(['shadow', 'assist'])(
     'assesses once, accounts usage, and handles %s advice separately',
     async (mode) => {
@@ -515,6 +578,68 @@ describe('agent runtime', () => {
     await expect(runAgentTask(budgetLimited)).rejects.toMatchObject({
       code: RpcErrorCode.AgentBudgetExceeded,
     });
+  });
+
+  it('continues a checkpointed turn-limit boundary only after an explicit user answer', async () => {
+    const done = response([
+      {
+        id: 'done',
+        name: 'tasks/complete',
+        arguments: JSON.stringify({
+          summary: 'Continued',
+          artifacts: [],
+          evidence: [],
+          claims: [],
+        }),
+      },
+    ]);
+    const context = createContext([response([]), done], { role: roleSnapshot({ maxTurns: 1 }) });
+    context.ask = vi.fn(async () => 'Continue');
+    const result = await runAgentTask(context);
+    expect(result.summary).toBe('Continued');
+    expect(context.ask).toHaveBeenCalledTimes(1);
+    expect(context.ask).toHaveBeenCalledWith(expect.stringContaining('another 1'), [
+      'Continue',
+      'Stop',
+    ]);
+  });
+
+  it('retains an approved continuation across restart and keeps cumulative budgets authoritative', async () => {
+    const checkpoint = {
+      transcript: [{ role: 'system', content: 'Instructions' }],
+      turn: 1,
+      pinnedCount: 1,
+      activatedSkills: [],
+      eligibleSkills: [],
+      evidence: [
+        { kind: 'user-answer', ref: 'turn-limit:1' },
+        { kind: 'turn-allowance', ref: '2' },
+      ],
+    };
+    const done = response([
+      {
+        id: 'done',
+        name: 'tasks/complete',
+        arguments: JSON.stringify({ summary: 'Resumed', artifacts: [], evidence: [], claims: [] }),
+      },
+    ]);
+    const context = createContext([done], {
+      role: roleSnapshot({ maxTurns: 1 }),
+      initialCheckpoint: checkpoint,
+    });
+    context.ask = vi.fn();
+    expect((await runAgentTask(context)).summary).toBe('Resumed');
+    expect(context.ask).not.toHaveBeenCalled();
+    const limited = createContext([], {
+      role: roleSnapshot({ maxTurns: 1 }),
+      initialCheckpoint: checkpoint,
+      task: taskRecord({ budget: { maxTokens: 10 }, spent: { tokens: 10, costUsd: 0 } }),
+    });
+    limited.ask = vi.fn();
+    await expect(runAgentTask(limited)).rejects.toMatchObject({
+      code: RpcErrorCode.AgentBudgetExceeded,
+    });
+    expect(limited.ask).not.toHaveBeenCalled();
   });
 
   it('identifies the exhausted token budget separately from dollar spend', async () => {

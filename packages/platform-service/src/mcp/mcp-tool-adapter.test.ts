@@ -33,6 +33,35 @@ const tools: McpToolDescriptor[] = [
 ];
 
 describe('McpToolAdapter', () => {
+  it('rejects a foreign Project before invoking a Project-scoped server', async () => {
+    const registry = new ToolRegistry();
+    const adapter = new McpToolAdapter(registry);
+    const owner = uuidv7();
+    const invoke = vi.fn(async () => ({ content: [{ type: 'text', text: 'private scene' }] }));
+    adapter.register(
+      { ...connection, scope: 'project', projectId: owner },
+      [tools[0]!],
+      () => ({ sideEffects: 'none', executionMode: 'live-editor' }),
+      invoke,
+    );
+    const context = {
+      projectId: uuidv7(),
+      projectPath: '/tmp/other',
+      taskId: null,
+      agentId: null,
+      accessMode: 'full' as const,
+      callId: uuidv7(),
+      signal: new AbortController().signal,
+    };
+    await expect(registry.get('fixture-tools/echo')!.handler(context, {})).rejects.toThrow(
+      /Project/,
+    );
+    expect(invoke).not.toHaveBeenCalled();
+    await expect(
+      registry.get('fixture-tools/echo')!.handler({ ...context, projectId: owner }, {}),
+    ).resolves.toMatchObject({ output: { content: expect.any(Array) } });
+    expect(invoke).toHaveBeenCalledTimes(1);
+  });
   it('validates structured MCP content while retaining the response envelope', async () => {
     const registry = new ToolRegistry();
     const adapter = new McpToolAdapter(registry);

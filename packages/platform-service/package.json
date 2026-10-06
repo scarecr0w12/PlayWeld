@@ -1,12 +1,13 @@
 {
   "name": "@gamecrafter/platform-service",
-  "version": "0.10.3",
+  "version": "0.16.0",
   "private": true,
   "license": "Apache-2.0",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "bin": {
-    "gamecrafter-service": "lib/cli.js"
+    "gamecrafter-service": "lib/cli.js",
+    "gamecrafter-mcp": "lib/mcp/external-ide-server.js"
   },
   "scripts": {
     "build": "tsc -b && node scripts/copy-assets.cjs",
@@ -17,8 +18,8 @@
   },
   "dependencies": {
     "@a2a-js/sdk": "1.2.1",
-    "@gamecrafter/contracts": "0.10.3",
-    "@gamecrafter/service-client": "0.10.3",
+    "@gamecrafter/contracts": "0.16.0",
+    "@gamecrafter/service-client": "0.16.0",
     "@lancedb/lancedb": "0.29.0",
     "apache-arrow": "18.1.0",
     "cross-spawn": "7.0.6",
@@ -29,8 +30,8 @@
     "yaml": "2.9.1"
   },
   "devDependencies": {
-    "@gamecrafter/plugin-sample-hello": "0.10.3",
-    "@modelcontextprotocol/sdk": "1.30.0",
+    "@gamecrafter/plugin-sample-hello": "0.16.0",
+    "@modelcontextprotocol/sdk": "1.31.0",
     "@types/cross-spawn": "6.0.6",
     "@types/express": "5.0.3",
     "@types/semver": "7.8.0"

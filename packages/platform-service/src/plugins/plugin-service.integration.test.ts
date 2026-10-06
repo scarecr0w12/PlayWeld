@@ -4,6 +4,7 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  renameSync,
   rmSync,
   symlinkSync,
   unlinkSync,
@@ -17,6 +18,7 @@ import { connect } from '@gamecrafter/service-client';
 import { Database } from '../db/database';
 import type { IsolationLauncher } from './isolation/types';
 import { BwrapLauncher } from './isolation/bwrap-launcher';
+import { AppContainerLauncher } from './isolation/appcontainer-launcher';
 import { resolvePaths } from '../paths';
 import { PlatformService } from '../service';
 
@@ -25,13 +27,17 @@ let client: Awaited<ReturnType<typeof connect>> | undefined;
 let fakeModelServer: ReturnType<typeof createServer> | undefined;
 const temporaryDirectories: string[] = [];
 const bwrapProbe =
-  process.platform === 'linux' ? new BwrapLauncher().probe() : Promise.resolve(undefined);
+  process.platform === 'linux'
+    ? new BwrapLauncher().probe()
+    : process.platform === 'win32'
+      ? new AppContainerLauncher().probe()
+      : Promise.resolve(undefined);
 
 async function skipWithoutBwrap(context: TestContext): Promise<void> {
   const report = await bwrapProbe;
   if (!report?.available) {
     context.skip(
-      `Requires a working Bubblewrap network namespace: ${report?.checks.map((check) => check.detail).join('; ') ?? 'non-Linux platform'}`,
+      `Requires a working native plugin sandbox: ${report?.checks.map((check) => check.detail).join('; ') ?? 'unsupported platform'}`,
     );
   }
 }
@@ -103,7 +109,10 @@ describe('plugin service integration', () => {
     });
     expect(worker).toMatchObject({
       status: 'running',
-      isolation: { backend: 'bwrap', enforced: true },
+      isolation: {
+        backend: process.platform === 'win32' ? 'appcontainer' : 'bwrap',
+        enforced: true,
+      },
     });
     const listedTools = await client.call('tool/list', { projectId: project.projectId });
     expect(listedTools.tools.map((tool) => tool.toolId)).toContain('sample-hello/greet');
@@ -127,13 +136,28 @@ describe('plugin service integration', () => {
     });
     const panelPath = path.join(installed.installPath, 'panels', 'hello.json');
     const panelSource = readFileSync(panelPath);
-    unlinkSync(panelPath);
-    symlinkSync('/etc/passwd', panelPath);
+    const panels = path.dirname(panelPath);
+    const savedPanels = path.join(installed.installPath, 'saved-panels');
+    if (process.platform === 'win32') {
+      const outsidePanels = path.join(root, 'outside-panels');
+      mkdirSync(outsidePanels);
+      writeFileSync(path.join(outsidePanels, 'hello.json'), panelSource);
+      renameSync(panels, savedPanels);
+      symlinkSync(outsidePanels, panels, 'junction');
+    } else {
+      unlinkSync(panelPath);
+      symlinkSync('/etc/passwd', panelPath);
+    }
     await expect(
       client.call('plugin/panel', { pluginId: 'sample-hello', panelId: 'hello-panel' }),
     ).rejects.toMatchObject({ code: RpcErrorCode.PluginManifestInvalid });
-    unlinkSync(panelPath);
-    writeFileSync(panelPath, panelSource);
+    if (process.platform === 'win32') {
+      rmSync(panels);
+      renameSync(savedPanels, panels);
+    } else {
+      unlinkSync(panelPath);
+      writeFileSync(panelPath, panelSource);
+    }
     const modules = await client.call('plugin/modules', {});
     expect(
       modules.modules.some(
@@ -293,7 +317,10 @@ describe('plugin service integration', () => {
     });
     expect(worker).toMatchObject({
       status: 'running',
-      isolation: { backend: 'bwrap', enforced: true },
+      isolation: {
+        backend: process.platform === 'win32' ? 'appcontainer' : 'bwrap',
+        enforced: true,
+      },
     });
     const pythonTools = await client.call('tool/list', { projectId: project.projectId });
     expect(

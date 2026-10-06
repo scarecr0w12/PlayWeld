@@ -64,6 +64,24 @@ if (servicePackage.version !== expectedVersion)
   throw new Error('Packaged service version does not match the application.');
 const serviceCli = path.join(serviceDir, 'lib', 'cli.js');
 if (!fs.existsSync(serviceCli)) throw new Error(`Packaged service CLI is missing: ${serviceCli}`);
+for (const runtime of ['mcp/external-ide-server.js', 'updates/installer-handoff.js']) {
+  if (!fs.existsSync(path.join(serviceDir, 'lib', runtime)))
+    throw new Error(`Packaged integration runtime is missing: ${runtime}`);
+}
+const isolationHelper = path.join(serviceDir, 'lib/plugins/isolation/AppContainerHost.exe');
+const helperBytes = fs.readFileSync(isolationHelper);
+if (helperBytes.toString('ascii', 0, 2) !== 'MZ')
+  throw new Error('Packaged Windows isolation helper is not a native PE executable.');
+const integrationRoot = path.join(serviceDir, 'lib/integrations');
+for (const family of ['unity', 'unreal', 'godot']) {
+  const authored = path.resolve(__dirname, '../../../integrations', family, 'PlayWeldEditor');
+  const packaged = path.join(integrationRoot, family, 'PlayWeldEditor');
+  for (const file of fs.readdirSync(authored, { recursive: true }).filter(file => fs.statSync(path.join(authored, file)).isFile())) {
+    if (!fs.existsSync(path.join(packaged, file)) || !fs.readFileSync(path.join(authored, file)).equals(fs.readFileSync(path.join(packaged, file))))
+      throw new Error(`Packaged editor source is missing or stale: ${family}/${file}`);
+  }
+}
+process.stdout.write('Windows isolation, IDE/handoff runtimes and all editor bridge sources verified.\n');
 const debugPackageDir = path.join(appDir, 'node_modules', 'debug');
 const debugPackage = JSON.parse(fs.readFileSync(path.join(debugPackageDir, 'package.json'), 'utf8'));
 const debugEntry = path.resolve(debugPackageDir, debugPackage.main ?? 'index.js');
@@ -84,6 +102,14 @@ for (const name of ['LICENSE.GameCrafter.txt', 'NOTICE.GameCrafter.txt']) {
     throw new Error(`Missing distribution notice: ${name}`);
 }
 verifyPackagedServiceStartup(unpackedDir, serviceCli);
+const isolationProbe = spawnSync(
+  path.join(unpackedDir, 'GameCrafter.exe'),
+  ['-e', `new (require(${JSON.stringify(path.join(serviceDir, 'lib/plugins/isolation/appcontainer-launcher.js'))}).AppContainerLauncher)().probe().then(report=>{console.log(JSON.stringify(report));process.exitCode=report.available?0:1}).catch(error=>{console.error(error.message);process.exitCode=1})`],
+  { env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, windowsHide: true, encoding: 'utf8', timeout: 30000 },
+);
+if (isolationProbe.status !== 0 || JSON.parse(isolationProbe.stdout.trim()).available !== true)
+  throw new Error('Packaged Windows LPAC probe failed: ' + (isolationProbe.stderr || isolationProbe.error?.message || isolationProbe.stdout));
+process.stdout.write('Actual packaged Electron Node-mode LPAC boundaries verified.\n');
 process.stdout.write(
   `Packaged version ${expectedVersion}, service and ${BUNDLED_SKILL_NAMES.length} bundled skills verified.\n`,
 );

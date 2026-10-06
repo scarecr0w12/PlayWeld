@@ -21,6 +21,7 @@ import {
   safeExcerpt,
 } from './http-utils';
 import { providerToolNames } from './tool-names';
+import { OpenAIResponses } from './openai-responses';
 
 interface OpenAIModelList {
   data?: Record<string, unknown>[];
@@ -40,6 +41,8 @@ interface OpenAIChatResponse {
 }
 
 export interface OpenAICompatibleProviderOptions {
+  /** Only first-party OpenAI may negotiate the Responses endpoint. */
+  toolResponsesFallback?: boolean;
   defaultBaseUrl?: string;
   modelsPath?: (account: ProviderRuntimeAccount) => string;
   chatPath?: (account: ProviderRuntimeAccount, model: Model) => string;
@@ -60,6 +63,8 @@ export interface OpenAICompatibleProviderOptions {
 export class OpenAICompatibleProvider implements ModelProvider {
   private readonly completionTokenModels = new Set<string>();
   private readonly toolReasoningNoneModels = new Set<string>();
+  private readonly responsesModels = new Set<string>();
+  private readonly responses = new OpenAIResponses();
 
   constructor(private readonly options: OpenAICompatibleProviderOptions = {}) {}
 
@@ -109,9 +114,23 @@ export class OpenAICompatibleProvider implements ModelProvider {
     hooks: ProviderCompletionHooks,
   ): Promise<ChatResponse> {
     const names = providerToolNames(request);
-    const response = await (request.stream
-      ? this.completeStream(account, model, names.request, hooks)
-      : this.completeJson(account, model, names.request, hooks));
+    const key = JSON.stringify([account.accountId, account.baseUrl, model.providerModelId]);
+    const eligible = this.responsesEligible(account) && (request.tools?.length ?? 0) > 0;
+    let response: ChatResponse;
+    if (eligible && this.responsesModels.has(key)) {
+      response = await this.responses.complete(account, model, names.request, hooks);
+    } else {
+      try {
+        response = await (request.stream
+          ? this.completeStream(account, model, names.request, hooks)
+          : this.completeJson(account, model, names.request, hooks));
+      } catch (error) {
+        if (!eligible || !requiresToolReasoningNone(error)) throw error;
+        response = await this.responses.complete(account, model, names.request, hooks);
+        if (this.responsesModels.size >= 512) this.responsesModels.clear();
+        this.responsesModels.add(key);
+      }
+    }
     return {
       ...response,
       toolCalls: response.toolCalls.map((call) => ({ ...call, name: names.decode(call.name) })),
@@ -366,6 +385,8 @@ export class OpenAICompatibleProvider implements ModelProvider {
         return result;
       } catch (error) {
         // Rejected HTTP requests only; successful streams are consumed by the caller.
+        if (hasTools && this.responsesEligible(account) && requiresToolReasoningNone(error))
+          throw error;
         if (attempt >= 2) throw error;
         if (hasLimit && !modernLimit && requiresCompletionTokens(error)) modernLimit = true;
         else if (hasTools && !reasoningNone && requiresToolReasoningNone(error))
@@ -413,6 +434,13 @@ export class OpenAICompatibleProvider implements ModelProvider {
 
   protected baseUrl(account: ProviderRuntimeAccount): string {
     return account.baseUrl.trim() || this.options.defaultBaseUrl || '';
+  }
+
+  private responsesEligible(account: ProviderRuntimeAccount): boolean {
+    return (
+      this.options.toolResponsesFallback === true &&
+      this.baseUrl(account).replace(/\/+$/, '') === 'https://api.openai.com/v1'
+    );
   }
 
   private headers(account: ProviderRuntimeAccount): Record<string, string> {

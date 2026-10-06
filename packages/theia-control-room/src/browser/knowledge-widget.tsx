@@ -48,6 +48,13 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
 
   private projects: ProjectSummary[] = [];
   private projectId = '';
+  private loadedProjectId = '';
+  private refreshVersion = 0;
+  private statusVersion = 0;
+  private recordsVersion = 0;
+  private settingsVersion = 0;
+  private searchVersion = 0;
+  private pendingOperations = 0;
   private activeSection: 'status' | 'search' | 'records' | 'settings' = 'search';
   private records: CanonRecord[] = [];
   private selectedRecordId = '';
@@ -151,6 +158,7 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
               value={this.projectId}
               onChange={(event) => {
                 this.markProjectSelection();
+                ++this.refreshVersion;
                 this.projectId = event.currentTarget.value;
                 this.selectedRecordId = '';
                 this.recordDetail = undefined;
@@ -793,39 +801,80 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
   }
 
   private async refresh(): Promise<void> {
+    const version = ++this.refreshVersion;
     await this.withBusy(async () => {
-      this.projects = await this.service.listProjects();
-      this.projectId =
-        (await this.resolveProjectSelection(this.projects, () => this.projectId)) || '';
-      this.models = await this.service.listModels(undefined, true);
-      this.accounts = await this.service.listProviderAccounts();
-      if (this.projectId) await this.refreshProject();
-      else {
-        this.records = [];
-        this.indexStatus = undefined;
-      }
+      const [projects, models, accounts] = await Promise.all([
+        this.service.listProjects(),
+        this.service.listModels(undefined, true),
+        this.service.listProviderAccounts(),
+      ]);
+      if (version !== this.refreshVersion || this.isDisposed) return;
+      const projectId = (await this.resolveProjectSelection(projects, () => this.projectId)) || '';
+      if (version !== this.refreshVersion || this.isDisposed) return;
+      this.projects = projects;
+      this.projectId = projectId;
+      this.models = models;
+      this.accounts = accounts;
+      await this.refreshProject();
     });
   }
 
   private async refreshProject(): Promise<void> {
+    if (this.loadedProjectId !== this.projectId || !this.projectId) {
+      this.records = [];
+      this.indexStatus = undefined;
+      this.selectedRecordId = '';
+      this.recordDetail = undefined;
+      this.searchResult = undefined;
+      this.graph = undefined;
+      this.resultMessage = undefined;
+    }
+    this.loadedProjectId = this.projectId;
+    this.errorMessage = undefined;
+    this.update();
     if (!this.projectId) return;
-    await Promise.all([this.refreshStatus(), this.refreshRecords(), this.refreshSettings()]);
+    await this.withBusy(async () => {
+      await Promise.all([this.refreshStatus(), this.refreshRecords(), this.refreshSettings()]);
+    });
   }
 
   private async refreshStatus(): Promise<void> {
-    if (!this.projectId) return;
-    this.indexStatus = await this.service.getKnowledgeIndexStatus({ projectId: this.projectId });
+    const projectId = this.projectId;
+    const version = ++this.statusVersion;
+    if (!projectId) return;
+    const status = await this.service
+      .getKnowledgeIndexStatus({ projectId })
+      .catch((error) =>
+        this.handleRefreshError(
+          error,
+          projectId === this.projectId && version === this.statusVersion,
+        ),
+      );
+    if (!status) return;
+    if (projectId !== this.projectId || version !== this.statusVersion || this.isDisposed) return;
+    this.indexStatus = status;
     this.update();
   }
 
   private async refreshRecords(): Promise<void> {
-    if (!this.projectId) return;
-    const result = await this.service.listKnowledgeRecords({
-      projectId: this.projectId,
-      ...(this.recordType.trim() ? { type: this.recordType.trim() } : {}),
-      ...(this.status !== 'all' ? { status: this.status } : {}),
-      includeInactive: this.includeInactive,
-    });
+    const projectId = this.projectId;
+    const version = ++this.recordsVersion;
+    if (!projectId) return;
+    const result = await this.service
+      .listKnowledgeRecords({
+        projectId,
+        ...(this.recordType.trim() ? { type: this.recordType.trim() } : {}),
+        ...(this.status !== 'all' ? { status: this.status } : {}),
+        includeInactive: this.includeInactive,
+      })
+      .catch((error) =>
+        this.handleRefreshError(
+          error,
+          projectId === this.projectId && version === this.recordsVersion,
+        ),
+      );
+    if (!result) return;
+    if (projectId !== this.projectId || version !== this.recordsVersion || this.isDisposed) return;
     this.records = result.records;
     if (
       this.selectedRecordId &&
@@ -858,8 +907,19 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
   }
 
   private async refreshSettings(): Promise<void> {
-    if (!this.projectId) return;
-    const settings = await this.service.getAllSettings(this.projectId);
+    const projectId = this.projectId;
+    const version = ++this.settingsVersion;
+    if (!projectId) return;
+    const settings = await this.service
+      .getAllSettings(projectId)
+      .catch((error) =>
+        this.handleRefreshError(
+          error,
+          projectId === this.projectId && version === this.settingsVersion,
+        ),
+      );
+    if (!settings) return;
+    if (projectId !== this.projectId || version !== this.settingsVersion || this.isDisposed) return;
     const byKey = new Map(settings.map((setting) => [setting.key, setting.value]));
     const kind = byKey.get('knowledge.vectorStore.kind');
     const url = byKey.get('knowledge.vectorStore.url');
@@ -891,9 +951,11 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
 
   private async runSearch(): Promise<void> {
     if (!this.projectId || !this.query.trim()) return;
+    const projectId = this.projectId;
+    const version = ++this.searchVersion;
     await this.withBusy(async () => {
-      this.searchResult = await this.service.searchKnowledge({
-        projectId: this.projectId,
+      const result = await this.service.searchKnowledge({
+        projectId,
         query: this.query.trim(),
         mode: this.mode,
         ...(this.source !== 'all' ? { sources: [this.source] } : {}),
@@ -902,30 +964,47 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
         includeInactive: this.includeInactive,
         limit: 20,
       });
+      if (projectId !== this.projectId || version !== this.searchVersion || this.isDisposed) return;
+      this.searchResult = result;
     });
+  }
+
+  private handleRefreshError(error: unknown, current: boolean): undefined {
+    if (current && !this.isDisposed) {
+      this.errorMessage = error instanceof Error ? error.message : String(error);
+      this.update();
+    }
+    return undefined;
   }
 
   private async openRecord(recordId: string): Promise<void> {
     if (!this.projectId) return;
+    const projectId = this.projectId;
     this.activeSection = 'records';
     await this.withBusy(async () => {
       this.selectedRecordId = recordId;
-      this.recordDetail = await this.service.getKnowledgeRecord({
-        projectId: this.projectId,
+      const detail = await this.service.getKnowledgeRecord({
+        projectId,
         recordId,
       });
+      if (projectId !== this.projectId || recordId !== this.selectedRecordId || this.isDisposed)
+        return;
+      this.recordDetail = detail;
       this.graph = undefined;
     });
   }
 
   private async loadGraph(recordId?: string): Promise<void> {
     if (!this.projectId) return;
+    const projectId = this.projectId;
     await this.withBusy(async () => {
-      this.graph = await this.service.getKnowledgeGraph({
-        projectId: this.projectId,
+      const graph = await this.service.getKnowledgeGraph({
+        projectId,
         ...(recordId ? { recordId } : {}),
         depth: 2,
       });
+      if (projectId !== this.projectId || this.isDisposed) return;
+      this.graph = graph;
     });
   }
 
@@ -1063,6 +1142,8 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
   }
 
   private async withBusy(action: () => Promise<void>): Promise<void> {
+    const projectId = this.projectId;
+    ++this.pendingOperations;
     this.busy = true;
     this.errorMessage = undefined;
     this.resultMessage = undefined;
@@ -1070,9 +1151,11 @@ export class KnowledgeWidget extends ControlRoomReactWidget {
     try {
       await action();
     } catch (error) {
-      this.errorMessage = error instanceof Error ? error.message : String(error);
+      if (projectId === this.projectId && !this.isDisposed)
+        this.errorMessage = error instanceof Error ? error.message : String(error);
     } finally {
-      this.busy = false;
+      --this.pendingOperations;
+      this.busy = this.pendingOperations > 0;
       this.update();
     }
   }

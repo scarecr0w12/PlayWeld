@@ -33,6 +33,9 @@ import { IntegrationService } from './integration-service';
 import { LockManager } from './lock-manager';
 import { WorktreeManager } from './worktree-manager';
 import type { ToolBroker } from '../tools/tool-broker';
+import { ToolRegistry, type ToolContext } from '../tools/tool-registry';
+import { registerEngineTools } from '../engines/engine-tools';
+import { registerDccTools } from '../dcc/dcc-tools';
 
 let fixture: ReturnType<typeof createFixture> | undefined;
 
@@ -42,6 +45,101 @@ afterEach(() => {
 });
 
 describe('IntegrationService', () => {
+  it.each([
+    { kind: 'engine' as const, params: { filter: 'AshenCovenant' } },
+    { kind: 'engine' as const, params: { params: { filter: 'AshenCovenant' } } },
+    {
+      kind: 'engine' as const,
+      toolId: 'engine/validate',
+      params: { params: { filter: 'AshenCovenant' } },
+    },
+    { kind: 'dcc' as const, params: { tool: 'blender', file: 'Art/character.blend' } },
+    {
+      kind: 'dcc' as const,
+      params: { tool: 'blender', params: { file: 'Art/character.blend' } },
+    },
+  ])('runs a $kind completion validator through its registered input schema', async (validator) => {
+    const registry = new ToolRegistry();
+    const observed: Array<{ tool?: string; params: Record<string, unknown> }> = [];
+    registerEngineTools(registry, async (_operation, _context, params) => {
+      observed.push({ params });
+      return { status: 'succeeded' };
+    });
+    registerDccTools(registry, async (tool, _operation, _context, params) => {
+      observed.push({ tool, params });
+      return { status: 'succeeded' };
+    });
+    fixture = createFixture(registry);
+    const task = fixture.tasks.create({
+      projectId: fixture.projectId,
+      kind: 'agent.run',
+      title: 'Registered completion validator',
+      goal: 'Preserve the declared validation scope',
+      contract: {
+        required: ['generated'],
+        validators: [
+          {
+            kind: validator.kind,
+            operation: 'validate',
+            params: validator.params,
+            ...('toolId' in validator ? { toolId: validator.toolId } : {}),
+          },
+        ],
+      },
+    }).task;
+    const validated = await fixture.integration.validateResult(task, {
+      summary: 'Generated candidate',
+      artifacts: [],
+      evidence: [],
+      claims: [{ kind: 'generated', ref: 'candidate' }],
+    });
+    expect(
+      validated.integration.validation.find(
+        (entry) => entry.kind === `validator:${validator.kind}`,
+      ),
+    ).toMatchObject({ ok: true });
+    expect(observed).toEqual([
+      validator.kind === 'engine'
+        ? { params: { filter: 'AshenCovenant' } }
+        : { tool: 'blender', params: { file: 'Art/character.blend' } },
+    ]);
+  });
+
+  it.each([
+    { kind: 'engine' as const, params: { params: 'invalid envelope' } },
+    { kind: 'dcc' as const, params: { tool: 'unsupported', file: 'Art/character.blend' } },
+  ])('keeps malformed $kind completion inputs rejected', async (validator) => {
+    const registry = new ToolRegistry();
+    let executed = false;
+    registerEngineTools(registry, async () => {
+      executed = true;
+      return { status: 'succeeded' };
+    });
+    registerDccTools(registry, async () => {
+      executed = true;
+      return { status: 'succeeded' };
+    });
+    fixture = createFixture(registry);
+    const task = fixture.tasks.create({
+      projectId: fixture.projectId,
+      kind: 'agent.run',
+      title: 'Reject malformed validator',
+      goal: 'Retain registered input validation',
+      contract: {
+        required: ['generated'],
+        validators: [{ kind: validator.kind, operation: 'validate', params: validator.params }],
+      },
+    }).task;
+    await expect(
+      fixture.integration.validateResult(task, {
+        summary: 'Candidate',
+        artifacts: [],
+        evidence: [],
+        claims: [{ kind: 'generated', ref: 'candidate' }],
+      }),
+    ).rejects.toMatchObject({ code: RpcErrorCode.CompletionContractUnmet });
+    expect(executed).toBe(false);
+  });
   it.each(['aborted', 'rejected', 'integrated'] as const)(
     'preserves a %s integration when a completed task is observed after restart',
     async (status) => {
@@ -209,7 +307,7 @@ describe('IntegrationService', () => {
   }, 30_000);
 });
 
-function createFixture() {
+function createFixture(validatorRegistry?: ToolRegistry) {
   const root = mkdtempSync(path.join(tmpdir(), 'gc-integration-service-'));
   const projectPath = path.join(root, 'project');
   mkdirSync(path.join(projectPath, '.gamecrafter'), { recursive: true });
@@ -282,8 +380,26 @@ function createFixture() {
   const locks = new LockManager(projectDatabases, settings);
   const brokerCalls: Array<{ toolId: string }> = [];
   const tools = {
-    async call(request: { toolId: string }) {
+    async call(request: { toolId: string; input: unknown }) {
       brokerCalls.push(request);
+      if (validatorRegistry) {
+        const registered = validatorRegistry.get(request.toolId);
+        if (!registered) throw new Error('Unknown validator tool');
+        registered.inputValidator.assert(request.input);
+        const execution = await registered.handler(
+          {
+            projectId: manifest.projectId,
+            projectPath,
+            taskId: null,
+            agentId: null,
+            accessMode: 'full',
+            callId: uuidv7(),
+            signal: new AbortController().signal,
+          } satisfies ToolContext,
+          request.input,
+        );
+        return { callId: uuidv7(), status: 'completed', output: execution.output };
+      }
       return { status: 'pending', output: null };
     },
     listCalls() {

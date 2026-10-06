@@ -1,5 +1,13 @@
 import { createHash } from 'node:crypto';
-import { createWriteStream, existsSync, mkdirSync, renameSync, rmSync } from 'node:fs';
+import {
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -9,6 +17,8 @@ import {
   ReleaseManifestSchema,
   RpcError,
   RpcErrorCode,
+  VerifiedUpdatePackageSchema,
+  type VerifiedUpdatePackage,
   type DownloadedUpdate,
   type ReleaseManifest,
   type ReleasePlatform,
@@ -20,8 +30,10 @@ import {
 import { parseChecksums, verifyContents } from './release-tools';
 import type { UpdateDismissalStore } from './update-dismissal-store';
 import type { UpdateStore } from './update-store';
+import { prepareInstallerHandoff } from './installer-handoff';
 
 const releaseManifestValidator = compile<ReleaseManifest>(ReleaseManifestSchema);
+const packageValidator = compile<VerifiedUpdatePackage>(VerifiedUpdatePackageSchema);
 const RELEASE_MANIFEST_ASSET = 'gamecrafter-release.json';
 const CHECKSUMS_ASSET = 'SHA256SUMS.txt';
 const CHECKSUMS_SIGNATURE_ASSET = 'SHA256SUMS.txt.sig';
@@ -236,6 +248,12 @@ export class UpdateService {
       ...before,
       currentVersion: this.currentVersion,
       lastCheckedAt: checkedAt,
+      previous:
+        available &&
+        before.downloaded?.version === this.currentVersion &&
+        this.verifiedPackage(before.downloaded.path)
+          ? { version: before.downloaded.version, path: before.downloaded.path }
+          : before.previous,
       available,
       downloaded,
       compatibility,
@@ -263,7 +281,9 @@ export class UpdateService {
     }
     const fileName = safeAssetName(available.asset.name);
     mkdirSync(this.updatesDir, { recursive: true, mode: 0o700 });
-    const destination = path.join(this.updatesDir, fileName);
+    const versionDirectory = path.join(this.updatesDir, available.version);
+    mkdirSync(versionDirectory, { recursive: true, mode: 0o700 });
+    const destination = path.join(versionDirectory, fileName);
     const temporary = `${destination}.part`;
     let hash: string;
     try {
@@ -300,10 +320,28 @@ export class UpdateService {
       path: destination,
       verified: { sha256: true, signature },
     };
+    const packageRecord: VerifiedUpdatePackage = {
+      schemaVersion: 1,
+      version: available.version,
+      path: destination,
+      sha256: hash,
+      verified: downloaded.verified,
+    };
+    writeFileSync(this.packageMetadataPath(destination), JSON.stringify(packageRecord, null, 2), {
+      mode: 0o600,
+    });
     return this.store.save({
       ...current,
       currentVersion: this.currentVersion,
       downloaded,
+      previous:
+        current.downloaded?.version === this.currentVersion &&
+        this.verifiedPackage(current.downloaded.path)
+          ? {
+              version: current.downloaded.version,
+              path: current.downloaded.path,
+            }
+          : current.previous,
       error: null,
     });
   }
@@ -329,7 +367,23 @@ export class UpdateService {
         RpcErrorCode.UpdateNotDownloaded,
       );
     }
-    return { launched: false, instructions: installInstructions(downloaded.path) };
+    const verified = this.verifiedPackage(downloaded.path);
+    const handoff =
+      this.platform.os === 'windows' &&
+      verified?.version === downloaded.version &&
+      verified.verified.sha256 &&
+      verified.verified.signature === 'verified'
+        ? prepareInstallerHandoff(this.updatesDir, {
+            path: downloaded.path,
+            sha256: verified.sha256,
+            version: downloaded.version,
+          })
+        : undefined;
+    return {
+      launched: false,
+      instructions: installInstructions(downloaded.path),
+      ...(handoff ? { handoff } : {}),
+    };
   }
 
   rollback(): UpdateInstallResult {
@@ -346,10 +400,42 @@ export class UpdateService {
         RpcErrorCode.UpdateNotDownloaded,
       );
     }
+    const verified = this.verifiedPackage(previous.path);
     return {
       launched: false,
       instructions: `Close PlayWeld, then reinstall version ${previous.version} from "${previous.path}". PlayWeld does not replace the running installation automatically.`,
+      ...(this.platform.os === 'windows' &&
+      verified?.version === previous.version &&
+      verified.verified.sha256 &&
+      verified.verified.signature === 'verified'
+        ? {
+            handoff: prepareInstallerHandoff(this.updatesDir, {
+              path: previous.path,
+              sha256: verified.sha256,
+              version: previous.version,
+            }),
+          }
+        : {}),
     };
+  }
+
+  private packageMetadataPath(filePath: string): string {
+    return path.join(
+      this.updatesDir,
+      `verified-${createHash('sha256').update(path.resolve(filePath)).digest('hex')}.json`,
+    );
+  }
+
+  private verifiedPackage(filePath: string): VerifiedUpdatePackage | null {
+    const metadata = this.packageMetadataPath(filePath);
+    if (!existsSync(metadata)) return null;
+    const record = packageValidator.assert(JSON.parse(readFileSync(metadata, 'utf8')));
+    if (path.resolve(record.path) !== path.resolve(filePath))
+      throw new RpcError(
+        'Cached package verification path differs from its recorded installer.',
+        RpcErrorCode.UpdateVerificationFailed,
+      );
+    return record;
   }
 
   dismiss(version: string): UpdateState {

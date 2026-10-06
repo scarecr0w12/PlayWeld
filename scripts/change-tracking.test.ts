@@ -40,6 +40,39 @@ function fixture() {
 afterEach(() => roots.splice(0).forEach((root) => rmSync(root, { recursive: true, force: true })));
 
 describe('permanent work tracking', () => {
+  it('retains full Markdown details, validation and file lists in the central changelog', () => {
+    const root = fixture();
+    record(root);
+    const details =
+      '- Correct the first behavior.\n- Remove the obsolete fallback; no migration required.\n\n### Example\n\n```ts\n// [literal](../source.txt)\nconst value = 1;\n```\n\n[Source](../../source.txt), [section](#details), [external](https://example.invalid/guide).';
+    save(
+      root,
+      recordPath,
+      readFileSync(join(root, recordPath), 'utf8').replace(
+        'Explain the behavior and compatibility effects.',
+        details,
+      ),
+    );
+    update(root);
+    const changelog = readFileSync(join(root, 'CHANGELOG.md'), 'utf8');
+    expect(changelog).toContain('## Unreleased\n\n### Fixed\n\n#### Example change');
+    expect(changelog).toContain('- Remove the obsolete fallback; no migration required.');
+    expect(changelog).toContain('###### Example');
+    expect(changelog).toContain('```ts\n// [literal](../source.txt)\nconst value = 1;\n```');
+    expect(changelog).toContain('[Source](source.txt)');
+    expect(changelog).toContain(`[section](${recordPath}#details)`);
+    expect(changelog).toContain('[external](https://example.invalid/guide)');
+    expect(changelog).toContain(
+      '##### Validation\n\nSource inspection only; no live application test.',
+    );
+    expect(changelog).toContain('##### Files\n\n- `source.txt`');
+    prepare(root, '0.1.5');
+    const assigned = readFileSync(join(root, 'CHANGELOG.md'), 'utf8');
+    expect(assigned).toContain('## Unreleased\n\nNo pending work records.');
+    expect(assigned).toContain('## 0.1.5\n\n### Fixed\n\n#### Example change');
+    expect(assigned).toContain('- Remove the obsolete fallback; no migration required.');
+    expect(assigned).toContain('##### Files\n\n- `source.txt`');
+  });
   it('generates release notes that pass staged Git whitespace validation', () => {
     const root = fixture();
     record(root);

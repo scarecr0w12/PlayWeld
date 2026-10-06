@@ -102,7 +102,7 @@ export class IntegrationService {
             taskId: task.taskId,
             agentId: task.assignee?.agentId,
             toolId,
-            input: validator.params ?? {},
+            input: validatorInput(validator.kind, validator.toolId, validator.params),
             accessCeiling: task.assignee?.accessCeiling,
           },
           {
@@ -975,6 +975,25 @@ function validatorToolId(kind: string, operation?: string): string | undefined {
   if (kind === 'engine') return `engine/${operation}`;
   if (kind === 'dcc') return `dcc/${operation}`;
   return undefined;
+}
+
+function validatorInput(
+  kind: string,
+  explicitToolId: string | undefined,
+  params: Record<string, unknown> | undefined,
+): Record<string, unknown> {
+  const input = params ?? {};
+  // Explicit tools consume their own input schema. Keep existing broker envelopes intact.
+  if (explicitToolId || Object.prototype.hasOwnProperty.call(input, 'params')) return input;
+  if (kind === 'engine') {
+    const { runId, ...operationParams } = input;
+    return { ...(runId === undefined ? {} : { runId }), params: operationParams };
+  }
+  if (kind === 'dcc') {
+    const { tool, runId, ...operationParams } = input;
+    return { tool, ...(runId === undefined ? {} : { runId }), params: operationParams };
+  }
+  return input;
 }
 
 function operationSucceededIn(value: unknown): boolean {

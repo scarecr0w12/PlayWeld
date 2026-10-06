@@ -31,6 +31,7 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
 
   private projects: ProjectSummary[] = [];
   private selectedProjectId?: string;
+  private refreshVersion = 0;
   private plugins: PluginListEntry[] = [];
   private tools: ToolDefinition[] = [];
   private modules: PluginModulesResult = { modules: [], genres: [], conflicts: [] };
@@ -821,17 +822,28 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
   }
 
   private async refresh(): Promise<void> {
+    const version = ++this.refreshVersion;
     this.errorMessage = undefined;
     try {
-      this.projects = await this.service.listProjects();
-      this.selectedProjectId =
-        (await this.resolveProjectSelection(this.projects, () => this.selectedProjectId)) ||
-        undefined;
-      const [plugins, modules, isolationReport] = await Promise.all([
-        this.service.listPlugins(this.selectedProjectId),
+      const projects = await this.service.listProjects();
+      if (version !== this.refreshVersion || this.isDisposed) return;
+      const projectId =
+        (await this.resolveProjectSelection(projects, () => this.selectedProjectId)) || undefined;
+      if (version !== this.refreshVersion || this.isDisposed) return;
+      this.projects = projects;
+      this.selectedProjectId = projectId;
+      const [plugins, modules, isolationReport, tools] = await Promise.all([
+        this.service.listPlugins(projectId),
         this.service.getPluginModules(),
         this.service.getPluginIsolationReport(),
+        projectId ? this.service.listTools(projectId) : Promise.resolve([]),
       ]);
+      if (
+        version !== this.refreshVersion ||
+        projectId !== this.selectedProjectId ||
+        this.isDisposed
+      )
+        return;
       this.plugins = plugins;
       this.modules = modules;
       this.isolationReport = isolationReport;
@@ -842,11 +854,10 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
         this.selectedPluginId = undefined;
         this.panel = undefined;
       }
-      this.tools = this.selectedProjectId
-        ? await this.service.listTools(this.selectedProjectId)
-        : [];
+      this.tools = tools;
       if (this.selectedPluginId) await this.loadPluginLogs(this.selectedPluginId);
     } catch (error) {
+      if (version !== this.refreshVersion || this.isDisposed) return;
       this.errorMessage = errorMessage(error);
     }
     this.update();

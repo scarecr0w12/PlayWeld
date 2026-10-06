@@ -18,6 +18,7 @@ function widget() {
   return Object.assign(Object.create(KnowledgeWidget.prototype), {
     projects: [],
     projectId: 'project',
+    pendingOperations: 0,
     activeSection: 'search',
     records: [],
     selectedRecordId: '',

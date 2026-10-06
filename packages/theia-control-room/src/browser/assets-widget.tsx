@@ -43,6 +43,9 @@ export class AssetsWidget extends ControlRoomReactWidget {
 
   private projects: ProjectSummary[] = [];
   private selectedProjectId = '';
+  private projectLoadVersion = 0;
+  private loadedProjectId = '';
+  private previewVersion = 0;
   private activeSection: 'library' | 'preview' | 'generate' | 'jobs' = 'library';
   private providers: AssetProviderCapabilities[] = [];
   private accounts: AssetProviderAccount[] = [];
@@ -652,20 +655,40 @@ export class AssetsWidget extends ControlRoomReactWidget {
   }
 
   private async refreshProject(): Promise<void> {
-    if (!this.selectedProjectId) {
+    const projectId = this.selectedProjectId;
+    const version = ++this.projectLoadVersion;
+    if (this.loadedProjectId !== projectId || !projectId) {
+      this.jobs = [];
+      this.files = [];
+      this.selectedPath = '';
+      this.preview = undefined;
+      ++this.previewVersion;
+      this.form = { ...this.form, sourceJobId: '' };
+      this.reviewNotes.clear();
+      this.resultMessage = undefined;
+    }
+    this.loadedProjectId = projectId;
+    this.errorMessage = undefined;
+    if (!projectId) {
+      this.busy = false;
       this.update();
       return;
     }
     this.busy = true;
     this.update();
     try {
-      const projectId = this.selectedProjectId;
       const [providers, accounts, jobs, files] = await Promise.all([
         this.service.listAssetProviders(),
         this.service.listAssetAccounts(),
         this.service.listAssetJobs({ projectId, limit: 100 }),
         this.service.listAssetFiles({ projectId }),
       ]);
+      if (
+        version !== this.projectLoadVersion ||
+        projectId !== this.selectedProjectId ||
+        this.isDisposed
+      )
+        return;
       this.providers = providers;
       this.accounts = accounts;
       this.jobs = jobs;
@@ -679,10 +702,22 @@ export class AssetsWidget extends ControlRoomReactWidget {
       }
       this.update();
     } catch (error) {
+      if (
+        version !== this.projectLoadVersion ||
+        projectId !== this.selectedProjectId ||
+        this.isDisposed
+      )
+        return;
       this.showError(error);
     } finally {
-      this.busy = false;
-      this.update();
+      if (
+        version === this.projectLoadVersion &&
+        projectId === this.selectedProjectId &&
+        !this.isDisposed
+      ) {
+        this.busy = false;
+        this.update();
+      }
     }
   }
 
@@ -739,10 +774,12 @@ export class AssetsWidget extends ControlRoomReactWidget {
   }
 
   private async generate(): Promise<void> {
-    if (!this.selectedProjectId || !this.selectedAccountId) return;
+    if (this.busy || !this.selectedProjectId || !this.selectedAccountId) return;
+    const projectId = this.selectedProjectId;
     this.busy = true;
     this.errorMessage = undefined;
     this.resultMessage = undefined;
+    this.update();
     try {
       const request: RpcParams<'asset/generate'>['request'] = {
         kind: this.form.kind,
@@ -757,18 +794,19 @@ export class AssetsWidget extends ControlRoomReactWidget {
           : {}),
       };
       const job = await this.service.generateAsset({
-        projectId: this.selectedProjectId,
+        projectId,
         accountId: this.selectedAccountId,
         request,
       });
+      if (projectId !== this.selectedProjectId || this.isDisposed) return;
       this.jobs = [job, ...this.jobs.filter((entry) => entry.jobId !== job.jobId)];
       this.resultMessage = `Asset job ${job.jobId.slice(0, 8)} queued.`;
       this.activeSection = 'jobs';
       await this.refreshProject();
     } catch (error) {
-      this.showError(error);
+      if (projectId === this.selectedProjectId) this.showError(error);
     } finally {
-      this.busy = false;
+      if (projectId === this.selectedProjectId) this.busy = false;
       this.update();
     }
   }
@@ -791,6 +829,7 @@ export class AssetsWidget extends ControlRoomReactWidget {
   }
 
   private async importJob(job: AssetJob): Promise<void> {
+    const projectId = this.selectedProjectId;
     const artifact = job.artifacts.find((entry) => entry.kind === 'model');
     if (!artifact) {
       this.showError(new Error('The job has no model artifact to import.'));
@@ -799,48 +838,63 @@ export class AssetsWidget extends ControlRoomReactWidget {
     this.busy = true;
     try {
       const result = await this.service.importAsset({
-        projectId: this.selectedProjectId,
+        projectId,
         jobId: job.jobId,
         artifactId: artifact.artifactId,
         ...(this.destinationDir.trim() ? { destinationDir: this.destinationDir.trim() } : {}),
       });
+      if (projectId !== this.selectedProjectId || this.isDisposed) return;
       this.resultMessage = `Imported ${result.importedPath} with provenance.`;
       this.preview = undefined;
       await this.refreshProject();
+      if (projectId !== this.selectedProjectId || this.isDisposed) return;
       await this.loadPreview(result.importedPath);
     } catch (error) {
-      this.showError(error);
+      if (projectId === this.selectedProjectId) this.showError(error);
     } finally {
-      this.busy = false;
+      if (projectId === this.selectedProjectId) this.busy = false;
       this.update();
     }
   }
 
   private async runJobAction(action: () => Promise<AssetJob>): Promise<void> {
+    const projectId = this.selectedProjectId;
     try {
       const job = await action();
+      if (projectId !== this.selectedProjectId || this.isDisposed) return;
       this.jobs = [job, ...this.jobs.filter((entry) => entry.jobId !== job.jobId)];
       this.update();
     } catch (error) {
-      this.showError(error);
+      if (projectId === this.selectedProjectId) this.showError(error);
     }
   }
 
   private async loadPreview(sourcePath: string): Promise<void> {
     if (!this.selectedProjectId) return;
+    const projectId = this.selectedProjectId;
+    const version = ++this.previewVersion;
     this.busy = true;
     this.errorMessage = undefined;
     try {
       this.selectedPath = sourcePath;
-      this.preview = await this.service.previewAsset({
-        projectId: this.selectedProjectId,
+      const preview = await this.service.previewAsset({
+        projectId,
         path: sourcePath,
       });
+      if (
+        projectId !== this.selectedProjectId ||
+        version !== this.previewVersion ||
+        this.isDisposed
+      )
+        return;
+      this.preview = preview;
       this.activeSection = 'preview';
     } catch (error) {
-      this.showError(error);
+      if (projectId === this.selectedProjectId && version === this.previewVersion)
+        this.showError(error);
     } finally {
-      this.busy = false;
+      if (projectId === this.selectedProjectId && version === this.previewVersion)
+        this.busy = false;
       this.update();
     }
   }

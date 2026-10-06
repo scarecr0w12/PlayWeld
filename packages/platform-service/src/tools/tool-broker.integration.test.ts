@@ -164,7 +164,7 @@ describe('Tool broker integration', () => {
 
   it('lists the builtin tools with their execution metadata', async () => {
     const result = await client!.call('tool/list', { projectId });
-    expect(result.tools).toHaveLength(57);
+    expect(result.tools).toHaveLength(60);
     expect(result.tools.map((tool) => tool.toolId)).toEqual([
       'a2a/cancel-task',
       'a2a/get-task',
@@ -200,6 +200,9 @@ describe('Tool broker integration', () => {
       'engine/console',
       'engine/discover',
       'engine/edit-scene',
+      'engine/editor-bridge-build',
+      'engine/editor-bridge-connect',
+      'engine/editor-bridge-install',
       'engine/export',
       'engine/import',
       'engine/inspect',

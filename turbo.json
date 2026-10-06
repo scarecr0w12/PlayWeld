@@ -11,6 +11,19 @@
     "lint": {},
     "test": {
       "dependsOn": ["^build"]
+    },
+    "@gamecrafter/platform-service#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["lib/**"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/integrations/**",
+        "$TURBO_ROOT$/.agents/skills/**"
+      ],
+      "env": ["OS", "PROCESSOR_ARCHITECTURE", "SystemRoot"]
+    },
+    "@gamecrafter/platform-service#test": {
+      "dependsOn": ["build"]
     }
   }
 }

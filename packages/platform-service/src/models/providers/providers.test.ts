@@ -4,6 +4,7 @@ import { RpcError, type ChatRequest, type Model } from '@gamecrafter/contracts';
 import type { ProviderRuntimeAccount } from './provider';
 import { AnthropicProvider } from './anthropic';
 import { OpenAICompatibleProvider } from './openai-compatible';
+import { OpenAIProvider } from './openai-providers';
 import { modelUsage as calculateModelUsage } from './http-utils';
 
 describe('provider usage pricing', () => {
@@ -38,6 +39,140 @@ describe('provider usage pricing', () => {
 });
 
 describe('OpenAI-compatible provider', () => {
+  it.each([false, true])(
+    'uses Responses after explicit tool reasoning rejection and replays tool results, streaming=%s',
+    async (stream) => {
+      const bodies: { url: string; body: Record<string, unknown> }[] = [];
+      const originalFetch = globalThis.fetch;
+      globalThis.fetch = async (url, init) => {
+        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        bodies.push({ url: String(url), body });
+        if (String(url).endsWith('chat/completions')) {
+          return new Response(
+            JSON.stringify({
+              error: {
+                param: 'reasoning_effort',
+                message:
+                  "Function tools with reasoning_effort are not supported. To use function tools, use /v1/responses or set reasoning_effort to 'none'.",
+              },
+            }),
+            { status: 400 },
+          );
+        }
+        const result = {
+          status: 'completed',
+          output:
+            bodies.length === 2
+              ? [
+                  { type: 'reasoning', id: 'rs_1', summary: [], encrypted_content: 'opaque' },
+                  {
+                    type: 'function_call',
+                    id: 'fc_1',
+                    call_id: 'call_1',
+                    name: 'lookup',
+                    arguments: '{"id":1}',
+                  },
+                ]
+              : [
+                  {
+                    type: 'message',
+                    role: 'assistant',
+                    content: [{ type: 'output_text', text: 'done' }],
+                  },
+                ],
+          usage: { input_tokens: 12, output_tokens: 3 },
+        };
+        return new Response(
+          stream
+            ? `data: ${JSON.stringify({ type: 'response.output_text.delta', delta: bodies.length === 2 ? '' : 'done' })}\n\ndata: ${JSON.stringify({ type: 'response.completed', response: result })}\n\n`
+            : JSON.stringify(result),
+        );
+      };
+      try {
+        const account = {
+          ...openAIAccount('https://api.openai.com/v1'),
+          providerKind: 'openai' as const,
+        };
+        const selected = model(account, 'reasoning-tools');
+        const provider = new OpenAIProvider();
+        const first = await provider.complete(
+          account,
+          selected,
+          { ...chatRequest(), stream },
+          { signal: new AbortController().signal },
+        );
+        expect(first.toolCalls).toEqual([{ id: 'call_1', name: 'lookup', arguments: '{"id":1}' }]);
+        const deltas: string[] = [];
+        const result = await provider.complete(
+          account,
+          selected,
+          {
+            ...chatRequest(),
+            stream,
+            messages: [
+              ...chatRequest().messages,
+              { role: 'assistant', content: first.content, toolCalls: first.toolCalls },
+              { role: 'tool', content: 'found', toolCallId: 'call_1' },
+            ],
+          },
+          { signal: new AbortController().signal, onDelta: (delta) => deltas.push(delta) },
+        );
+        expect(result.content).toBe('done');
+        expect(result.usage.inputTokens).toBe(12);
+        expect(deltas.join('')).toBe(stream ? 'done' : '');
+        expect(bodies.map((b) => b.url)).toEqual([
+          'https://api.openai.com/v1/chat/completions',
+          'https://api.openai.com/v1/responses',
+          'https://api.openai.com/v1/responses',
+        ]);
+        expect(bodies[1].body).toMatchObject({ store: false, max_output_tokens: 100 });
+        expect(bodies[1].body).not.toHaveProperty('reasoning_effort');
+        expect(bodies[2].body.input).toContainEqual({
+          type: 'reasoning',
+          id: 'rs_1',
+          summary: [],
+          encrypted_content: 'opaque',
+        });
+        expect(bodies[2].body.input).toContainEqual({
+          type: 'function_call_output',
+          call_id: 'call_1',
+          output: 'found',
+        });
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    },
+  );
+  it.each([401, 403, 429, 500])('does not use Responses to retry HTTP %s', async (status) => {
+    const originalFetch = globalThis.fetch;
+    const urls: string[] = [];
+    globalThis.fetch = async (url) => {
+      urls.push(String(url));
+      return new Response(
+        JSON.stringify({
+          error: {
+            param: 'reasoning_effort',
+            message: "Function tools require /v1/responses or set reasoning_effort to 'none'.",
+          },
+        }),
+        { status },
+      );
+    };
+    try {
+      const account = {
+        ...openAIAccount('https://api.openai.com/v1'),
+        providerKind: 'openai' as const,
+      };
+      await expect(
+        new OpenAIProvider().complete(account, model(account, 'tools'), chatRequest(), {
+          signal: new AbortController().signal,
+        }),
+      ).rejects.toBeInstanceOf(RpcError);
+      expect(urls).toEqual(['https://api.openai.com/v1/chat/completions']);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
   it('reads provider capacities without guessing capacities for ID-only models', async () => {
     const server = createServer((_request, response) =>
       response.end(

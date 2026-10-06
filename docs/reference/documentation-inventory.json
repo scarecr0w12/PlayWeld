@@ -254,7 +254,8 @@
         "packages/platform-service/src/engines/engine-connectors.test.ts",
         "packages/platform-service/src/engines/engine-service.integration.test.ts",
         "packages/platform-service/src/engines/process-runner.test.ts",
-        "packages/platform-service/src/engines/test-report.test.ts"
+        "packages/platform-service/src/engines/test-report.test.ts",
+        "packages/platform-service/src/engines/unreal/editor-bridge-tools.test.ts"
       ],
       "evidence": "Source/schema inventory; test paths are discoverability, not a claim that these tests passed. See DOCUMENTATION_COVERAGE.md for live results and gaps."
     },
@@ -315,6 +316,7 @@
         "packages/platform-service/src/mcp/connection-manager.sampling.test.ts",
         "packages/platform-service/src/mcp/connection-manager.test.ts",
         "packages/platform-service/src/mcp/docker-runtime.test.ts",
+        "packages/platform-service/src/mcp/external-ide-server.test.ts",
         "packages/platform-service/src/mcp/jsonrpc-channel.test.ts",
         "packages/platform-service/src/mcp/mcp-tool-adapter.test.ts",
         "packages/platform-service/src/mcp/session.test.ts",
@@ -604,6 +606,7 @@
       ],
       "implementation": "packages/platform-service/src/updates",
       "tests": [
+        "packages/platform-service/src/updates/installer-handoff.test.ts",
         "packages/platform-service/src/updates/release-metadata-cli.test.ts",
         "packages/platform-service/src/updates/release-tools.test.ts",
         "packages/platform-service/src/updates/update-service.test.ts"
@@ -946,13 +949,23 @@
       "guide": "INTEGRATION_GUIDE.md"
     },
     {
+      "name": "dependencies",
+      "implementation": "packages/platform-service/src/dependencies",
+      "tests": [
+        "packages/platform-service/src/dependencies/advisory-regressions.test.ts",
+        "packages/platform-service/src/dependencies/mcp-sdk-version.test.ts"
+      ],
+      "guide": "TECHNICAL_ARCHITECTURE.md"
+    },
+    {
       "name": "engines",
       "implementation": "packages/platform-service/src/engines",
       "tests": [
         "packages/platform-service/src/engines/engine-connectors.test.ts",
         "packages/platform-service/src/engines/engine-service.integration.test.ts",
         "packages/platform-service/src/engines/process-runner.test.ts",
-        "packages/platform-service/src/engines/test-report.test.ts"
+        "packages/platform-service/src/engines/test-report.test.ts",
+        "packages/platform-service/src/engines/unreal/editor-bridge-tools.test.ts"
       ],
       "guide": "INTEGRATION_GUIDE.md"
     },
@@ -995,6 +1008,7 @@
         "packages/platform-service/src/mcp/connection-manager.sampling.test.ts",
         "packages/platform-service/src/mcp/connection-manager.test.ts",
         "packages/platform-service/src/mcp/docker-runtime.test.ts",
+        "packages/platform-service/src/mcp/external-ide-server.test.ts",
         "packages/platform-service/src/mcp/jsonrpc-channel.test.ts",
         "packages/platform-service/src/mcp/mcp-tool-adapter.test.ts",
         "packages/platform-service/src/mcp/session.test.ts",
@@ -1112,6 +1126,7 @@
       "name": "updates",
       "implementation": "packages/platform-service/src/updates",
       "tests": [
+        "packages/platform-service/src/updates/installer-handoff.test.ts",
         "packages/platform-service/src/updates/release-metadata-cli.test.ts",
         "packages/platform-service/src/updates/release-tools.test.ts",
         "packages/platform-service/src/updates/update-service.test.ts"
@@ -1122,6 +1137,7 @@
       "name": "workers",
       "implementation": "packages/platform-service/src/workers",
       "tests": [
+        "packages/platform-service/src/workers/checkpoint-answers.test.ts",
         "packages/platform-service/src/workers/supervisor.test.ts"
       ],
       "guide": "TECHNICAL_ARCHITECTURE.md"

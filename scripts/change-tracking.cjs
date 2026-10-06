@@ -83,9 +83,37 @@ function readEntries(root) {
     });
 }
 
+// Records live two directories below the changelog. Preserve their Markdown
+// structure and resolve local links against the original record, including anchors.
+function changelogSection(content, file) {
+  let fence;
+  return content
+    .split(/\r?\n/)
+    .map((line) => {
+      const marker = line.match(/^\s*(`{3,}|~{3,})/);
+      if (marker) {
+        if (!fence) fence = marker[1];
+        else if (marker[1][0] === fence[0] && marker[1].length >= fence.length) fence = undefined;
+        return line;
+      }
+      if (fence) return line;
+      return line
+        .replace(/^(#{1,6}) /, (_, hashes) => `${'#'.repeat(Math.min(6, hashes.length + 3))} `)
+        .replace(/\]\(([^\s)]+)\)/g, (match, target) => {
+          if (/^(?:[a-z][a-z\d+.-]*:|\/)/i.test(target)) return match;
+          const [destination, anchor] = target.split('#');
+          const resolved = destination
+            ? path.posix.normalize(path.posix.join(path.posix.dirname(file), destination))
+            : file;
+          return `](${resolved}${anchor === undefined ? '' : '#' + anchor})`;
+        });
+    })
+    .join('\n');
+}
+
 function renderChangelog(entries) {
   let output =
-    '# PlayWeld changelog\n\nGenerated from permanent [work records](docs/changes/README.md). Run `npm run changelog:update`; edit the records rather than this file. Release preparation assigns pending records to a version.\n\n';
+    '# PlayWeld changelog\n\nComplete tracked work, grouped by version and category, with full details, validation, and affected files. Generated from permanent [work records](docs/changes/README.md). Run `npm run changelog:update`; edit the records rather than this file. Release preparation assigns pending records to a version. Historical completeness is limited to the tracking baseline below.\n\n';
   const versions = [
     ...new Set(entries.map((entry) => entry.release).filter((release) => release !== 'Unreleased')),
   ]
@@ -99,9 +127,16 @@ function renderChangelog(entries) {
       const selected = group.filter((entry) => entry.category === category);
       if (!selected.length) continue;
       output += `### ${category}\n\n`;
-      for (const entry of selected)
-        output += `- **${entry.title}** (${entry.impact}): ${entry.summary.replace(/\s+/g, ' ')} [Full details and validation](${entry.file}).\n`;
-      output += '\n';
+      for (const entry of selected) {
+        output += `#### ${entry.title}\n\n**Impact:** ${entry.impact}\n\n[Permanent work record](${entry.file}).\n\n`;
+        for (const [label, content] of [
+          ['Summary', entry.summary],
+          ['Details', entry.details],
+          ['Validation', entry.validation],
+          ['Files', entry.files],
+        ])
+          output += `##### ${label}\n\n${changelogSection(content, entry.file)}\n\n`;
+      }
     }
   }
   return output + baseline;

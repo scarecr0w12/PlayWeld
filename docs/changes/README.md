@@ -1,8 +1,8 @@
 # Permanent work records
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-06
 
-The user requires all work to be tracked for changelog details and versioning. The Markdown records in this directory are the permanent work ledger; [CHANGELOG.md](../../CHANGELOG.md) is the generated overview, and [release notes](../releases/) collect the full summaries, details, and validation for each newly prepared version. This is repository maintenance, not the application's task/board storage.
+The user requires all work to be tracked in full with proper versioning. The Markdown records in this directory are the permanent work ledger. [CHANGELOG.md](../../CHANGELOG.md) includes the complete Summary, Details, Validation, and Files for every tracked task, grouped by version and category. Readers must be able to review the full tracked history there without opening separate files. Separate task records remain the editable source, and [release notes](../releases/) retain each prepared version's details and validation. This is repository maintenance, not the application's task/board storage.
 
 Tracking begins after commit `4e13420` (local version 0.1.4). Existing release notes remain historical evidence. The baseline is incomplete, including the absence of a dedicated 0.1.3 note; it must not be presented as a reconstructed exhaustive history.
 
@@ -12,14 +12,26 @@ Copy [TEMPLATE.md](TEMPLATE.md) to a unique `YYYY-MM-DD-short-description.md` fi
 
 Describe what changed and why in Summary and Details. Identify affected behavior, removed functionality, compatibility/migrations, and any incomplete portion. Validation must distinguish tests, source inspection, live application/engine checks, skipped checks, and unverified claims. Do not store credentials, private user data, or raw sensitive logs. Files lists exact repository-relative paths, including deleted paths and both sides of a rename; globs and directory shortcuts are rejected. For a pure investigation with no other source changes, list the record's own path and capture the findings and evidence in Details.
 
+## Detail and handoff requirements
+
+Summary is a short introduction. Details must enumerate the actual outcomes; a generic paragraph such as "updated code, tests and docs" does not satisfy the contract. Scale detail to the work without inventing filler or unsupported evidence:
+
+- For each behavior change, describe its trigger, previous behavior, resulting behavior, affected users or subsystem, and reason for the change. For documentation, tooling, tests, or investigations, describe the concrete content or finding and why it matters.
+- Account for every meaningful addition, fix, removal, refactor, dependency/configuration change, test, and documentation change. Explain superseded behavior and replacement paths where applicable.
+- State compatibility and migration effects explicitly, including "no migration required" when verified. Explain the chosen version impact; distinguish the product version from data/RPC schema versions.
+- List commands or manual checks actually performed, their outcomes, evidence references where available, skipped checks and why, and remaining limitations. Separate fixture/source tests from live provider, engine, desktop, installer, and production evidence.
+- Review the complete task diff against Details and the exact Files list before handoff. Do not absorb unrelated concurrent work into your record or claim its validation. If implementation or scope changes, revise the pending record to describe the final work.
+
+The generator copies the full record sections into the central changelog and adjusts local Markdown links for the changelog's location. It does not supply missing prose or reconstruct older evidence. Existing historical task records and release notes remain preserved; later corrections require a new record. Automated coverage and freshness checks enforce the saved artifacts, while human/agent review must judge whether the written detail is accurate and complete.
+
 Use one of `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`, `Documentation`, or `Maintenance`. Mixed tasks can use separate records or choose the main category and retain every detail. Use one of these version impacts:
 
-| Impact | Use | Minimum numeric version change |
-| --- | --- | --- |
-| `none` | Internal maintenance, docs, tests, or investigation without a shipped behavior change | Patch if a new build is prepared |
-| `patch` | Compatible fixes and small behavior corrections | Patch |
-| `minor` | Compatible new functionality | Minor |
-| `major` | Breaking behavior, public contracts, storage, or removals requiring migration | Major; minor while below 1.0 |
+| Impact  | Use                                                                                   | Minimum numeric version change   |
+| ------- | ------------------------------------------------------------------------------------- | -------------------------------- |
+| `none`  | Internal maintenance, docs, tests, or investigation without a shipped behavior change | Patch if a new build is prepared |
+| `patch` | Compatible fixes and small behavior corrections                                       | Patch                            |
+| `minor` | Compatible new functionality                                                          | Minor                            |
+| `major` | Breaking behavior, public contracts, storage, or removals requiring migration         | Major; minor while below 1.0     |
 
 These are selected engineering defaults. `schemaVersion` remains a separate data/RPC compatibility contract; a product version bump does not replace a required migration or schema change. The testing-prerelease designation remains separate from numeric product versions. The current tooling requires each prepared build to advance its numeric version, including prerelease builds.
 

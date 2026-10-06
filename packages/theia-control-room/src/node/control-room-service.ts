@@ -1,4 +1,5 @@
 import { homedir } from 'node:os';
+import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { inject, injectable } from '@theia/core/shared/inversify';
 import {
@@ -297,11 +298,59 @@ export class ControlRoomServiceImpl implements ControlRoomService {
   }
 
   async installUpdate(): Promise<RpcResult<'update/install'>> {
-    return (await this.getPlatformClient()).call('update/install', {});
+    return this.startInstallerHandoff(
+      await (await this.getPlatformClient()).call('update/install', {}),
+    );
   }
 
   async rollbackUpdate(): Promise<RpcResult<'update/rollback'>> {
-    return (await this.getPlatformClient()).call('update/rollback', {});
+    return this.startInstallerHandoff(
+      await (await this.getPlatformClient()).call('update/rollback', {}),
+    );
+  }
+
+  private async startInstallerHandoff(
+    result: RpcResult<'update/install'>,
+  ): Promise<RpcResult<'update/install'>> {
+    if (!result.handoff || process.platform !== 'win32' || !process.versions.electron)
+      return result;
+    const helper =
+      require.resolve('@gamecrafter/platform-service/lib/updates/installer-handoff.js');
+    const child = spawn(
+      process.execPath,
+      [helper, result.handoff.descriptorPath, String(process.ppid)],
+      {
+        detached: true,
+        windowsHide: true,
+        stdio: 'ignore',
+        env: {
+          ...Object.fromEntries(
+            [
+              'SystemRoot',
+              'windir',
+              'PATH',
+              'TEMP',
+              'TMP',
+              'USERPROFILE',
+              'APPDATA',
+              'LOCALAPPDATA',
+            ].flatMap((key) => (process.env[key] ? [[key, process.env[key]!]] : [])),
+          ),
+          ELECTRON_RUN_AS_NODE: '1',
+        },
+      },
+    );
+    await new Promise<void>((resolve, reject) => {
+      child.once('spawn', resolve);
+      child.once('error', reject);
+    });
+    child.unref();
+    return {
+      ...result,
+      handoffStarted: true,
+      instructions:
+        'Installer handoff is ready. Save your work and close PlayWeld; the verified installer will then open. This handoff expires after ten minutes.',
+    };
   }
 
   async dismissUpdate(version: string): Promise<UpdateState> {

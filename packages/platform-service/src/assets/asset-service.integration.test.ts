@@ -66,7 +66,7 @@ describe('asset service integration', () => {
       client!.call('asset/testAccount', { accountId: account.accountId }),
     ).resolves.toMatchObject({
       ok: true,
-      balance: null,
+      balance: 25,
     });
 
     const job = await client!.call('asset/generate', {
@@ -350,8 +350,8 @@ async function waitForJob(projectId: string, jobId: string, status: string) {
 async function startProvider(): Promise<void> {
   providerServer = createServer(async (request, response) => {
     const body = await readBody(request);
-    if (request.url === '/openapi/v2/text-to-3d?limit=1') {
-      sendJson(response, 200, { result: [] });
+    if (request.url === '/openapi/v1/balance') {
+      sendJson(response, 200, { balance: 25 });
       return;
     }
     if (request.method === 'POST' && request.url === '/openapi/v2/text-to-3d') {

@@ -1,10 +1,30 @@
 # Learn PlayWeld with Lantern Workshop
 
-**Last updated:** 2026-10-04
+**Last updated:** 2026-10-06
 
 This walkthrough uses a disposable Godot Project to explain how game files, design documents, discussions, model conversations, and operational records fit together. Start with the [user guide](USER_GUIDE.md) for installation, then follow this tutorial. Use the [Control Room handbook](CONTROL_ROOM_HANDBOOK.md) when you need a particular screen, and the [documentation coverage record](DOCUMENTATION_COVERAGE.md) to distinguish observed behavior from unverified operations.
 
-The screenshots were captured 2026-10-04 from the built development browser Control Room connected to an isolated platform service on Windows; the report records version 0.6.0. Electron is the desktop product; these are browser UI captures, not installer or desktop acceptance. The example model is a local deterministic HTTP fixture and labels its response accordingly. It verifies the application's chat flow without asserting that a real model understood the game. Empty provider, engine, and backup screens illustrate configuration, not completed integrations. The [capture report](images/lantern-workshop/capture-report.json) records the current overview; the [dated workflow report](images/lantern-workflows-2026-10-04/capture-report.json) records the expanded scenarios.
+## Before you begin
+
+- Follow the [user guide](USER_GUIDE.md#install-and-launch-from-source) to build the desktop application.
+- Choose separate tutorial profile, editor-preference, and Project directories.
+- Use the checked-in [Lantern Workshop files](examples/lantern-workshop/README.md) for the game and design example.
+- Configure your own model provider for the Chat exercise. Lexical Knowledge search does not need an embedding provider.
+- Install Godot if you also want to run the native test game.
+
+Screenshots show a historical browser session with a scripted local chat provider. Your model response can differ. See [screenshot evidence](#screenshot-evidence) for capture versions and limits.
+
+## Follow the walkthrough
+
+1. [Start an isolated workspace](#start-an-isolated-workspace).
+2. [Create Lantern Workshop](#create-lantern-workshop).
+3. [Add the test game and design files](#add-the-reusable-test-game-and-design).
+4. [Record a discussion](#record-a-discussion).
+5. [Configure a model and ask a question](#configure-a-model-and-ask-a-question).
+6. [Find the design in Knowledge](#find-the-design-in-knowledge).
+7. [Inspect settings and other tools](#check-configuration-and-inspect-other-tools).
+
+[Reproducing the screenshots](#reproduce-the-screenshots) is a separate contributor workflow.
 
 ## Start an isolated workspace
 
@@ -28,14 +48,14 @@ Project Home is the entry point to the platform screens. Its cards group tools b
 
 Click **Create Project**. The wizard contains six steps:
 
-| Step | Enter or select | What it means |
-| --- | --- | --- |
-| 1 | `Lantern Workshop` | Display name of this test game |
-| 2 | `Disposable documentation and testing Project` | Description of its purpose |
-| 3 | `Godot` | Engine family; creation locks this choice |
-| 4 | `Adventure` | Genre metadata; comma-separated input supports multiple genres |
-| 5 | `E:\PlayWeldTutorial\projects` | Parent directory; the service creates a child folder |
-| 6 | The Create confirmation | Confirms the name, family, and destination |
+| Step | Enter or select                                | What it means                                                  |
+| ---- | ---------------------------------------------- | -------------------------------------------------------------- |
+| 1    | `Lantern Workshop`                             | Display name of this test game                                 |
+| 2    | `Disposable documentation and testing Project` | Description of its purpose                                     |
+| 3    | `Godot`                                        | Engine family; creation locks this choice                      |
+| 4    | `Adventure`                                    | Genre metadata; comma-separated input supports multiple genres |
+| 5    | `E:\PlayWeldTutorial\projects`                 | Parent directory; the service creates a child folder           |
+| 6    | The Create confirmation                        | Confirms the name, family, and destination                     |
 
 Use Escape to cancel a step without finishing creation. Review the last step carefully; choosing the wrong engine family is not repaired by changing a selector later.
 
@@ -81,13 +101,13 @@ Open `game/project.godot` in your installed Godot 4 editor to inspect the exampl
 
 Open **Discussion Board** from Project Home or **PlayWeld > Plan & Collaborate**. Select Lantern Workshop. Expand **New thread**, then enter:
 
-| Field | Example |
-| --- | --- |
-| Title | `Lantern collection rule` |
-| Kind | `discussion` |
-| Tags | `tutorial, gameplay` |
+| Field         | Example                                                                                                                           |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Title         | `Lantern collection rule`                                                                                                         |
+| Kind          | `discussion`                                                                                                                      |
+| Tags          | `tutorial, gameplay`                                                                                                              |
 | First message | `Proposal: collect each lantern once, increase the counter, and reset the scene with R. The fixture design is in docs/DESIGN.md.` |
-| Message type | `comment` |
+| Message type  | `comment`                                                                                                                         |
 
 Click **Create thread**. The thread should appear in the list and its first message should appear in the detail area. If the screen displays an error, keep the error text and confirm whether the thread exists before retrying.
 
@@ -146,6 +166,18 @@ Open **Settings** and search for `access.mode`. The screen shows the effective v
 
 Use **Skills & Roles** to select a skill collection and read bundled instructions. In **Swarm**, expand **New request** before entering a change request; use **Approvals**, **Integrations**, and **Resource locks** for those related records. Use **Engine** to inspect native-file detection and separately configure an installation or live bridge. Use **Audit & History** to locate tool calls and Project events. The [handbook](CONTROL_ROOM_HANDBOOK.md) explains these and the remaining surfaces, including Assets, DCC, Plugins, Connections, Backups, and Updates.
 
+## Check your result
+
+Before leaving the tutorial, confirm:
+
+- Project Home lists Lantern Workshop at the intended path, and **Open** selects that workspace.
+- Your Project contains the copied design and native game files.
+- Discussion Board retains your thread.
+- Chat retains your exchange if you completed the provider exercise.
+- Lexical Knowledge search returns a citation for the tutorial's design document.
+
+If a step fails, check the selected Project and the relevant screen's status before retrying. Use the [operations troubleshooting table](OPERATIONS_GUIDE.md#troubleshooting) for service or routing failures. The agent request above is an example; its implementation is outside the screenshot walkthrough.
+
 ## Reproduce the screenshots
 
 From a checkout with installed dependencies, build the service/extension and the browser application, then run:
@@ -170,3 +202,7 @@ node scripts/capture-documentation.cjs --scenario all
 ```
 
 The overview records navigation and each Control Room surface. `--scenario all` additionally runs the decision, settings-transfer, Knowledge, supervised-agent, backup restore, plugin, MCP and synthetic asset scenarios. Review the images and `capture-report.json` before publishing captures. The report records capture time, package version, source identity, checks, renderer errors, and the fixture/provider boundary. A failure screenshot and error record remain in the ignored run directory. A capture failure is incomplete verification, even if some images were written.
+
+## Screenshot evidence
+
+The screenshots were captured 2026-10-04 from the built development browser Control Room connected to an isolated platform service on Windows; the report records version 0.6.0. Electron is the desktop product; these are browser UI captures, not installer or desktop acceptance. The example model is a local deterministic HTTP fixture and labels its response accordingly. It verifies the application's chat flow without asserting that a real model understood the game. Empty provider, engine, and backup screens illustrate configuration, not completed integrations. The [capture report](images/lantern-workshop/capture-report.json) records the current overview; the [dated workflow report](images/lantern-workflows-2026-10-04/capture-report.json) records the expanded scenarios.

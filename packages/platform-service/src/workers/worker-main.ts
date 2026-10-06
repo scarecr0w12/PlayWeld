@@ -3,6 +3,7 @@ import { setInterval, clearInterval } from 'node:timers';
 import { uuidv7, type TaskError } from '@gamecrafter/contracts';
 import type { TaskHandler } from './types';
 import type { WorkerCommand, WorkerMessage, WorkerRunPayload } from './types';
+import { checkpointAnswerOffset } from './checkpoint-answers';
 
 const localRequire = createRequire(__filename);
 const checkpointAcks = new Map<string, () => void>();
@@ -55,6 +56,7 @@ process.on('message', (message: WorkerCommand) => {
 });
 
 async function run(payload: WorkerRunPayload): Promise<void> {
+  askIndex = checkpointAnswerOffset(payload.checkpoint);
   const activeController = new AbortController();
   controller = activeController;
   heartbeat = setInterval(() => {

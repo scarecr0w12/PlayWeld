@@ -71,10 +71,11 @@ Request methods: **198**; notifications: **28**; settings: **85**; setting group
 | chat | [Guide](../WORKED_TUTORIAL.md) | [Source](../../packages/platform-service/src/chat/) | 0 |
 | db | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/db/) | 2 |
 | dcc | [Guide](../INTEGRATION_GUIDE.md) | [Source](../../packages/platform-service/src/dcc/) | 5 |
-| engines | [Guide](../INTEGRATION_GUIDE.md) | [Source](../../packages/platform-service/src/engines/) | 4 |
+| dependencies | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/dependencies/) | 2 |
+| engines | [Guide](../INTEGRATION_GUIDE.md) | [Source](../../packages/platform-service/src/engines/) | 5 |
 | ipc | [Guide](../SERVICE_RECIPES.md) | [Source](../../packages/platform-service/src/ipc/) | 3 |
 | knowledge | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/knowledge/) | 11 |
-| mcp | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/mcp/) | 13 |
+| mcp | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/mcp/) | 14 |
 | models | [Guide](../USER_GUIDE.md) | [Source](../../packages/platform-service/src/models/) | 10 |
 | plugins | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/plugins/) | 4 |
 | processes | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/processes/) | 1 |
@@ -85,5 +86,5 @@ Request methods: **198**; notifications: **28**; settings: **85**; setting group
 | skills | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/skills/) | 8 |
 | tasks | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/tasks/) | 2 |
 | tools | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/tools/) | 2 |
-| updates | [Guide](../RELEASE_GUIDE.md) | [Source](../../packages/platform-service/src/updates/) | 3 |
-| workers | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/workers/) | 1 |
+| updates | [Guide](../RELEASE_GUIDE.md) | [Source](../../packages/platform-service/src/updates/) | 4 |
+| workers | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/workers/) | 2 |

@@ -273,9 +273,14 @@ export class TaskGraph {
     return task;
   }
 
-  addQuestion(taskId: string, prompt: string, options: string[] | null): TaskQuestion {
+  addQuestion(
+    taskId: string,
+    prompt: string,
+    options: string[] | null,
+    questionId?: string,
+  ): TaskQuestion {
     const previousSeq = this.options.store.latestEventSeq();
-    const question = this.options.store.addQuestion(taskId, prompt, options, 'worker');
+    const question = this.options.store.addQuestion(taskId, prompt, options, 'worker', questionId);
     const task = this.options.store.transition(
       taskId,
       'waiting_input',

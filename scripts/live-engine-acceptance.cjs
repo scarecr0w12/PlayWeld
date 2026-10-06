@@ -16,6 +16,8 @@ const unity = process.env.GC_ACCEPTANCE_UNITY || 'D:\\Unity\\Editor\\6000.6.0f1\
 const unrealRoot = process.env.GC_ACCEPTANCE_UNREAL || 'D:\\Unreal\\UE_5.8';
 const ue = path.join(unrealRoot, 'Engine', 'Binaries', 'Win64', 'UnrealEditor-Cmd.exe');
 const stage = process.argv[2] || 'baseline';
+const version = require('../packages/platform-service/package.json').version;
+assert(['baseline', 'access', 'compile-unreal', 'map-unreal', 'cli-unity', 'tests', 'package', 'player'].includes(stage), 'Unknown acceptance stage');
 const record = {
   stage,
   startedAt: new Date().toISOString(),
@@ -127,12 +129,12 @@ async function approval(project, approve) {
     ...process.env,
     GAMECRAFTER_PROFILE_DIR: path.join(out, 'profile'),
   });
-  service = await PlatformService.start({ paths, platformVersion: '0.1.0' });
+  service = await PlatformService.start({ paths, platformVersion: version });
   client = await connect({
     socketPath: service.socketPath,
     token: fs.readFileSync(paths.tokenPath, 'utf8').trim(),
     clientName: 'live-engine-acceptance',
-    clientVersion: '0.1.0',
+    clientVersion: version,
   });
   let projects;
   const state = path.join(out, 'projects.json');

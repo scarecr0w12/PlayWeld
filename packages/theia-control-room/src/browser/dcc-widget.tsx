@@ -45,6 +45,8 @@ export class DccWidget extends ControlRoomReactWidget {
 
   private projects: ProjectSummary[] = [];
   private selectedProjectId = '';
+  private projectLoadVersion = 0;
+  private loadedContext = '';
   private tool: DccTool = 'blender';
   private installations: DccInstallation[] = [];
   private report?: DccCapabilityReport;
@@ -650,16 +652,51 @@ export class DccWidget extends ControlRoomReactWidget {
   }
 
   private async loadProject(refreshCapabilities = false): Promise<void> {
-    if (!this.selectedProjectId) return;
-    const [report, runs, connections] = await Promise.all([
-      this.service.getDccCapabilities(this.selectedProjectId, this.tool, refreshCapabilities),
-      this.service.listDccRuns(this.selectedProjectId, this.tool, 100),
-      this.service.listMcpConnections(this.selectedProjectId),
-    ]);
-    this.report = report;
-    this.runs = runs;
-    this.connections = connections;
-    this.selectedBridgeId = report.layers['live-bridge'].connectionId ?? '';
+    const projectId = this.selectedProjectId;
+    const tool = this.tool;
+    const version = ++this.projectLoadVersion;
+    this.report = undefined;
+    this.runs = [];
+    this.connections = [];
+    const context = `${projectId}/${tool}`;
+    if (context !== this.loadedContext || !projectId) {
+      this.selectedRun = undefined;
+      this.selectedBridgeId = '';
+      this.artifactContents.clear();
+      this.resultMessage = undefined;
+    }
+    this.loadedContext = context;
+    this.errorMessage = undefined;
+    this.update();
+    if (!projectId) return;
+    try {
+      const [report, runs, connections] = await Promise.all([
+        this.service.getDccCapabilities(projectId, tool, refreshCapabilities),
+        this.service.listDccRuns(projectId, tool, 100),
+        this.service.listMcpConnections(projectId),
+      ]);
+      if (
+        version !== this.projectLoadVersion ||
+        projectId !== this.selectedProjectId ||
+        tool !== this.tool ||
+        this.isDisposed
+      )
+        return;
+      this.report = report;
+      this.runs = runs;
+      this.connections = connections;
+      this.selectedBridgeId = report.layers['live-bridge'].connectionId ?? '';
+    } catch (error) {
+      if (
+        version !== this.projectLoadVersion ||
+        projectId !== this.selectedProjectId ||
+        tool !== this.tool ||
+        this.isDisposed
+      )
+        return;
+      this.errorMessage = error instanceof Error ? error.message : String(error);
+    }
+    this.update();
   }
 
   private async addInstallation(): Promise<void> {

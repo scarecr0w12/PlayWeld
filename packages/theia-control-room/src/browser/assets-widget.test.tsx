@@ -19,6 +19,7 @@ function widget() {
   return Object.assign(Object.create(AssetsWidget.prototype), {
     projects: [],
     selectedProjectId: 'project',
+    previewVersion: 0,
     activeSection: 'library',
     providers: [],
     accounts: [],
@@ -51,6 +52,23 @@ function widget() {
 }
 
 describe('Assets workspace layout', () => {
+  it('prevents duplicate paid submissions while generation is pending', async () => {
+    const view = widget();
+    view.selectedAccountId = 'account';
+    let resolve!: (job: { jobId: string }) => void;
+    const pending = new Promise<{ jobId: string }>((done) => {
+      resolve = done;
+    });
+    const generateAsset = vi.fn(() => pending);
+    view.service = { generateAsset };
+    view.refreshProject = vi.fn();
+    const first = view.generate();
+    const second = view.generate();
+    expect(generateAsset).toHaveBeenCalledTimes(1);
+    expect(view.update).toHaveBeenCalled();
+    resolve({ jobId: 'job-1' });
+    await Promise.all([first, second]);
+  });
   it('reveals successfully loaded previews from library and job actions', async () => {
     const view = widget();
     const preview = { sourcePath: 'assets/prop.glb' };

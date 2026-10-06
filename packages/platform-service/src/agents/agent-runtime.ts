@@ -68,6 +68,68 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
   let eligibleSkills = checkpoint?.eligibleSkills ?? [...role.skills];
   const evidence = checkpoint?.evidence ?? [];
 
+  if (checkpoint) {
+    for (const message of transcript) {
+      if (
+        message.role === 'tool' &&
+        message.name === 'tasks/ask_user' &&
+        message.toolCallId &&
+        !evidence.some((entry) => entry.kind === 'user-answer' && entry.ref === message.toolCallId)
+      ) {
+        evidence.push({ kind: 'user-answer', ref: message.toolCallId });
+      }
+    }
+    // A worker may stop after persisting an assistant turn but before its tool
+    // results. Providers require an output for every call on continuation.
+    // Do not replay mutations whose completion was not checkpointed.
+    for (let index = 0; index < transcript.length; index += 1) {
+      const message = transcript[index]!;
+      if (message.role !== 'assistant' || !message.toolCalls?.length) continue;
+      let end = index + 1;
+      while (end < transcript.length && transcript[end]!.role === 'tool') end += 1;
+      const completed = new Set(transcript.slice(index + 1, end).map((m) => m.toolCallId));
+      for (const call of message.toolCalls) {
+        if (completed.has(call.id)) continue;
+        let output: unknown = {
+          error: {
+            code: 'interrupted_tool_call',
+            message:
+              'Execution was interrupted before this result was checkpointed. The operation may have completed; inspect durable evidence before retrying. No mutation was replayed.',
+          },
+        };
+        if (call.name === 'tasks/ask_user') {
+          try {
+            const args = asRecord(JSON.parse(call.arguments));
+            const options = Array.isArray(args.options)
+              ? args.options.filter((option): option is string => typeof option === 'string')
+              : undefined;
+            output = await context.ask(typeof args.prompt === 'string' ? args.prompt : '', options);
+            evidence.push({ kind: 'user-answer', ref: call.id });
+          } catch (error) {
+            if (context.signal.aborted) throw error;
+            output = { error: { message: errorText(error), code: errorCode(error) } };
+          }
+        }
+        transcript.splice(end, 0, {
+          role: 'tool',
+          toolCallId: call.id,
+          name: call.name,
+          content: boundedToolResult(JSON.stringify(output) ?? 'null'),
+        });
+        end += 1;
+        await saveCheckpoint(
+          context,
+          transcript,
+          turn,
+          pinnedCount,
+          activatedSkills,
+          eligibleSkills,
+          evidence,
+        );
+      }
+    }
+  }
+
   if (!checkpoint) {
     for (const name of role.skills) {
       try {
@@ -124,7 +186,13 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
   let assessmentAttempted =
     !!assessmentId || evidence.some((entry) => entry.kind === 'decision-unavailable');
 
-  while (turn < maxTurns) {
+  let turnLimit = Math.max(
+    maxTurns,
+    ...evidence
+      .filter((entry) => entry.kind === 'turn-allowance')
+      .map((entry) => positiveInteger(Number(entry.ref), maxTurns)),
+  );
+  while (true) {
     const exhausted = exhaustedBudgets(context, spentCost, spentTokens);
     if (exhausted.length > 0) {
       throw new RpcError(
@@ -136,6 +204,53 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
           budget: context.task.budget,
         },
       );
+    }
+    if (turn >= turnLimit) {
+      context.progress(
+        `Turn limit ${turnLimit} reached; checkpoint retained, waiting for user continuation.`,
+      );
+      await saveCheckpoint(
+        context,
+        transcript,
+        turn,
+        pinnedCount,
+        activatedSkills,
+        eligibleSkills,
+        evidence,
+      );
+      const answer = await context.ask(
+        `This task reached ${turnLimit} model turns. Saved work and its checkpoint are retained. Continue for up to another ${maxTurns} turns? Existing cost, token, time and permission limits remain unchanged.`,
+        ['Continue', 'Stop'],
+      );
+      evidence.push({ kind: 'user-answer', ref: `turn-limit:${turnLimit}` });
+      if (answer !== 'Continue') {
+        throw new RpcError(
+          `Agent stopped at the turn limit of ${turnLimit}; saved work and checkpoint retained.`,
+          RpcErrorCode.AgentTurnLimit,
+          { maxTurns: turnLimit },
+        );
+      }
+      turnLimit += maxTurns;
+      evidence.push({ kind: 'turn-allowance', ref: String(turnLimit) });
+      transcript.push({
+        role: 'user',
+        content: `Continue the existing task from its saved work for up to ${maxTurns} further model turns. Verify retained outputs before repeating work; the completion contract and all other limits remain unchanged.`,
+      });
+      await saveCheckpoint(
+        context,
+        transcript,
+        turn,
+        pinnedCount,
+        activatedSkills,
+        eligibleSkills,
+        evidence,
+      );
+    }
+    if (turnLimit - turn <= Math.max(1, Math.min(10, Math.ceil(maxTurns * 0.15)))) {
+      transcript.push({
+        role: 'user',
+        content: `Task turn allowance: ${turnLimit - turn} model turns remain before a user continuation decision. Finish bounded work, preserve exact artifact/evidence paths, and submit tasks/complete only if the existing contract is satisfied. Do not claim unfinished work complete.`,
+      });
     }
     if (!assessmentAttempted && asRecord(input.agentSettings).decisionsEnabled === true) {
       assessmentAttempted = true;
@@ -311,6 +426,7 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
             ? args.options.filter((option): option is string => typeof option === 'string')
             : undefined;
           output = await context.ask(prompt, options);
+          evidence.push({ kind: 'user-answer', ref: toolCall.id });
         } else {
           output = await context.tool(toolCall.name, args);
         }
@@ -338,13 +454,9 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
     if (completion) return completeResult(context, completion, evidence);
     context.progress(
       `Completed agent turn ${turn}`,
-      Math.min(99, Math.round((turn / maxTurns) * 100)),
+      Math.min(99, Math.round((turn / turnLimit) * 100)),
     );
   }
-
-  throw new RpcError(`Agent reached the turn limit of ${maxTurns}.`, RpcErrorCode.AgentTurnLimit, {
-    maxTurns,
-  });
 }
 
 async function requestCompletion(

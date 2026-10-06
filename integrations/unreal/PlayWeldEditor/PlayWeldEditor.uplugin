@@ -1,0 +1,19 @@
+{
+  "FileVersion": 3,
+  "Version": 1,
+  "VersionName": "0.1.0",
+  "FriendlyName": "PlayWeld Editor Bridge",
+  "Description": "First-party editor-only authoring bridge for the local PlayWeld service.",
+  "Category": "Editor",
+  "CreatedBy": "PlayWeld contributors",
+  "CanContainContent": false,
+  "EnabledByDefault": false,
+  "Modules": [
+    {
+      "Name": "PlayWeldEditor",
+      "Type": "Editor",
+      "LoadingPhase": "PostEngineInit",
+      "PlatformAllowList": ["Win64"]
+    }
+  ]
+}

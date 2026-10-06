@@ -14,7 +14,11 @@ export class UpdateStore {
     const row = this.database
       .prepare('SELECT state_json AS stateJson FROM update_states WHERE channel = ?')
       .get<{ stateJson: string }>('stable');
-    if (row) return updateStateValidator.assert(JSON.parse(row.stateJson));
+    if (row)
+      return {
+        ...updateStateValidator.assert(JSON.parse(row.stateJson)),
+        currentVersion: this.currentVersion,
+      };
     return {
       schemaVersion: 1,
       currentVersion: this.currentVersion,

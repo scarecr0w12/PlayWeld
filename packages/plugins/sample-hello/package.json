@@ -1,6 +1,6 @@
 {
   "name": "@gamecrafter/plugin-sample-hello",
-  "version": "0.10.3",
+  "version": "0.16.0",
   "private": true,
   "license": "Apache-2.0",
   "main": "dist/index.cjs",
@@ -11,7 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@gamecrafter/plugin-sdk": "0.10.3"
+    "@gamecrafter/plugin-sdk": "0.16.0"
   },
   "devDependencies": {
     "esbuild": "0.28.2"

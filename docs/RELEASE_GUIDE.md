@@ -1,12 +1,12 @@
 # PlayWeld versioning, releases and local Windows testing
 
-**Last updated:** 2026-10-05
+**Last updated:** 2026-10-06
 
 This guide defines the current release tooling and the local testing handoff. The complete release lifecycle remains in progress in [WP19](DEVELOPMENT_PLAN.md#wp19--packaging-and-release); installer upgrade/rollback and signing acceptance are separate from producing a test build.
 
 ## Version and tag contract
 
-Every task must have a permanent [work record](changes/README.md), including documentation, tests, investigations, refactors, removals, dependency/configuration changes, and assets. [The changelog](../CHANGELOG.md) is generated from those records. The user requires complete tracking; the categories, impact rules and checks are selected engineering defaults. Record actual validation and limitations rather than treating a version number as evidence.
+Every task must have a permanent [work record](changes/README.md), including documentation, tests, investigations, refactors, removals, dependency/configuration changes, and assets. [The changelog](../CHANGELOG.md) is generated from those records and includes their full Summary, Details, Validation, and Files under each version and category. Summary paragraphs and links alone do not satisfy the full-changelog requirement. Keep the separate task records and per-version release notes as well. The user requires complete tracking; the categories, impact rules and checks are selected engineering defaults. Record actual validation and limitations rather than treating a version number as evidence.
 
 All nine first-party application/package workspaces use the same exact release version and exact internal dependency versions. The npm lockfile must record those versions. An annotated Git tag has the form `v<version>` and identifies the immutable source commit used for the build. A release tag must match the desktop application's version.
 
@@ -119,6 +119,18 @@ Use the version actually being prepared; preparation rejects an existing version
 Inspect the packaged service over authenticated RPC as well: check `service/info`, create a disposable Project, list the thirty builtin skills, activate an appropriate guide and read its reference. This confirms the shipped runtime can use the library, rather than only confirming source files exist.
 
 ## Release evidence and limitations
+
+The [0.16.0 local deployment](changes/2026-10-06-local-0.16.0-deployment.md) ships the cumulative provider/worker/MCP/adversarial/editor/IDE/isolation/update repairs and the final Program Files LPAC access correction. The 0.15.0 candidate remains preserved after exposing that defect before installation. Local 0.16.0 passed 33 uncached quality tasks, package/native/source checks, 29 staged and 29 installed desktop checks, installed LPAC and four-Project configuration/task retention. It is an unsigned testing build; publisher signing and a complete uninstall/rollback lifecycle remain separate. The tagged hosted Windows/Linux publication receives its own permanent receipt rather than rewriting committed release records.
+
+### Protected metadata keys and Windows handoff
+
+After building the service, Windows can create a local Ed25519 metadata key with `node scripts/release-signing-key.cjs <private-local-directory>`. Use a private directory outside the checkout and generated public artifacts. The generator refuses existing key files and writes CurrentUser DPAPI ciphertext plus the public PEM and a fingerprint record. Protect access to the Windows account and retain a recovery plan; this ciphertext is tied to that account. No plaintext private key belongs in arguments, tracked files or logs.
+
+The metadata CLI accepts `--signing-key-file <directory>/release-private.dpapi`; the existing CI secret remains supported, but combining key sources is rejected. The public Windows/Linux artifact gate remains in force. Installations must receive the matching public verification key before signed automatic update acceptance. A local metadata key does not provide Windows Authenticode publisher trust; the current owner has no publisher certificate.
+
+For a signed verified Windows package, **Install** prepares a confined digest-checked handoff and the Electron backend starts an owned helper. Close PlayWeld normally after saving work; the helper waits up to ten minutes, rechecks bytes and records launch or failure. It does not force desktop exit. Packages use version-separated cache folders, and verification sidecars preserve the old stored record shape. The verified current-version installer is retained before a newer release clears pending download state. Legacy packages without verification provenance retain manual instructions.
+
+The protected-key, changed-byte refusal and harmless native executable tests are recorded in [the permanent handoff work record](changes/2026-10-06-protected-signing-and-installer-handoff.md). They do not establish actual NSIS install/uninstall/rollback, public trust-key distribution or hosted signed publication. Those acceptance paths remain open under WP19.
 
 The [0.7.0 local deployment record](changes/2026-10-04-local-0.7.0-deployment.md) tracks the interface/docs update, local Windows package, installer outcome, retained configuration checks and evidence limits. Documentation screenshots are real isolated development-browser captures labelled with their capture version; they are not installation screenshots or evidence of external provider/engine acceptance. No tag or public release is implied by a local installer or the staging tool's conventional tag field.
 

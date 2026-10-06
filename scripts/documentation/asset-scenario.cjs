@@ -44,7 +44,7 @@ async function assetScenario({
       response.writeHead(200, { 'content-type': 'application/json' });
       response.end(JSON.stringify(value));
     };
-    if (request.url === '/openapi/v2/text-to-3d?limit=1') return json({ result: [] });
+    if (request.url === '/openapi/v1/balance') return json({ balance: 25 });
     if (request.method === 'POST' && request.url === '/openapi/v2/text-to-3d')
       return json({ result: { id: 'lantern-fixture' } });
     if (request.url?.startsWith('/openapi/v2/text-to-3d/'))

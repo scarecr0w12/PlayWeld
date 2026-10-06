@@ -29,7 +29,8 @@
     "release:version": "node scripts/set-release-version.cjs",
     "changelog:update": "node scripts/change-tracking.cjs update",
     "changelog:check": "node scripts/change-tracking.cjs check",
-    "test:changes": "vitest run scripts/change-tracking.test.ts --maxWorkers=1"
+    "test:changes": "vitest run scripts/change-tracking.test.ts --maxWorkers=1",
+    "postinstall": "patch-package --error-on-fail"
   },
   "devDependencies": {
     "@types/node": "24.13.6",
@@ -40,7 +41,8 @@
     "turbo": "2.11.2",
     "typescript": "5.9.3",
     "typescript-eslint": "8.70.0",
-    "vitest": "5.0.1"
+    "vitest": "5.0.1",
+    "patch-package": "8.0.1"
   },
   "allowScripts": {
     "@theia/ffmpeg@1.75.0": true,
@@ -56,9 +58,16 @@
     "msgpackr-extract@3.0.4": true
   },
   "overrides": {
+    "@modelcontextprotocol/sdk": "1.31.0",
     "serialize-javascript": "7.0.7",
     "electron": "42.10.0",
-    "decompress": "$decompress"
+    "decompress": "$decompress",
+    "dompurify": "3.4.16",
+    "http-cache-semantics": "4.3.0",
+    "source-map-js": "1.2.2",
+    "diff": "8.0.4",
+    "uuid": "11.1.1",
+    "@tootallnate/once": "2.0.1"
   },
   "dependencies": {
     "decompress": "file:./packages/archive-extractor"

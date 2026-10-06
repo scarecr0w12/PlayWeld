@@ -8,7 +8,7 @@ export function blenderInspectScript(outputPath: string): string {
 
 export function blenderImportScript(filePath: string, format: string, outputPath: string): string {
   const importOperation = blenderImportOperation(format, filePath);
-  return `import bpy, json\nbefore = set(obj.name for obj in bpy.data.objects)\n${importOperation}\ncreated = sorted(obj.name for obj in bpy.data.objects if obj.name not in before)\nbpy.ops.wm.save_as_mainfile(filepath=${JSON.stringify(outputPath)})\nprint('GCDCC_JSON:' + json.dumps({'imported': created}))`;
+  return `import bpy, json\nbpy.ops.wm.read_factory_settings(use_empty=True)\nbefore = set(obj.name for obj in bpy.data.objects)\n${importOperation}\ncreated = sorted(obj.name for obj in bpy.data.objects if obj.name not in before)\nbpy.ops.wm.save_as_mainfile(filepath=${JSON.stringify(outputPath)})\nprint('GCDCC_JSON:' + json.dumps({'imported': created}))`;
 }
 
 export function blenderExportScript(outputPath: string, format: string): string {

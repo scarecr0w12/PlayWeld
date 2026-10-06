@@ -133,13 +133,35 @@ describe('plugin worker isolation', () => {
   it('reports unavailable Linux sandbox binaries and fails closed on Windows', async () => {
     const unavailable = await new BwrapLauncher({ binaryPath: '/not/a/bwrap/binary' }).probe();
     expect(unavailable).toMatchObject({ platform: 'linux', backend: 'bwrap', available: false });
-    await expect(new AppContainerLauncher().probe()).resolves.toMatchObject({
+    await expect(
+      new AppContainerLauncher('/missing/native/helper.exe').probe(),
+    ).resolves.toMatchObject({
       platform: 'win32',
       backend: 'appcontainer',
       available: false,
-      checks: [{ name: 'appcontainer', ok: false, detail: 'not implemented in this repository' }],
+      checks: [
+        {
+          name: 'appcontainer',
+          ok: false,
+          detail: 'Windows native isolation helper is unavailable.',
+        },
+      ],
     });
   });
+
+  it('enforces Windows LPAC source, host, All Application Packages and network boundaries', async (context) => {
+    if (process.platform !== 'win32') context.skip('Requires Windows native isolation.');
+    const report = await new AppContainerLauncher().probe();
+    expect(report.available, JSON.stringify(report.checks)).toBe(true);
+    expect(report.checks.map((check) => check.name)).toEqual([
+      'privateDenied',
+      'allAppsDenied',
+      'sourceDenied',
+      'scratch',
+      'networkDenied',
+    ]);
+    expect(report.checks.every((check) => check.ok)).toBe(true);
+  }, 30_000);
 
   it('reports unisolated execution as unenforced', async () => {
     await expect(new UnisolatedLauncher().probe()).resolves.toMatchObject({

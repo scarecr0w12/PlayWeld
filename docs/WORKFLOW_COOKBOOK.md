@@ -1,8 +1,19 @@
 # PlayWeld workflow cookbook
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-06
 
 Use the disposable [Lantern Workshop](WORKED_TUTORIAL.md) Project for these exercises. Each workflow below gives prerequisites, actions, outputs, permissions, failure recovery and evidence. The [coverage record](DOCUMENTATION_COVERAGE.md) owns verification gaps. These instructions describe existing UI/service paths; they do not promote untested paths into live acceptance. Refer to the [glossary](GLOSSARY.md) and [handbook](CONTROL_ROOM_HANDBOOK.md) for terms and controls.
+
+## Pick a workflow
+
+- [Request an agent change and review integration](#ask-an-agent-to-make-a-change-and-inspect-integration).
+- [Answer questions, handle approvals, or cancel work](#respond-to-questions-approvals-and-cancellation).
+- [Record a discussion decision in a document](#bind-a-discussion-decision-into-a-durable-document).
+- [Transfer settings](#transfer-settings-using-preview-and-redacted-export).
+- [Review an asset before importing it](#review-an-asset-before-importing-it).
+- [Run engine or DCC operations](#operate-an-engine-or-dcc-through-capability-layers).
+- [Refresh the document index](#refresh-the-index-after-editing-a-document).
+- [Practice backup and restoration](#drill-backup-and-restoration).
 
 ## Ask an agent to make a change and inspect integration
 

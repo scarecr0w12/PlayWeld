@@ -1,4 +1,7 @@
 import { randomBytes, createHash } from 'node:crypto';
+import { createReadStream, mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Readable, Writable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { describe, expect, it } from 'vitest';
@@ -79,6 +82,30 @@ function firstChunkOffset(archive: Buffer): number {
 }
 
 describe('backup archive format', () => {
+  it.each(['wrong-secret', 'preview'] as const)(
+    'closes the archive file before returning from %s',
+    async (mode) => {
+      const directory = mkdtempSync(join(tmpdir(), 'playweld-archive-'));
+      const archivePath = join(directory, 'backup.gcbk');
+      writeFileSync(archivePath, await makeArchive(randomBytes(2 * 1024 * 1024)));
+      const source = createReadStream(archivePath);
+      try {
+        if (mode === 'wrong-secret') {
+          await expect(readArchive(source, 'wrong recovery secret')).rejects.toMatchObject({
+            code: RpcErrorCode.BackupUnlockFailed,
+          });
+        } else {
+          await readArchive(source, secret, { manifestOnly: true });
+        }
+        expect(source.closed).toBe(true);
+      } finally {
+        source.destroy();
+        if (!source.closed) await new Promise<void>((resolve) => source.once('close', resolve));
+        rmSync(directory, { recursive: true, force: true });
+      }
+    },
+  );
+
   it('round-trips entries and reads the manifest preview from the first chunk', async () => {
     const archive = await makeArchive();
     const restored: Array<{ path: string; bytes: Buffer }> = [];

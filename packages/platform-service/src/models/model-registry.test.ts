@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ModelCapabilities, ModelPricing } from '@gamecrafter/contracts';
 import { Database } from '../db/database';
 import { migrate } from '../db/migrator';
@@ -11,6 +11,103 @@ import { ModelRegistry } from './model-registry';
 import { ModelProviderRegistry, type ModelProvider } from './providers';
 
 describe('ModelRegistry', () => {
+  it('offers catalogued OpenAI embedding models when model listing omits them', async () => {
+    const profileDir = mkdtempSync(path.join(tmpdir(), 'gc-openai-embedding-discovery-'));
+    const database = Database.open(':memory:');
+    try {
+      migrate(database, profileMigrations);
+      const providers = new ModelProviderRegistry();
+      providers.register('openai', {
+        async listModels() {
+          return [{ providerModelId: 'gpt-fixture', capabilities: { chat: true } }];
+        },
+        async complete() {
+          throw new Error('Not used');
+        },
+        async embed() {
+          throw new Error('Not used');
+        },
+      });
+      const registry = new ModelRegistry(
+        database,
+        new CredentialStore(database, profileDir),
+        providers,
+      );
+      const account = registry.addAccount({
+        providerKind: 'openai',
+        displayName: 'OpenAI',
+        baseUrl: 'https://api.openai.com/v1',
+        apiKey: 'fixture-api-key',
+      });
+
+      const preview = await registry.discover(account.accountId, { preview: true });
+
+      expect(preview.models.map((model) => model.providerModelId)).toEqual([
+        'gpt-fixture',
+        'text-embedding-3-small',
+        'text-embedding-3-large',
+      ]);
+      expect(preview.models.filter((model) => model.capabilities.embeddings)).toMatchObject([
+        {
+          providerModelId: 'text-embedding-3-small',
+          metadataFields: {
+            'capabilities.embeddings': { source: 'provider-catalog' },
+          },
+        },
+        {
+          providerModelId: 'text-embedding-3-large',
+          metadataFields: {
+            'capabilities.embeddings': { source: 'provider-catalog' },
+          },
+        },
+      ]);
+      expect(registry.listModels()).toEqual([]);
+
+      const selected = await registry.discover(account.accountId, {
+        providerModelIds: ['text-embedding-3-small'],
+      });
+      expect(selected).toMatchObject({ added: 1, updated: 0 });
+      expect(registry.listModels()).toMatchObject([
+        { accountId: account.accountId, providerModelId: 'text-embedding-3-small' },
+      ]);
+      expect(
+        await registry.discover(account.accountId, {
+          providerModelIds: ['text-embedding-3-small'],
+        }),
+      ).toMatchObject({ added: 0, updated: 1 });
+
+      const customAccount = registry.addAccount({
+        providerKind: 'openai',
+        displayName: 'Custom endpoint',
+        baseUrl: 'https://custom.example.com/v1',
+      });
+      expect(
+        (await registry.discover(customAccount.accountId, { preview: true })).models.map(
+          (model) => model.providerModelId,
+        ),
+      ).toEqual(['gpt-fixture']);
+
+      const listModels = vi.spyOn(providers.get('openai')!, 'listModels');
+      listModels.mockResolvedValue([
+        { providerModelId: 'text-embedding-3-small', capabilities: { embeddings: false } },
+      ]);
+      const listed = await registry.discover(account.accountId, { preview: true });
+      expect(listed.models.map((model) => model.providerModelId)).toEqual([
+        'text-embedding-3-small',
+        'text-embedding-3-large',
+      ]);
+      expect(listed.models[0]?.capabilities.embeddings).toBe(false);
+
+      listModels.mockRejectedValue(new Error('Provider authentication failed'));
+      await expect(registry.discover(account.accountId, { preview: true })).rejects.toThrow(
+        'Provider authentication failed',
+      );
+    } finally {
+      database.close();
+      rmSync(profileDir, { recursive: true, force: true });
+    }
+  });
+
   it('previews without writes and imports only selected models for the requested account', async () => {
     const profileDir = mkdtempSync(path.join(tmpdir(), 'gc-model-selection-'));
     const database = Database.open(':memory:');

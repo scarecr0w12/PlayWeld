@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import {
   RpcError,
@@ -149,7 +149,7 @@ export class BlenderAdapter extends BaseDccAdapter {
     const inputFormat = path.extname(inputPath).slice(1);
     const importScript = blenderImportOperation(inputFormat, await context.toHostPath(inputPath));
     const exportScript = blenderExportOperation(outputFormat, await context.toHostPath(outputPath));
-    const script = `import bpy, json\n${importScript}\n${exportScript}\nprint('GCDCC_JSON:' + json.dumps({'input': ${JSON.stringify(inputPath)}, 'output': ${JSON.stringify(outputPath)}}))`;
+    const script = `import bpy, json\nbpy.ops.wm.read_factory_settings(use_empty=True)\n${importScript}\n${exportScript}\nprint('GCDCC_JSON:' + json.dumps({'input': ${JSON.stringify(inputPath)}, 'output': ${JSON.stringify(outputPath)}}))`;
     const outcome = await this.runScriptCommand(
       context,
       ['--background', '--python-expr', script],
@@ -284,7 +284,9 @@ function resolveOutput(
   const output =
     stringParam(params, 'output') ??
     path.posix.join('.gamecrafter', 'dcc-runs', context.runId, defaultPath);
-  return context.resolveOutput(output);
+  const resolved = context.resolveOutput(output);
+  mkdirSync(path.dirname(resolved), { recursive: true });
+  return resolved;
 }
 
 function requireOutput(

@@ -306,9 +306,10 @@ export class TaskStore {
     prompt: string,
     options: string[] | null,
     actor: string,
+    questionId: string = uuidv7(),
   ): TaskQuestion {
     const question: TaskQuestion = {
-      questionId: uuidv7(),
+      questionId,
       taskId,
       prompt,
       options,

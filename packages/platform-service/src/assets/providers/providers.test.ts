@@ -6,6 +6,29 @@ import { MeshyProvider } from './meshy';
 import { Tripo3dProvider } from './tripo3d';
 
 describe('asset providers', () => {
+  it('reports Meshy credits through its authenticated balance endpoint, including zero', async () => {
+    let balance: unknown = 25;
+    const server = createServer((request, response) => {
+      expect(request.method).toBe('GET');
+      expect(request.url).toBe('/openapi/v1/balance');
+      expect(request.headers.authorization).toBe('Bearer test-meshy-key');
+      sendJson(response, 200, { balance });
+    });
+    const context = await start(server, 'test-meshy-key');
+    try {
+      const provider = new MeshyProvider();
+      expect(provider.capabilities().supportsBalance).toBe(true);
+      expect(await provider.test(context)).toBe(25);
+      balance = 0;
+      expect(await provider.test(context)).toBe(0);
+      balance = -1;
+      expect(await provider.test(context)).toBeNull();
+      balance = '25';
+      expect(await provider.test(context)).toBeNull();
+    } finally {
+      await close(server);
+    }
+  });
   it('authenticates Meshy preview, refine, and image jobs and extracts result URLs', async () => {
     const requests: Array<{ method: string; url: string; body: Record<string, unknown> }> = [];
     const server = createServer(async (request, response) => {

@@ -1,6 +1,6 @@
 import { createDecipheriv } from 'node:crypto';
 import { Readable } from 'node:stream';
-import { pipeline as streamPipeline } from 'node:stream/promises';
+import { finished, pipeline as streamPipeline } from 'node:stream/promises';
 import { constants, createGunzip, gunzipSync } from 'node:zlib';
 import {
   BackupManifestSchema,
@@ -30,12 +30,16 @@ export async function readArchive(
   options: BackupArchiveReadOptions = {},
 ): Promise<BackupArchiveReadResult> {
   const reader = new AsyncByteReader(source);
-  const { header, remainder } = await readHeader(reader);
-  const archiveKey = await unwrapArchiveKey(header, secret);
   try {
-    return await readArchivePayload(reader, header, archiveKey, options, remainder);
+    const { header, remainder } = await readHeader(reader);
+    const archiveKey = await unwrapArchiveKey(header, secret);
+    try {
+      return await readArchivePayload(reader, header, archiveKey, options, remainder);
+    } finally {
+      archiveKey.fill(0);
+    }
   } finally {
-    archiveKey.fill(0);
+    await reader.close();
   }
 }
 
@@ -45,8 +49,12 @@ export async function readArchiveWithKey(
   options: BackupArchiveReadOptions = {},
 ): Promise<BackupArchiveReadResult> {
   const reader = new AsyncByteReader(source);
-  const { header, remainder } = await readHeader(reader);
-  return readArchivePayload(reader, header, archiveKey, options, remainder);
+  try {
+    const { header, remainder } = await readHeader(reader);
+    return await readArchivePayload(reader, header, archiveKey, options, remainder);
+  } finally {
+    await reader.close();
+  }
 }
 
 async function readHeader(reader: AsyncByteReader): Promise<{
@@ -377,10 +385,12 @@ async function drain(content: AsyncIterable<Buffer>): Promise<void> {
 
 class AsyncByteReader {
   private readonly iterator: AsyncIterator<Uint8Array>;
+  private readonly source: Readable | undefined;
   private buffer = Buffer.alloc(0);
   private ended = false;
 
   constructor(source: ArchiveSource | Readable) {
+    this.source = source instanceof Readable ? source : undefined;
     const iterable =
       Buffer.isBuffer(source) || source instanceof Uint8Array
         ? (async function* () {
@@ -388,6 +398,18 @@ class AsyncByteReader {
           })()
         : source;
     this.iterator = iterable[Symbol.asyncIterator]();
+  }
+
+  async close(): Promise<void> {
+    const closed = this.source
+      ? finished(this.source, { cleanup: true }).catch(() => undefined)
+      : undefined;
+    if (!this.ended) {
+      this.ended = true;
+      await this.iterator.return?.();
+    }
+    await closed;
+    this.buffer = Buffer.alloc(0);
   }
 
   async readExact(length: number): Promise<Buffer> {

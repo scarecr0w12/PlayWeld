@@ -161,6 +161,59 @@ describe('real Blender DCC connector', () => {
     const gltf = inspectGltfDocument(parseGlbDocument(readFileSync(glbPath)));
     expect(gltf.metadata.meshes).toBeGreaterThanOrEqual(1);
 
+    const nested = await client.call('dcc/run', {
+      projectId: project.projectId,
+      tool: 'blender',
+      operation: 'export',
+      params: {
+        file: 'game/assets/wp16-real-cube.blend',
+        format: 'glb',
+        output: 'Art/Exports/nested/cube.glb',
+      },
+    });
+    expect(nested.status).toBe('succeeded');
+    const imported = await client.call('dcc/run', {
+      projectId: project.projectId,
+      tool: 'blender',
+      operation: 'import',
+      params: { file: 'Art/Exports/nested/cube.glb', format: 'glb' },
+    });
+    expect(imported.status).toBe('succeeded');
+    const importedBlend = imported.artifacts.find((artifact) => artifact.path.endsWith('.blend'))!;
+    const importedInspection = await client.call('dcc/run', {
+      projectId: project.projectId,
+      tool: 'blender',
+      operation: 'inspect',
+      params: { file: importedBlend.path },
+    });
+    const inspectionFile = importedInspection.artifacts.find((artifact) =>
+      artifact.path.endsWith('inspection.json'),
+    )!;
+    const inspection = JSON.parse(
+      readFileSync(path.join(project.path, inspectionFile.path), 'utf8'),
+    );
+    expect(inspection.meshes).toBe(1);
+    expect(
+      inspection.objects.filter(
+        (object: { type: string }) => object.type === 'CAMERA' || object.type === 'LIGHT',
+      ),
+    ).toHaveLength(0);
+    const converted = await client.call('dcc/run', {
+      projectId: project.projectId,
+      tool: 'blender',
+      operation: 'convert',
+      params: {
+        input: 'Art/Exports/nested/cube.glb',
+        output: 'Art/Converted/nested/cube.glb',
+        format: 'glb',
+      },
+    });
+    expect(converted.status).toBe('succeeded');
+    const convertedInfo = inspectGltfDocument(
+      parseGlbDocument(readFileSync(path.join(project.path, 'Art/Converted/nested/cube.glb'))),
+    );
+    expect(convertedInfo.metadata.meshes).toBe(1);
+
     const originalScene = readFileSync(blendPath);
     const rendered = await client.call('dcc/run', {
       projectId: project.projectId,

@@ -95,7 +95,10 @@ export const UpdateCompatibilitySchema = Type.Object(
 );
 
 export const PreviousUpdateSchema = Type.Object(
-  { version: Type.String({ minLength: 1 }), path: Type.String({ minLength: 1 }) },
+  {
+    version: Type.String({ minLength: 1 }),
+    path: Type.String({ minLength: 1 }),
+  },
   { additionalProperties: false },
 );
 
@@ -114,3 +117,20 @@ export const UpdateStateSchema = Type.Object(
   { additionalProperties: false },
 );
 export type UpdateState = Static<typeof UpdateStateSchema>;
+
+export const VerifiedUpdatePackageSchema = Type.Object(
+  {
+    schemaVersion: Type.Literal(1),
+    version: Type.String({ minLength: 1 }),
+    path: Type.String({ minLength: 1 }),
+    sha256: Type.String({ pattern: '^[a-f0-9]{64}$' }),
+    verified: UpdateVerificationSchema,
+  },
+  { additionalProperties: false },
+);
+export type VerifiedUpdatePackage = Static<typeof VerifiedUpdatePackageSchema>;
+
+export const InstallerHandoffSchema = Type.Object(
+  { descriptorPath: Type.String(), version: Type.String() },
+  { additionalProperties: false },
+);

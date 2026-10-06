@@ -40500,6 +40500,22 @@
           },
           "instructions": {
             "type": "string"
+          },
+          "handoff": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": ["descriptorPath", "version"],
+            "properties": {
+              "descriptorPath": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              }
+            }
+          },
+          "handoffStarted": {
+            "type": "boolean"
           }
         }
       }
@@ -40520,6 +40536,22 @@
           },
           "instructions": {
             "type": "string"
+          },
+          "handoff": {
+            "additionalProperties": false,
+            "type": "object",
+            "required": ["descriptorPath", "version"],
+            "properties": {
+              "descriptorPath": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              }
+            }
+          },
+          "handoffStarted": {
+            "type": "boolean"
           }
         }
       }

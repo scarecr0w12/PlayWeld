@@ -31,6 +31,7 @@ export class OpenAIProvider extends OpenAICompatibleProvider {
   constructor() {
     super({
       defaultBaseUrl: DEFAULT_PROVIDER_BASE_URLS.openai,
+      toolResponsesFallback: true,
       parseModels: (entries) => mapEntries(entries, (entry) => identified(entry, 'openai')),
     });
   }

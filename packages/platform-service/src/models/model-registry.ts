@@ -14,7 +14,7 @@ import {
 } from '@gamecrafter/contracts';
 import type { Database } from '../db/database';
 import { CredentialStore } from '../profile/credential-store';
-import { enrichDiscoveredModel } from './model-catalog';
+import { enrichDiscoveredModel, MODEL_METADATA_CATALOG } from './model-catalog';
 import type {
   DiscoveredModel,
   ModelProvider,
@@ -314,9 +314,27 @@ export class ModelRegistry {
         RpcErrorCode.ProviderRequestFailed,
       );
     }
-    const discovered = (await provider.listModels(account)).map((model) =>
-      enrichDiscoveredModel(account.providerKind, model),
-    );
+    const listed = await provider.listModels(account);
+    // Offer catalogued embedding candidates after successful first-party discovery.
+    // Listing is not an access probe: setting a Knowledge profile verifies the
+    // selected model through the embeddings API before persisting the profile.
+    if (account.providerKind === 'openai' && isFirstPartyOpenAiUrl(account.baseUrl)) {
+      const listedIds = new Set(listed.map((model) => model.providerModelId));
+      for (const entry of MODEL_METADATA_CATALOG) {
+        if (
+          entry.providerKind === 'openai' &&
+          entry.capabilities?.embeddings === true &&
+          !listedIds.has(entry.providerModelId)
+        ) {
+          listed.push({
+            providerModelId: entry.providerModelId,
+            metadataSource: 'provider-catalog',
+            sourceUrl: entry.fieldMetadata['capabilities.embeddings']?.sourceUrl,
+          });
+        }
+      }
+    }
+    const discovered = listed.map((model) => enrichDiscoveredModel(account.providerKind, model));
     const selected = options.providerModelIds && new Set(options.providerModelIds);
     if (selected) {
       const available = new Set(discovered.map((item) => item.providerModelId));
@@ -648,6 +666,15 @@ export class ModelRegistry {
         pool.createdAt,
         pool.updatedAt,
       );
+  }
+}
+
+function isFirstPartyOpenAiUrl(baseUrl: string): boolean {
+  try {
+    const url = new URL(baseUrl);
+    return url.origin === 'https://api.openai.com' && url.pathname.replace(/\/$/, '') === '/v1';
+  } catch {
+    return false;
   }
 }
 

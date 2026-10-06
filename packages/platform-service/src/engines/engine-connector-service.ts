@@ -40,6 +40,8 @@ import { UnityConnector } from './unity/unity-connector';
 import { UnrealConnector } from './unreal/unreal-connector';
 import { runEngineProcess } from './process-runner';
 import { registerEngineTools } from './engine-tools';
+import { registerUnrealEditorBridgeTools } from './unreal/editor-bridge-tools';
+import { buildUnrealEditorBridge } from './unreal/editor-bridge-build';
 import type {
   EngineCapabilityContext,
   EngineConnector,
@@ -104,6 +106,66 @@ export class EngineConnectorService {
     registerEngineTools(options.toolRegistry, (operation, context, params, runId) =>
       this.executeOperation(context, operation, params, runId),
     );
+    registerUnrealEditorBridgeTools({
+      registry: options.toolRegistry,
+      mcp: options.mcpConnections,
+      bind: (projectId, connectionId) => this.setLiveBridge(projectId, connectionId),
+      family: (projectId) => this.projectContext(projectId).family,
+      build: async (context, projectFile) => {
+        const installations = await this.installations('unreal');
+        const association = (
+          JSON.parse(readFileSync(projectFile, 'utf8')) as { EngineAssociation?: unknown }
+        ).EngineAssociation;
+        const preferred =
+          this.projectContext(context.projectId).manifest.engine.preferredVersion ??
+          (typeof association === 'string' && /^\d+\.\d+(?:\.\d+)?$/.test(association)
+            ? association
+            : null);
+        const candidates = installations.filter(
+          (installation) =>
+            installation.kind === 'uat' &&
+            (!preferred ||
+              installation.version === preferred ||
+              installation.version?.startsWith(preferred + '.')),
+        );
+        if (new Set(candidates.map((installation) => installation.version)).size > 1)
+          throw new RpcError(
+            'Set the Project preferred Unreal version before choosing between different registered engines.',
+            RpcErrorCode.EngineInstallationNotFound,
+          );
+        const uat = candidates[0];
+        if (!uat)
+          throw new RpcError(
+            'Register RunUAT.bat in Engine installations before compiling the editor plugin.',
+            RpcErrorCode.EngineInstallationNotFound,
+          );
+        return buildUnrealEditorBridge(context, projectFile, uat);
+      },
+      verify: async (projectId, connectionId, projectFile) => {
+        const catalog = await options.mcpConnections.tools(connectionId);
+        const identity = catalog.tools.find((tool) => tool.toolId.endsWith('/get_project_context'));
+        if (!identity || identity.sideEffects !== 'none')
+          throw new RpcError(
+            'First-party editor identity probe unavailable.',
+            RpcErrorCode.McpConnectFailed,
+          );
+        const record = await options.toolBroker.call({
+          projectId,
+          toolId: identity.toolId,
+          input: {},
+        });
+        const result = parseIdentityResult(record.output);
+        if (
+          record.status !== 'completed' ||
+          !result?.projectPath ||
+          !sameNativePath(result.projectPath, projectFile)
+        )
+          throw new RpcError(
+            'Running editor does not prove the selected Unreal Project file.',
+            RpcErrorCode.ToolDenied,
+          );
+      },
+    });
   }
 
   async installations(family?: EngineFamily): Promise<EngineInstallation[]> {
@@ -871,7 +933,11 @@ export class EngineConnectorService {
             projectPath,
             path.join(projectPath, 'game'),
             ...identity.evidence
-              .filter((entry) => entry.kind === 'file' && entry.ref.endsWith('.uproject'))
+              .filter(
+                (entry) =>
+                  entry.kind === 'file' &&
+                  (entry.ref.endsWith('.uproject') || path.basename(entry.ref) === 'project.godot'),
+              )
               .map((entry) => path.join(projectPath, entry.ref)),
           ].some((expected) => sameNativePath(identityResult.projectPath!, expected)));
       return {

@@ -131,11 +131,26 @@
   border-bottom: 1px solid var(--gc-border);
   padding-bottom: 12px;
 }
-.gamecrafter-surface :is(label, section, form, details) {
+.gamecrafter-surface :is(label, section, form, details, fieldset) {
   min-width: 0;
 }
-.gamecrafter-surface :is(input, select, textarea) {
+.gamecrafter-surface :is(label, form, details, header, fieldset, .gamecrafter-page-meta-item) {
+  box-sizing: border-box;
   max-width: 100%;
+}
+.gamecrafter-surface :is(input, select, textarea) {
+  min-width: 0;
+  max-width: 100%;
+}
+.gamecrafter-surface :is(button, h1, h2, h3, summary) {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.gamecrafter-surface :is(.gamecrafter-engine-table, .gamecrafter-dcc-table) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
 }
 .gamecrafter-surface :is(code, pre, .gamecrafter-page-meta) {
   overflow-wrap: anywhere;
@@ -196,7 +211,9 @@
       .gamecrafter-plugins-install-form,
       .gamecrafter-plugins-catalog-form,
       .gamecrafter-knowledge-status-grid,
-      .gamecrafter-dcc-layer-list
+      .gamecrafter-dcc-layer-list,
+      .gamecrafter-engine-layer-list,
+      .gamecrafter-engine-operation-list
     ) {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -673,6 +690,8 @@
   font-family: 'Segoe UI', system-ui, sans-serif;
   font-size: 13px;
   line-height: 1.55;
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: clamp(12px, 3cqi, 38px);
   scrollbar-color: color-mix(in srgb, var(--gc-accent) 20%, var(--gc-panel)) transparent;
 }
@@ -692,6 +711,8 @@
 .gamecrafter-surface :is(input[type='checkbox'], input[type='radio']) {
   accent-color: var(--gc-accent);
   min-height: initial;
+  flex: 0 0 auto;
+  width: auto;
 }
 .gamecrafter-surface button,
 .gamecrafter-surface button.theia-button.secondary {

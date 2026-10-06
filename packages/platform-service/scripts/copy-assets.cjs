@@ -2,8 +2,19 @@ const { cpSync, existsSync, mkdirSync, readdirSync, rmSync } = require('node:fs'
 const path = require('node:path');
 
 const packageDir = path.resolve(__dirname, '..');
+require('./build-appcontainer.cjs');
 const source = path.join(packageDir, 'roles');
 const destination = path.join(packageDir, 'lib', 'roles');
+const editorPluginSource = path.resolve(packageDir, '../../integrations/unreal/PlayWeldEditor');
+const editorPluginTarget = path.join(packageDir, 'lib/integrations/unreal/PlayWeldEditor');
+mkdirSync(editorPluginTarget, { recursive: true });
+cpSync(editorPluginSource, editorPluginTarget, { recursive: true });
+for (const family of ['unity', 'godot']) {
+  const bundle = path.resolve(packageDir, `../../integrations/${family}/PlayWeldEditor`);
+  const target = path.join(packageDir, `lib/integrations/${family}/PlayWeldEditor`);
+  mkdirSync(target, { recursive: true });
+  cpSync(bundle, target, { recursive: true });
+}
 const roleDirectories = readdirSync(source, { withFileTypes: true }).filter((entry) => entry.isDirectory());
 const roleNames = new Set(roleDirectories.map((entry) => entry.name));
 

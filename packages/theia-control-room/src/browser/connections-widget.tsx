@@ -67,6 +67,7 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
 
   private projects: ProjectSummary[] = [];
   private selectedProjectId?: string;
+  private refreshVersion = 0;
   private connections: McpConnectionListEntry[] = [];
   private tools = new Map<string, ToolDefinition[]>();
   private logs = new Map<string, McpConnectionLogEntry[]>();
@@ -186,6 +187,10 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
                 this.markProjectSelection();
                 this.selectedProjectId = event.currentTarget.value || undefined;
                 this.scope = this.selectedProjectId ? 'project' : 'platform';
+                this.connections = [];
+                this.tools.clear();
+                this.logs.clear();
+                this.logConnectionId = undefined;
                 void this.refresh();
               }}
             >
@@ -1569,18 +1574,28 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
   }
 
   private async refresh(): Promise<void> {
+    const version = ++this.refreshVersion;
     this.errorMessage = undefined;
     try {
-      this.projects = await this.service.listProjects();
-      this.selectedProjectId =
-        (await this.resolveProjectSelection(this.projects, () => this.selectedProjectId)) ||
-        undefined;
+      const projects = await this.service.listProjects();
+      if (version !== this.refreshVersion || this.isDisposed) return;
+      const projectId =
+        (await this.resolveProjectSelection(projects, () => this.selectedProjectId)) || undefined;
+      if (version !== this.refreshVersion || this.isDisposed) return;
+      this.projects = projects;
+      this.selectedProjectId = projectId;
       const [mcpConnections, outbound, inboundConfig, inboundClients] = await Promise.all([
-        this.service.listMcpConnections(this.selectedProjectId),
+        this.service.listMcpConnections(projectId),
         this.service.listA2AOutbound(),
         this.service.getA2AInboundConfig(),
         this.service.listA2AInboundClients(),
       ]);
+      if (
+        version !== this.refreshVersion ||
+        projectId !== this.selectedProjectId ||
+        this.isDisposed
+      )
+        return;
       this.connections = mcpConnections;
       this.a2aConnections = outbound;
       this.a2aInboundConfig = inboundConfig;
@@ -1588,6 +1603,7 @@ export class ConnectionsWidget extends ControlRoomReactWidget {
       this.a2aInboundEnabled = inboundConfig.enabled;
       this.a2aPort = String(inboundConfig.port);
     } catch (error) {
+      if (version !== this.refreshVersion || this.isDisposed) return;
       this.errorMessage = errorMessage(error);
     }
     this.update();

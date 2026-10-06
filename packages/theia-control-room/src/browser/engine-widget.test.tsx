@@ -21,6 +21,8 @@ function widget(overrides: Record<string, unknown> = {}) {
     installations: [],
     liveConnections: [],
     selectedBridgeId: '',
+    bridgeProjectPath: '',
+    autoBuildEditor: true,
     runs: [],
     selectedRun: undefined,
     selectedOperation: undefined,
@@ -40,6 +42,30 @@ function widget(overrides: Record<string, unknown> = {}) {
 }
 
 describe('Engine workspace navigation', () => {
+  it('guides a new platform Project to native engine files before installation and counts runnable operations', () => {
+    const view = widget({
+      report: {
+        projectIdentity: { proven: false, evidence: [] },
+        engineVersion: { detected: null, preferred: null, matches: null },
+        layers: { 'project-file': {}, 'headless-process': {}, 'live-editor': {} },
+        operations: [],
+      },
+    });
+    const tree = view.render();
+    function textOf(node: React.ReactNode): string {
+      if (typeof node === 'string' || typeof node === 'number') return String(node);
+      if (!React.isValidElement<{ children?: React.ReactNode }>(node))
+        return React.Children.toArray(node).map(textOf).join('');
+      return textOf(node.props.children);
+    }
+    // Inspect guidance and navigation without rendering incomplete report fixture details.
+    const children = (tree as React.ReactElement<{ children: React.ReactNode }>).props.children;
+    const text = textOf(children);
+    expect(text).toContain('Add a native godot project');
+    expect(text).toContain('game folder');
+    expect(text).toContain('Capabilities 3');
+    expect(text).toContain('Operations 0');
+  });
   it('opens run evidence after an operation completes without clearing its draft parameters', async () => {
     const run = { runId: 'run-1', status: 'succeeded', summary: 'Checked', artifacts: [] };
     const params = { test: { testPlatform: 'editor' } };

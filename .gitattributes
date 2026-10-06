@@ -1,2 +1,4 @@
 # Keep source and generated references portable across native Windows/Linux checks.
 * text=auto eol=lf
+# Unified diff context lines encode a blank source line with one required space.
+patches/*.patch -whitespace

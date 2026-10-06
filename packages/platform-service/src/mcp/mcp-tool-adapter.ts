@@ -37,6 +37,9 @@ export class McpToolAdapter {
     for (const tool of tools) {
       const definition = toToolDefinition(config, tool, getClassification(tool.name));
       this.registry.register(definition, async (context, input) => {
+        if (config.scope === 'project' && context.projectId !== config.projectId) {
+          throw new RpcError('MCP tool belongs to another Project.', RpcErrorCode.ToolDenied);
+        }
         const output = await invoke(tool.name, input, context);
         const embeddedError = codeFizz ? codeFizzError(output) : null;
         if (embeddedError) {

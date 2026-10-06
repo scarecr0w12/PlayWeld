@@ -44,6 +44,10 @@ import { AuditViewContribution } from './audit-view-contribution';
 import { GameCrafterThemeContribution } from './theme-contribution';
 import { PlayWeldBrandContribution } from './brand-contribution';
 import { WorkspaceMenuContribution } from './workspace-menu-contribution';
+import { LanguageModelProvider } from '@theia/ai-core/lib/common/language-model';
+import { ToolProvider } from '@theia/ai-core/lib/common/tool-invocation-registry';
+import { PlayWeldTheiaModel } from './theia-model-contribution';
+import { playWeldTheiaTool } from '../common/theia-model-adapter';
 import '../../src/browser/style/index.css';
 import '../../src/browser/style/workstation.css';
 
@@ -62,6 +66,20 @@ export default new ContainerModule((bind) => {
       ),
     )
     .inSingletonScope();
+  bind(PlayWeldTheiaModel).toSelf().inSingletonScope();
+  bind(LanguageModelProvider).toDynamicValue(({ container }) => async () => [
+    container.get(PlayWeldTheiaModel),
+  ]);
+  for (const name of ['playweld_tools', 'playweld_tool'] as const) {
+    bind(ToolProvider).toDynamicValue(({ container }) => ({
+      getTool: () =>
+        playWeldTheiaTool(
+          container.get(ControlRoomService),
+          () => container.get(PlayWeldTheiaModel).project(),
+          name,
+        ),
+    }));
+  }
 
   bind(AuditWidget).toSelf();
   bind(WidgetFactory)

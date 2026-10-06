@@ -1,10 +1,28 @@
 # PlayWeld user guide
 
-**Last updated:** 2026-10-04
+**Last updated:** 2026-10-06
 
 **Audience:** People creating and maintaining games with the current PlayWeld workspace. [Documentation index](README.md).
 
-For a hands-on introduction, follow [Lantern Workshop](WORKED_TUTORIAL.md), a reusable testing Project with real Control Room screenshots. The [Control Room handbook](CONTROL_ROOM_HANDBOOK.md) explains every screen, inputs, examples, and success/failure evidence. Contributors can use the [service recipes](SERVICE_RECIPES.md). The [coverage record](DOCUMENTATION_COVERAGE.md) states exactly what this walkthrough verifies.
+## Find what you need
+
+| Task                                      | Section                                                             |
+| ----------------------------------------- | ------------------------------------------------------------------- |
+| Launch PlayWeld                           | [Install and launch](#install-and-launch-from-source)               |
+| Set up a game workspace                   | [Create or open a Project](#create-or-open-a-project)               |
+| Choose permissions and defaults           | [Settings and access](#configure-settings-and-access)               |
+| Add a model provider                      | [Models and routing](#configure-models-and-routing)                 |
+| Ask for help or request a change          | [Chat and agent work](#chat-and-agent-work)                         |
+| Review progress or answer a task question | [Monitor the Swarm](#monitor-the-swarm)                             |
+| Keep design decisions                     | [Discussion and design records](#discussion-and-design-records)     |
+| Connect engines or external agents        | [Engine and tool connections](#connect-engines-and-external-tools)  |
+| Search Project documents                  | [Knowledge and search](#knowledge-and-search)                       |
+| Generate and review art                   | [Assets](#asset-generation-and-inspection)                          |
+| Recover from a problem                    | [Backups and troubleshooting](#backups-updates-and-troubleshooting) |
+
+For a first session, launch the desktop, create or open a Project, and configure a model account if you want to use Chat or agents. Connect an engine when you are ready for native game operations.
+
+Follow [Lantern Workshop](WORKED_TUTORIAL.md) for a hands-on introduction using a disposable testing Project. Use the [Control Room handbook](CONTROL_ROOM_HANDBOOK.md) for individual screens and the [documentation index](README.md) for advanced guides and verification records.
 
 ## What you are running
 
@@ -43,7 +61,14 @@ Packaged Linux and Windows applications have build/startup evidence. Installer i
 
 ## Create or open a Project
 
-Use Project Home to create a Project. The six-step wizard asks for name, optional description, engine family, optional comma-separated genres, parent directory, and confirmation. Module metadata exists in the service contract; the current wizard does not offer a module-selection step. Creation writes a manifest, design folder, engine folder, repository instructions, local platform state and Git repository. Choose the engine family carefully: the Project's family is locked and cannot be changed by editing an engine selection in the UI.
+To create a Project:
+
+1. Open **Project Home** and select **Create Project**.
+2. Enter a name, optional description, engine family, optional comma-separated genres, and parent directory.
+3. Review the confirmation and create the Project. The engine family is locked after creation.
+4. Find the new Project in the table and select **Open**.
+
+Creation writes a manifest, design folder, engine folder, repository instructions, local platform state, and Git repository. Module metadata exists in the service contract; the current wizard does not offer a module-selection step. The [tutorial](WORKED_TUTORIAL.md#create-lantern-workshop) illustrates all six wizard steps.
 
 An existing registered Project has an Open action. Opening selects its workspace in the same window and makes its Project-scoped views available. Confirm that the displayed Project and workspace folder match the game you intend to work on before submitting engine operations or agent work.
 
@@ -64,7 +89,16 @@ Use the Project clone operation when you need an independent copy. Clone/registe
 
 ## Configure settings and access
 
-Settings are layered: supported session overrides take precedence over Project overrides, platform settings and builtin defaults. The Settings view groups searchable keys; choose the relevant group or search by key to find a value. Expand **Import and export** for settings-file preview/application. Effective values show their origin. A setting can permit only some scopes. Resetting an override returns control to the next layer.
+Open **Settings**, choose a group or search by key, and select the scope you want to change. Effective values show where each value comes from. Expand **Import and export** to preview or apply a settings file.
+
+Settings use this precedence, where supported:
+
+1. Session override.
+2. Project override.
+3. Platform setting.
+4. Builtin default.
+
+Each setting allows specific scopes. Resetting an override returns control to the next layer.
 
 The builtin access default is `ask-always`. Tool decisions use the most restrictive applicable setting and task/request/agent ceiling.
 
@@ -84,13 +118,19 @@ Settings export redacts credential-like values. Import supports validation and d
 
 In Models & Routing, configure one or more provider accounts, discover or register the models you intend to use, and assign suitable model pools. Named account presets cover OpenAI, Google Gemini Developer API, OpenRouter, xAI, Mistral, DeepSeek, Groq, Azure OpenAI, and Anthropic; generic OpenAI-compatible endpoints remain available for local servers and compatible gateways. API keys and custom secret headers are stored in the encrypted profile credential store. OAuth and cloud-native IAM are not supported in this scope.
 
-Edit an account to replace credentials or headers without deleting its model records. Azure classic endpoints require a callable deployment name; the optional base model ID is a separate catalog mapping. Discovery combines account API facts with exact-ID entries in a versioned provider-sourced catalog. Each populated field shows provenance, freshness, and confidence. Unknown is not Unsupported; selecting Unknown clears a manual override so later discovery can fill it. Provider-published prices are estimates, not invoices, and discovery never runs a silent billable completion probe.
+Edit an account to replace credentials or headers without deleting its model records. Azure classic endpoints require a callable deployment name; the optional base model ID is a separate catalog mapping. Discovery combines account API facts with exact-ID entries in a versioned provider-sourced catalog. Each populated field shows provenance, freshness, and confidence. Unknown is not Unsupported; selecting Unknown clears a manual override so later discovery can fill it.
 
-Use quality, balance or cost policy deliberately. Define task budgets where needed. Chat routing requires a known, supported chat capability, and unknown data does not make a model eligible for a required capability. Provider-declared vision is visible but not routable while the common chat request carries text only; embeddings use the separate embedding operation. Role and work-type lists are hard restrictions and empty lists mean unrestricted. Catalog category tags remain descriptive unless an exact, high-confidence source rule matches a local role/work type.
+Provider-published prices are estimates, not invoices, and discovery never runs a silent billable completion probe.
+
+Use quality, balance or cost policy deliberately. Define task budgets where needed.
+
+Chat routing requires a known, supported chat capability, and unknown data does not make a model eligible for a required capability. Provider-declared vision is visible but not routable while the common chat request carries text only; embeddings use the separate embedding operation.
+
+Role and work-type lists are hard restrictions and empty lists mean unrestricted. Catalog category tags remain descriptive unless an exact, high-confidence source rule matches a local role/work type.
 
 Use Audit & History's **Model usage** view for recorded model estimates and token/cache counters, separately from **Tool calls** and the Project timeline. Missing prices are unavailable, not free. Known subtotals cover the loaded/filtered page and can exclude unknown or unverifiable history; they are not all-time spending or invoices. Set model rates in Models & Routing before relying on monetary estimates or known-cost budget comparisons. Agent goals/results use structured, bounded reading panels rather than unformatted expanded text.
 
-Live model-provider and embedding-provider acceptance is still outstanding. Existing repository tests use fake HTTP endpoints. A configured account or visible model list does not prove a successful live completion or embedding operation.
+Provider verification depends on the operation and endpoint. Consult [implementation status](STATUS.md) and the dated [work records](changes/README.md) for recorded live results and remaining checks. A configured account or visible model list does not prove a successful live completion or embedding operation.
 
 ### Optional decision assistance
 
@@ -136,6 +176,8 @@ The Swarm view separates **Agents**, **Approvals**, **Integrations**, and **Reso
 A succeeded agent task is not automatically an accepted change in the main Project. Review completion evidence, integration status, conflicts and validation. Worktrees isolate source changes; resource locks coordinate declared shared resources. They do not turn every external editor or paid provider into an isolated transactional system.
 
 Answer task questions in their prompts. Cancelling work should propagate to owned processes; inspect the task and run records to confirm how it stopped. After a service restart, review reconciled interrupted work before retrying.
+
+When an agent reaches its model-turn allowance, PlayWeld retains its checkpoint and asks whether to **Continue** for another bounded allowance or **Stop**. Continuing preserves the existing cost, token, time and permission limits; it does not accept unfinished work. Restored checkpoints recover pending questions and report uncertain interrupted tool results without automatically replaying mutations. Review the retained tool/run evidence before retrying an operation whose outcome is uncertain.
 
 ## Discussion and design records
 
@@ -194,6 +236,6 @@ Meshy and Tripo3D requests are implemented with fixture-server tests. Provider d
 
 Backups separates **Identities**, **Destinations**, **Plans**, **Runs**, and **Archives and restore**. Use a verified archive and an empty destination, then inspect restored identity/plugin warnings. Keep the backup recovery secret independently available. Native Windows Project/profile recovery drills have evidence; remote destinations are fake-tested.
 
-Updates reports available releases and download verification. A checksum-verified download, a signature-verified release, installer handoff and successful rollback are separate stages. Installation/signing/tagged-release acceptance is still outstanding.
+Updates reports available releases and download verification. A checksum-verified download, a signature-verified release, installer handoff and successful rollback are separate stages. Check [release acceptance](RELEASE_ACCEPTANCE.md) and the relevant [release notes](releases/) for version-specific results and remaining checks.
 
 If something fails, keep the Project ID, task/run/call ID, timestamp, engine/connector version, status and sanitized logs. The [operations guide](OPERATIONS_GUIDE.md) provides recovery procedures and a symptom table. For known gaps, consult [implementation status](STATUS.md) instead of treating every unavailable capability as a regression.

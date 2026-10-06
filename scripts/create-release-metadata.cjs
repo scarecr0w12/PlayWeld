@@ -12,17 +12,21 @@ async function sha256(filePath) {
 async function main() {
   const directory = path.resolve(process.argv[2] ?? 'release-artifacts');
   const signingKey = process.env.UPDATE_SIGNING_PRIVATE_KEY;
+  const keyOption = process.argv.indexOf('--signing-key-file');
+  const protectedKeyFile = keyOption === -1 ? undefined : process.argv[keyOption + 1];
+  if (keyOption !== -1 && (!protectedKeyFile || protectedKeyFile.startsWith('--'))) throw new Error('--signing-key-file requires a protected key path.');
+  if (signingKey && protectedKeyFile) throw new Error('Choose the configured CI key or a local protected key file, not both.');
   const tag = process.env.GITHUB_REF_NAME;
   const commit = process.env.GITHUB_SHA;
   if (!tag || !commit) throw new Error('GITHUB_REF_NAME and GITHUB_SHA are required.');
   const unsignedPrerelease =
     process.argv.includes('--allow-unsigned-prerelease') &&
     process.env.RELEASE_PRERELEASE === 'true';
-  if (!signingKey && !unsignedPrerelease)
+  if (!signingKey && !protectedKeyFile && !unsignedPrerelease)
     throw new Error(
       'UPDATE_SIGNING_PRIVATE_KEY is required unless explicitly creating an unsigned testing prerelease.',
     );
-  const key = signingKey ? createPrivateKey(signingKey.replace(/\\n/g, '\n')) : undefined;
+  const key = protectedKeyFile ? await require('./release-signing-key.cjs').readProtectedSigningKey(protectedKeyFile) : signingKey ? createPrivateKey(signingKey.replace(/\\n/g, '\n')) : undefined;
   if (key && key.asymmetricKeyType !== 'ed25519')
     throw new Error('Release signing key must be Ed25519.');
 

@@ -1,12 +1,30 @@
 # Control Room handbook
 
-**Last updated:** 2026-10-04
+**Last updated:** 2026-10-06
 
 Use this handbook to understand each surface, its inputs, the records it creates, and how to tell whether work succeeded. The [worked tutorial](WORKED_TUTORIAL.md) supplies a repeatable testing Project. The [API reference](API_REFERENCE.md) describes service requests; the [settings reference](SETTINGS_REFERENCE.md) describes configurable defaults and scopes. The [coverage record](DOCUMENTATION_COVERAGE.md) gives the limits of this documentation run.
 
-Screenshots use a real isolated service and the built development browser target. The capture report records browser/service version 0.6.0 on 2026-10-04, a local deterministic Chat fixture, and zero renderer errors. Configuration screens with empty tables are intentional: this test does not provision paid providers, backup accounts, DCC applications, or live engine bridges. The chat provider is explicitly a scripted local fixture. These images are not evidence for the later 0.7.0 package, a paid model, or a live engine/editor.
+Screenshots show a historical browser session. Configuration examples and scripted Chat responses have specific limits; see [screenshot evidence](#screenshot-evidence).
 
 Use the top-level **PlayWeld** menu to reach platform views without depending on IDE layout. Project Home/Create Project appear directly; **Plan & Collaborate**, **Build & Connect**, **Configure & Extend**, and **Review & Maintain** organize the remaining destinations. Project Home repeats the platform routes as purpose-grouped cards. Within a view, choose its section navigation; expand a disclosure to reveal advanced or less frequent inputs. Project selectors and selected sections are independent per view.
+
+## Find a screen
+
+| You want to…                                 | Screen                                                                    |
+| -------------------------------------------- | ------------------------------------------------------------------------- |
+| Work with files, terminals, or editor layout | [IDE tools and shell](#ide-tools-and-shell)                               |
+| Create or open a game workspace              | [Project Home](#project-home-and-the-workspace)                           |
+| Configure providers and model selection      | [Models and routing](#models-and-routing)                                 |
+| Talk to a model or hand work to an agent     | [Chat](#chat)                                                             |
+| Track tasks, approvals, and integration      | [Swarm](#swarm)                                                           |
+| Discuss design or search Project information | [Discussion Board](#discussion-board) · [Knowledge](#knowledge)           |
+| Configure defaults or agent instructions     | [Settings](#settings) · [Skills and roles](#skills-and-roles)             |
+| Connect tools and run native operations      | [Connections](#connections) · [Engine](#engine) · [DCC Tools](#dcc-tools) |
+| Generate or inspect artwork                  | [Assets](#assets)                                                         |
+| Manage extensions or maintenance             | [Plugins](#plugins) · [Backups](#backups) · [Updates](#updates)           |
+| Inspect recorded operations and usage        | [Audit and history](#audit-and-history)                                   |
+
+Each screen description explains what to enter and which records or artifacts to inspect afterward. For an end-to-end example, follow the [tutorial](WORKED_TUTORIAL.md).
 
 ## IDE Tools And Shell
 
@@ -216,3 +234,7 @@ Useful failure report: “Project ID/path, task/run/call ID, operation, version,
 The desktop/frontend presents service-owned data. The service owns persistent Project, task, discussion, routing, integration, and audit records. Engine/DCC processes own their native documents and runtime state. Plugins contribute supported capabilities. External providers own their remote job/completion state.
 
 Follow the chain from request to task/tool run to artifact to validation to integration/acceptance. Each stage can fail independently. The [system architecture](SYSTEM_ARCHITECTURE.md) explains component and storage ownership; the [developer guide](DEVELOPER_GUIDE.md) explains contracts and implementation rules. Use those guides for internals instead of guessing from a screen's success message.
+
+## Screenshot evidence
+
+Screenshots use a real isolated service and the built development browser target. The capture report records browser/service version 0.6.0 on 2026-10-04, a local deterministic Chat fixture, and zero renderer errors. Configuration screens with empty tables are intentional: this test does not provision paid providers, backup accounts, DCC applications, or live engine bridges. The chat provider is explicitly a scripted local fixture. These images are not evidence for the later 0.7.0 package, a paid model, or a live engine/editor.

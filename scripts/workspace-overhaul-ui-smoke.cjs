@@ -88,7 +88,7 @@ async function main() {
         await button.asLocator().click();
         assert.equal(await button.evaluate((node) => node.getAttribute('aria-pressed')), 'true');
         assert(await button.evaluate((node) => !node.getAttribute('aria-controls') || Boolean(document.getElementById(node.getAttribute('aria-controls')))), `${label} navigation target exists`);
-        assert.equal(await page.$$eval(nav, (nodes) => nodes.filter((node) => node.getAttribute('aria-pressed') === 'true').length), 1);
+        assert.equal(await button.evaluate((node) => [...node.closest('nav').querySelectorAll('button')].filter((item) => item.getAttribute('aria-pressed') === 'true').length), 1);
         const unnamed = await page.$eval(root, (node) => [...node.querySelectorAll('input, select, textarea')].filter((field) => field.getClientRects().length && field.type !== 'hidden' && !field.labels?.length && !field.getAttribute('aria-label') && !field.getAttribute('aria-labelledby')).map((field) => field.outerHTML));
         assert.deepEqual(unnamed, [], `${label} visible fields have accessible names`);
       }

@@ -1,12 +1,25 @@
 # PlayWeld developer guide
 
-**Last updated:** 2026-10-04
+**Last updated:** 2026-10-06
 
 **Audience:** Contributors changing the platform, Control Room, connectors or documentation. [Documentation index](README.md).
 
-## Development environment
+## Find your contribution path
 
-Before handing off any work, add or update a pending [work record](changes/README.md), including every meaningful outcome, affected path, version impact and checks actually performed. Run `npm run changelog:update` and `npm run changelog:check -- --base HEAD`; use the branch base to include earlier commits. Released records are permanent. The [release guide](RELEASE_GUIDE.md) covers version preparation and packaging gates.
+| Task                                           | Section                                                               |
+| ---------------------------------------------- | --------------------------------------------------------------------- |
+| Set up and verify a checkout                   | [Development environment](#development-environment)                   |
+| Locate the code that owns a behavior           | [Repository map](#navigate-the-repository)                            |
+| Change a contract or service operation         | [Service behavior](#add-or-change-service-behavior)                   |
+| Call the service from code                     | [Typed client](#use-the-local-typed-client)                           |
+| Change a desktop view                          | [Control Room development](#extend-the-control-room)                  |
+| Choose validation for a change                 | [Testing strategy](#testing-strategy)                                 |
+| Update pins or generated output                | [Dependencies and generated files](#dependencies-and-generated-files) |
+| Write documentation and prepare a contribution | [Documentation and review](#documentation-and-contribution-review)    |
+
+Read [AGENTS.md](../AGENTS.md) before editing. Every contribution needs a pending [work record](changes/README.md) with affected paths and actual validation.
+
+## Development environment
 
 Use Node 24 or later, npm 11 and Git. Dependencies are pinned to exact versions; all Theia packages use the same version. The current repository pins Theia 1.75.0 and Electron 42.10.0. Check package manifests rather than assuming another checkout has these pins.
 
@@ -27,22 +40,22 @@ bash scripts/check-links.sh
 
 ## Navigate the repository
 
-| Path                                       | Responsibility                                          |
-| ------------------------------------------ | ------------------------------------------------------- |
-| `packages/contracts/src/`                  | Shared schemas, types and RPC definitions               |
-| `packages/platform-service/src/`           | Domain services, stores, supervisor, broker, connectors |
-| `packages/service-client/src/`             | Typed local service client                              |
-| `packages/theia-control-room/src/browser/` | React/Theia view contributions and styles               |
-| `packages/theia-control-room/src/node/`    | Backend service bridge and event handling               |
-| `packages/theia-control-room/src/common/`  | Bridge protocol shared by frontend/backend              |
-| `packages/plugin-sdk/`                     | Plugin worker helper and protocol implementation        |
-| `packages/plugins/sample-hello/`           | End-to-end sample plugin                                |
-| `apps/control-room/`                       | Desktop application and release scripts                 |
-| `apps/control-room-browser/`               | Browser development and smoke target                    |
-| `.agents/skills/`                          | Project skills and bundled development skills           |
-| `packages/platform-service/roles/`         | Eleven builtin role packages                            |
+| Path                                       | Responsibility                                                  |
+| ------------------------------------------ | --------------------------------------------------------------- |
+| `packages/contracts/src/`                  | Shared schemas, types and RPC definitions                       |
+| `packages/platform-service/src/`           | Domain services, stores, supervisor, broker, connectors         |
+| `packages/service-client/src/`             | Typed local service client                                      |
+| `packages/theia-control-room/src/browser/` | React/Theia view contributions and styles                       |
+| `packages/theia-control-room/src/node/`    | Backend service bridge and event handling                       |
+| `packages/theia-control-room/src/common/`  | Bridge protocol shared by frontend/backend                      |
+| `packages/plugin-sdk/`                     | Plugin worker helper and protocol implementation                |
+| `packages/plugins/sample-hello/`           | End-to-end sample plugin                                        |
+| `apps/control-room/`                       | Desktop application and release scripts                         |
+| `apps/control-room-browser/`               | Browser development and smoke target                            |
+| `.agents/skills/`                          | Project skills and bundled development skills                   |
+| `packages/platform-service/roles/`         | Eleven builtin role packages                                    |
 | `scripts/`                                 | Capture, link/reference maintenance and live acceptance tooling |
-| `docs/`                                    | Guides, design authorities, status and sourced research |
+| `docs/`                                    | Guides, design authorities, status and sourced research         |
 
 Read [AGENTS.md](../AGENTS.md) before editing. It specifies document roles, metadata conventions, dependency policy and verification requirements. Use repository skills when their scope applies.
 
@@ -179,6 +192,22 @@ Native application outputs, downloaded plugins, caches, installers, test databas
 The archive extractor is a maintained workspace package replacing the upstream extractor path used by Theia. Review its extraction tests and actual dependency resolution when auditing advisory applicability; a matching package name alone is insufficient to conclude a code path is vulnerable or fixed.
 
 ## Documentation and contribution review
+
+Write guides around the reader's task. The root README introduces the product and provides a starting point; the documentation index helps readers choose a guide. Keep detailed procedures in their owning guide and link to them from other entry points.
+
+For user-facing documentation:
+
+- State who the guide is for and what the reader will accomplish.
+- Give long guides a short task list or navigation table near the top.
+- Put prerequisites before commands. State the working directory and label OS-specific examples.
+- Use numbered steps for sequences, tables for comparisons, and short paragraphs for explanations.
+- Match screen and control names to the interface. Explain unfamiliar terms or link to the glossary.
+- Tell the reader what result to check and where to go if it fails.
+- Place limitations beside the relevant operation; keep detailed capture history in evidence records.
+- Preserve existing section anchors when reorganizing content, or update all links that use them.
+- Keep historical reports and generated references intact. Link to current status instead of copying counts or old acceptance summaries into introductions.
+
+Before handing off work, add or update a pending [work record](changes/README.md) with every meaningful outcome, affected path, version impact, and checks actually performed. Run `npm run changelog:update` and `npm run changelog:check -- --base HEAD`; use the branch base to include earlier commits. Released records are permanent. The [release guide](RELEASE_GUIDE.md) covers version preparation and packaging gates.
 
 Keep design authority separate from operational guidance. Only the user confirms requirements/decisions. Selected engineering defaults belong in technical architecture. Keep decision IDs and resolved entries; change status in place. Dependency ordering belongs only in the development plan.
 

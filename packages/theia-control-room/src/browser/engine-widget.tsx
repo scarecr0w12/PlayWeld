@@ -46,10 +46,14 @@ export class EngineWidget extends ControlRoomReactWidget {
 
   private projects: Array<{ projectId: string; name: string; family: EngineFamily }> = [];
   private selectedProjectId = '';
+  private projectLoadVersion = 0;
+  private loadedProjectId = '';
   private report?: EngineCapabilityReport;
   private installations: EngineInstallation[] = [];
   private liveConnections: Array<{ connectionId: string; name: string }> = [];
   private selectedBridgeId = '';
+  private bridgeProjectPath = '';
+  private autoBuildEditor = true;
   private runs: EngineOperationRun[] = [];
   private selectedRun?: EngineOperationRun;
   private selectedOperation?: EngineOperation;
@@ -179,20 +183,23 @@ export class EngineWidget extends ControlRoomReactWidget {
               <div>
                 <strong>What to do next</strong>
                 <p>
-                  {familyInstallations.length === 0
-                    ? `Register a ${selectedProject?.family ?? 'matching'} installation if this Project needs a local engine tool.`
-                    : !this.report
-                      ? 'Wait for the capability report, then check the readiness of each engine layer.'
-                      : availableOperations > 0
-                        ? 'Review operation availability and side effects before configuring a run.'
-                        : 'Review capability evidence and connect a live editor bridge if an operation requires one.'}
+                  {this.report && !this.report.projectIdentity.proven
+                    ? `Add a native ${selectedProject?.family ?? 'engine'} project in this Project's game folder, then refresh to verify its identity. Register an installation afterward if needed.`
+                    : familyInstallations.length === 0
+                      ? `Register a ${selectedProject?.family ?? 'matching'} installation if this Project needs a local engine tool.`
+                      : !this.report
+                        ? 'Wait for the capability report, then check the readiness of each engine layer.'
+                        : availableOperations > 0
+                          ? 'Review operation availability and side effects before configuring a run.'
+                          : 'Review capability evidence and connect a live editor bridge if an operation requires one.'}
                 </p>
               </div>
-              {familyInstallations.length === 0 && (
-                <button type="button" onClick={() => this.activateSection('installations')}>
-                  Add installation
-                </button>
-              )}
+              {familyInstallations.length === 0 &&
+                (!this.report || this.report.projectIdentity.proven) && (
+                  <button type="button" onClick={() => this.activateSection('installations')}>
+                    Add installation
+                  </button>
+                )}
               {availableOperations > 0 && (
                 <button type="button" onClick={() => this.activateSection('operations')}>
                   Review operations ({availableOperations})
@@ -202,10 +209,14 @@ export class EngineWidget extends ControlRoomReactWidget {
             <nav className="gamecrafter-section-nav" aria-label="Engine views">
               {(
                 [
-                  ['capabilities', 'Capabilities', this.report?.operations.length ?? 0],
+                  [
+                    'capabilities',
+                    'Capabilities',
+                    this.report ? Object.keys(this.report.layers).length : 0,
+                  ],
                   ['installations', 'Installations', familyInstallations.length],
                   ['bridge', 'Live bridge', this.liveConnections.length],
-                  ['operations', 'Operations', this.report?.operations.length ?? 0],
+                  ['operations', 'Operations', availableOperations],
                   ['runs', 'Runs', this.runs.length],
                 ] as const
               ).map(([section, label, count]) => (
@@ -446,6 +457,65 @@ export class EngineWidget extends ControlRoomReactWidget {
     return (
       <section className="gamecrafter-engine-section gamecrafter-page-panel">
         <h2>Live editor bridge</h2>
+        <p>
+          Install the PlayWeld editor plugin in this Project, open its editor, then pair it here.
+        </p>
+        <label>
+          Native Project path
+          <input
+            aria-label="Editor bridge native Project path"
+            value={this.bridgeProjectPath}
+            placeholder="Unity folder, Unreal .uproject, or Godot project.godot"
+            disabled={this.busy}
+            onChange={(event) => {
+              this.bridgeProjectPath = event.currentTarget.value;
+              this.update();
+            }}
+          />
+        </label>
+        <div className="gamecrafter-page-actions">
+          <button
+            disabled={this.busy || !this.selectedProjectId || !this.bridgeProjectPath.trim()}
+            onClick={() => void this.applyEditorBridge('install')}
+          >
+            Install editor plugin
+          </button>
+          <button
+            disabled={this.busy || !this.selectedProjectId || !this.bridgeProjectPath.trim()}
+            onClick={() => void this.applyEditorBridge('connect')}
+          >
+            Pair running editor
+          </button>
+          {this.projects.find((project) => project.projectId === this.selectedProjectId)?.family ===
+            'unreal' && (
+            <button
+              disabled={this.busy || !this.bridgeProjectPath.trim()}
+              onClick={() => void this.applyEditorBridge('build')}
+            >
+              Build editor plugin
+            </button>
+          )}
+        </div>
+        {this.projects.find((project) => project.projectId === this.selectedProjectId)?.family ===
+          'unreal' && (
+          <label>
+            <input
+              type="checkbox"
+              checked={this.autoBuildEditor}
+              disabled={this.busy}
+              onChange={(event) => {
+                this.autoBuildEditor = event.currentTarget.checked;
+                this.update();
+              }}
+            />{' '}
+            Compile Unreal plugin after installation
+          </label>
+        )}
+        <small>
+          Installation preserves modified source and existing plugins. Unity imports its Editor
+          script; Godot enables its addon. Unreal requires an editor build. Reload the editor after
+          installation. Pairing verifies Project identity and keeps credentials encrypted.
+        </small>
         <label>
           Connection
           <select
@@ -576,7 +646,29 @@ export class EngineWidget extends ControlRoomReactWidget {
   }
 
   private renderOperationFields(operation: EngineOperation): React.ReactNode {
-    const fields = operationFields[operation] ?? [];
+    const fields: OperationField[] =
+      operation === 'edit-scene' &&
+      this.report?.liveBridge?.serverInfo.name === `playweld-${this.report?.family}-editor`
+        ? [
+            { name: 'action', type: 'select', options: ['spawn', 'set-location', 'delete'] },
+            { name: 'location' },
+            ...(this.report.family === 'unreal'
+              ? [
+                  { name: 'actorPath' },
+                  {
+                    name: 'classPath',
+                    type: 'select' as const,
+                    options: [
+                      '/Script/Engine.PointLight',
+                      '/Script/Engine.StaticMeshActor',
+                      '/Script/Engine.CameraActor',
+                    ],
+                  },
+                  { name: 'label' },
+                ]
+              : [{ name: 'objectId' }]),
+          ]
+        : (operationFields[operation] ?? []);
     if (fields.length === 0) return <p>This operation requires no additional parameters.</p>;
     const values = this.runParams[operation] ?? {};
     return (
@@ -606,6 +698,7 @@ export class EngineWidget extends ControlRoomReactWidget {
             ) : (
               <input
                 type={field.type ?? 'text'}
+                placeholder={field.name === 'location' ? '[0, 0, 0]' : undefined}
                 value={String(values[field.name] ?? '')}
                 onChange={(event) =>
                   this.setParam(
@@ -715,20 +808,57 @@ export class EngineWidget extends ControlRoomReactWidget {
   }
 
   private async loadProject(refresh = false): Promise<void> {
-    if (!this.selectedProjectId) return;
+    const projectId = this.selectedProjectId;
+    const version = ++this.projectLoadVersion;
+    this.report = undefined;
+    this.runs = [];
+    this.liveConnections = [];
+    if (this.loadedProjectId !== projectId || !projectId) {
+      this.bridgeProjectPath = '';
+      this.selectedRun = undefined;
+      this.selectedBridgeId = '';
+      this.logContents.clear();
+      this.resultMessage = undefined;
+    }
+    this.loadedProjectId = projectId;
+    this.errorMessage = undefined;
+    this.update();
+    if (!projectId) return;
     try {
       const [report, runs, connections] = await Promise.all([
-        this.service.getEngineCapabilities(this.selectedProjectId, refresh),
-        this.service.listEngineRuns(this.selectedProjectId, 100),
-        this.service.listMcpConnections(this.selectedProjectId),
+        this.service.getEngineCapabilities(projectId, refresh),
+        this.service.listEngineRuns(projectId, 100),
+        this.service.listMcpConnections(projectId),
       ]);
+      if (
+        version !== this.projectLoadVersion ||
+        projectId !== this.selectedProjectId ||
+        this.isDisposed
+      )
+        return;
       this.report = report;
+      if (!this.bridgeProjectPath && report.projectIdentity.proven) {
+        if (report.family === 'unity') this.bridgeProjectPath = 'game';
+        else if (report.family === 'godot') this.bridgeProjectPath = 'game/project.godot';
+        else {
+          const files = report.projectIdentity.evidence.filter(
+            (entry) => entry.kind === 'file' && entry.ref.endsWith('.uproject'),
+          );
+          if (files.length === 1) this.bridgeProjectPath = files[0]!.ref;
+        }
+      }
       this.runs = runs;
       this.liveConnections = connections
         .filter((entry) => entry.config.tags.includes('live-editor'))
         .map((entry) => ({ connectionId: entry.config.connectionId, name: entry.config.name }));
       this.selectedBridgeId = report.liveBridge?.connectionId ?? this.selectedBridgeId;
     } catch (error) {
+      if (
+        version !== this.projectLoadVersion ||
+        projectId !== this.selectedProjectId ||
+        this.isDisposed
+      )
+        return;
       this.errorMessage = errorMessage(error);
     }
     this.update();
@@ -752,21 +882,84 @@ export class EngineWidget extends ControlRoomReactWidget {
   }
 
   private async runOperation(operation: EngineOperation): Promise<void> {
+    const projectId = this.selectedProjectId;
     const values = this.runParams[operation] ?? {};
-    const params = Object.fromEntries(
+    const params: Record<string, unknown> = Object.fromEntries(
       Object.entries(values).filter(([, value]) => value !== '' && value !== undefined),
     );
     await this.withBusy(async () => {
+      if (
+        operation === 'edit-scene' &&
+        this.report?.liveBridge?.serverInfo.name === `playweld-${this.report?.family}-editor`
+      ) {
+        const allowed =
+          this.report.family === 'unreal'
+            ? ['action', 'location', 'actorPath', 'classPath', 'label']
+            : ['action', 'location', 'objectId'];
+        for (const key of Object.keys(params)) if (!allowed.includes(key)) delete params[key];
+        params.action ??= 'spawn';
+        if (typeof params.location === 'string') {
+          const location: unknown = JSON.parse(params.location);
+          if (
+            !Array.isArray(location) ||
+            location.length !== 3 ||
+            !location.every((value) => typeof value === 'number' && Number.isFinite(value))
+          )
+            throw new Error('Location must be a JSON vector such as [0, 0, 0].');
+          params.location = location;
+        }
+        if (this.report.family === 'unreal' && params.action === 'spawn') {
+          params.classPath ??= '/Script/Engine.PointLight';
+          params.label ??= 'PlayWeld object';
+        }
+      }
       const run = await this.service.runEngine({
-        projectId: this.selectedProjectId,
+        projectId,
         operation,
         params,
       });
+      if (projectId !== this.selectedProjectId || this.isDisposed) return;
       this.selectedRun = run;
       this.activeSection = 'runs';
       this.runs = [run, ...this.runs.filter((entry) => entry.runId !== run.runId)].slice(0, 200);
       await this.loadRunLogs(run);
+      if (projectId !== this.selectedProjectId || this.isDisposed) return;
       this.resultMessage = `Engine ${operation} ${run.status}: ${run.summary}`;
+    });
+  }
+
+  private async applyEditorBridge(action: 'install' | 'build' | 'connect'): Promise<void> {
+    const projectId = this.selectedProjectId;
+    const projectFile = this.bridgeProjectPath.trim();
+    await this.withBusy(async () => {
+      const call = await this.service.callTool(projectId, `engine/editor-bridge-${action}`, {
+        projectFile,
+      });
+      if (projectId !== this.selectedProjectId || this.isDisposed) return;
+      if (call.status !== 'completed')
+        throw new Error(call.error?.message ?? `Editor bridge ${action} ${call.status}`);
+      const output = isRecord(call.output) ? call.output : {};
+      if (action === 'install' && output.editorBuildRequired && this.autoBuildEditor) {
+        const built = await this.service.callTool(projectId, 'engine/editor-bridge-build', {
+          projectFile,
+        });
+        if (projectId !== this.selectedProjectId || this.isDisposed) return;
+        if (built.status !== 'completed')
+          throw new Error(
+            built.error?.message ?? 'Editor source installed; compilation did not complete.',
+          );
+        this.resultMessage =
+          'Editor plugin compiled and installed. Open this native Project, then pair the running editor.';
+        await this.loadProject();
+        return;
+      }
+      this.resultMessage =
+        action === 'install'
+          ? `Editor plugin installed. ${output.editorBuildRequired ? 'Build the Unreal editor target, then open the Project.' : 'Open or reload this native Project in its editor.'}`
+          : action === 'build'
+            ? 'Editor plugin compiled and installed. Open this native Project, then pair the running editor.'
+            : 'Running editor paired and its Project identity verified.';
+      await this.loadProject();
     });
   }
 
@@ -778,10 +971,11 @@ export class EngineWidget extends ControlRoomReactWidget {
   }
 
   private async loadRunLogs(run: EngineOperationRun): Promise<void> {
+    const projectId = run.projectId;
     const logs = run.artifacts.filter((artifact) => artifact.kind === 'log');
     const entries = await Promise.all(
       logs.map(async (artifact) => {
-        const call = await this.service.callTool(this.selectedProjectId, 'fs/read-file', {
+        const call = await this.service.callTool(projectId, 'fs/read-file', {
           path: artifact.path,
         });
         return [
@@ -792,6 +986,7 @@ export class EngineWidget extends ControlRoomReactWidget {
         ] as const;
       }),
     );
+    if (projectId !== this.selectedProjectId || this.isDisposed) return;
     this.logContents.clear();
     for (const [artifactPath, content] of entries) this.logContents.set(artifactPath, content);
   }
@@ -799,12 +994,14 @@ export class EngineWidget extends ControlRoomReactWidget {
   private async withBusy(operation: () => Promise<void>): Promise<void> {
     if (this.busy) return;
     this.busy = true;
+    const projectId = this.selectedProjectId;
     this.errorMessage = undefined;
     this.update();
     try {
       await operation();
     } catch (error) {
-      this.errorMessage = errorMessage(error);
+      if (projectId === this.selectedProjectId && !this.isDisposed)
+        this.errorMessage = errorMessage(error);
     } finally {
       this.busy = false;
       this.update();

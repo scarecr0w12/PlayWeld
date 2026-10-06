@@ -133,6 +133,13 @@ describe('backup service integration', () => {
       client!.call('backup/verify', {
         destinationId: destination.destinationId,
         archiveName: verified.archiveName,
+        secret: 'incorrect horse battery staple',
+      }),
+    ).resolves.toMatchObject({ ok: false });
+    await expect(
+      client!.call('backup/verify', {
+        destinationId: destination.destinationId,
+        archiveName: verified.archiveName,
         secret: 'correct horse battery staple',
       }),
     ).resolves.toMatchObject({ ok: true, sha256: verified.sha256, files: expect.any(Number) });

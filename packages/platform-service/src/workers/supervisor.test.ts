@@ -21,6 +21,107 @@ import { WorkerSupervisor } from './supervisor';
 import type { WorkerCommand, WorkerMessage } from './types';
 
 describe('WorkerSupervisor', () => {
+  it('resumes a compacted agent checkpoint without reusing its earlier question answer', async () => {
+    const worker = await runWorkerWithoutFinalAck(true, {
+      handler: {
+        module: path.join(__dirname, '..', '..', 'lib', 'workers', 'builtin-handlers.js'),
+        export: 'noopAsk',
+      },
+      input: {
+        prompt: 'Second question',
+        __answers: { first: 'Old answer', second: 'Fresh answer' },
+      },
+      checkpoint: { transcript: [], evidence: [{ kind: 'user-answer', ref: 'first' }] },
+    });
+    expect(worker.summary).toBe('Fresh answer');
+    expect(worker.exitCode).toBe(0);
+  });
+  it('delivers a persisted question answer to the original waiting worker', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'gc-question-worker-test-'));
+    const projectId = uuidv7();
+    const projectPath = path.join(root, 'project');
+    const statePath = path.join(projectPath, '.gamecrafter');
+    mkdirSync(statePath, { recursive: true });
+    const manifest = projectManifest.assert({
+      schemaVersion: 1,
+      projectId,
+      name: 'Question Worker Test',
+      description: '',
+      engine: { family: 'godot' },
+      genres: [],
+      modules: [],
+      createdAt: new Date().toISOString(),
+      createdByPlatformVersion: '0.1.0',
+    });
+    writeFileSync(path.join(projectPath, 'gamecrafter.project.json'), JSON.stringify(manifest));
+    const profileDatabase = Database.open(':memory:');
+    let projectDatabases: ProjectDatabases | undefined;
+    let supervisor: WorkerSupervisor | undefined;
+    try {
+      migrate(profileDatabase, profileMigrations);
+      const profile = new ProfileStore(profileDatabase);
+      profile.register(summaryFromManifest(manifest, projectPath, null));
+      const local = Database.open(path.join(statePath, 'project.sqlite'));
+      migrate(local, projectMigrations);
+      local.close();
+      projectDatabases = new ProjectDatabases(profile);
+      const registry = new SettingsRegistry();
+      const builtins = createBuiltinSettings();
+      registry.register('builtin', builtins.groups, builtins.definitions);
+      const settings = new SettingsService(registry, profileDatabase, projectDatabases);
+      const handlers = new HandlerRegistry();
+      registerBuiltinHandlers(
+        handlers,
+        path.join(__dirname, '..', '..', 'lib', 'workers', 'builtin-handlers.js'),
+      );
+      const tasks = new TaskService(profile, projectDatabases, settings, handlers, {
+        taskChanged: () => undefined,
+        taskEvent: () => undefined,
+        taskQuestion: () => undefined,
+      });
+      const task = tasks.create({
+        projectId,
+        kind: 'noop.ask',
+        title: 'Answer without replaying the handler',
+        goal: 'Keep the original worker and pending question promise',
+        input: { prompt: 'Which route?', options: ['Keep source', 'Replace source'] },
+      }).task;
+      let starts = 0;
+      supervisor = new WorkerSupervisor({
+        tasks,
+        settings,
+        handlers,
+        onWorkerStarted: () => {
+          starts += 1;
+        },
+        tickIntervalMs: 60_000,
+      });
+      tasks.setSupervisor(supervisor);
+      await supervisor.schedule();
+      await waitForTaskState(
+        tasks,
+        projectId,
+        task.taskId,
+        (value) => value.state === 'waiting_input',
+      );
+      const question = tasks.pendingQuestionForTask(projectId, task.taskId);
+      expect(question).toBeDefined();
+      await tasks.answer(projectId, task.taskId, question!.questionId, 'Keep source');
+      const completed = await waitForTaskState(
+        tasks,
+        projectId,
+        task.taskId,
+        (value) => value.state === 'succeeded',
+      );
+      expect(completed.result?.summary).toBe('Keep source');
+      expect(starts).toBe(1);
+    } finally {
+      await supervisor?.stopAll({ checkpoint: false });
+      projectDatabases?.close();
+      profileDatabase.close();
+      rmSync(root, { recursive: true, force: true });
+    }
+  }, 30_000);
   it('expires a worker lease using the injected clock', async () => {
     const root = mkdtempSync(path.join(tmpdir(), 'gc-lease-test-'));
     const projectId = uuidv7();
@@ -238,12 +339,19 @@ describe('WorkerSupervisor', () => {
 
 async function runWorkerWithoutFinalAck(
   disconnectAfterResult: boolean,
-): Promise<{ resultReceived: boolean; exitCode: number | null; elapsedMs: number }> {
+  overrides: Partial<Extract<WorkerCommand, { type: 'run' }>> = {},
+): Promise<{
+  resultReceived: boolean;
+  exitCode: number | null;
+  elapsedMs: number;
+  summary?: string;
+}> {
   const child = fork(path.join(__dirname, '..', '..', 'lib', 'workers', 'worker-main.js'), [], {
     env: process.env,
     stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
   });
   let resultReceived = false;
+  let summary: string | undefined;
   let disconnectedAt: number | undefined;
   let resultTimeout: NodeJS.Timeout | undefined;
   let exitTimeout: NodeJS.Timeout | undefined;
@@ -254,6 +362,7 @@ async function runWorkerWithoutFinalAck(
     resultTimeout = setTimeout(() => reject(new Error('Worker did not return a result')), 2_000);
     child.on('message', (message: WorkerMessage) => {
       if (message.type === 'result') {
+        summary = message.result.summary;
         resultReceived = true;
         if (disconnectAfterResult && child.connected) {
           disconnectedAt = Date.now();
@@ -272,6 +381,7 @@ async function runWorkerWithoutFinalAck(
     handler: { module: path.join(__dirname, 'supervisor-linger-fixture.cjs'), export: 'linger' },
     input: {},
     checkpoint: null,
+    ...overrides,
   };
 
   try {
@@ -286,7 +396,7 @@ async function runWorkerWithoutFinalAck(
       exitTimeout.unref();
     });
     const exit = await Promise.race([exited, timeout]);
-    return { resultReceived, exitCode: exit.code, elapsedMs: Date.now() - startedAt };
+    return { resultReceived, exitCode: exit.code, elapsedMs: Date.now() - startedAt, summary };
   } finally {
     if (resultTimeout) clearTimeout(resultTimeout);
     if (exitTimeout) clearTimeout(exitTimeout);

@@ -16,7 +16,7 @@ const capabilities: AssetProviderCapabilities = {
   jobKinds: ['text-to-3d', 'image-to-3d', 'refine'],
   outputFormats: ['glb', 'fbx', 'obj', 'usdz', 'stl', '3mf'],
   supportsCancel: false,
-  supportsBalance: false,
+  supportsBalance: true,
 };
 
 export class MeshyProvider implements AssetProviderAdapter {
@@ -138,12 +138,15 @@ export class MeshyProvider implements AssetProviderAdapter {
   }
 
   async test(context: ProviderContext): Promise<number | null> {
-    // unverified against live API: authenticate with the task-list endpoint without creating a paid job.
-    await assetProviderJson<unknown>(
+    return this.balance(context);
+  }
+
+  async balance(context: ProviderContext): Promise<number | null> {
+    const { data } = await assetProviderJson<unknown>(
       context,
-      `${assetProviderUrl(context.baseUrl, 'openapi/v2/text-to-3d')}?limit=1`,
+      assetProviderUrl(context.baseUrl, 'openapi/v1/balance'),
     );
-    return null;
+    return isRecord(data) ? numericOrNull(data.balance) : null;
   }
 }
 

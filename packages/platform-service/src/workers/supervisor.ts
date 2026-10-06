@@ -547,7 +547,7 @@ export class WorkerSupervisor implements TaskSupervisorPort {
     if (message.type === 'question') {
       const task = runtime.store.get(worker.taskId);
       if (!task || task.state !== 'running') return;
-      runtime.graph.addQuestion(worker.taskId, message.prompt, message.options);
+      runtime.graph.addQuestion(worker.taskId, message.prompt, message.options, message.questionId);
       return;
     }
   }

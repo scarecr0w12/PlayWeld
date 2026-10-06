@@ -20,6 +20,7 @@ export class SkillsWidget extends ControlRoomReactWidget {
 
   private projects: ProjectSummary[] = [];
   private selectedProjectId?: string;
+  private refreshVersion = 0;
   private skills: ProjectSkillEntry[] = [];
   private roles: RoleRecord[] = [];
   private catalog: SkillCatalogEntry[] = [];
@@ -559,19 +560,30 @@ export class SkillsWidget extends ControlRoomReactWidget {
   }
 
   private async refresh(): Promise<void> {
+    const version = ++this.refreshVersion;
     try {
-      this.projects = await this.controlRoomService.listProjects();
-      this.selectedProjectId =
-        (await this.resolveProjectSelection(this.projects, () => this.selectedProjectId)) ||
-        undefined;
+      const projects = await this.controlRoomService.listProjects();
+      if (version !== this.refreshVersion || this.isDisposed) return;
+      const projectId =
+        (await this.resolveProjectSelection(projects, () => this.selectedProjectId)) || undefined;
+      if (version !== this.refreshVersion || this.isDisposed) return;
+      this.projects = projects;
+      this.selectedProjectId = projectId;
       const [skills, roles] = await Promise.all([
-        this.controlRoomService.listSkills(this.selectedProjectId),
-        this.controlRoomService.listRoles(this.selectedProjectId),
+        this.controlRoomService.listSkills(projectId),
+        this.controlRoomService.listRoles(projectId),
       ]);
+      if (
+        version !== this.refreshVersion ||
+        projectId !== this.selectedProjectId ||
+        this.isDisposed
+      )
+        return;
       this.skills = skills;
       this.roles = roles;
       this.errorMessage = undefined;
     } catch (error) {
+      if (version !== this.refreshVersion || this.isDisposed) return;
       this.errorMessage = error instanceof Error ? error.message : String(error);
     }
     this.update();

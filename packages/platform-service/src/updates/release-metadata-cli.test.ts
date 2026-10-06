@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { generateKeyPairSync, verify } from 'node:crypto';
+import { createRequire } from 'node:module';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -43,6 +44,37 @@ function run(dir: string, overrides: NodeJS.ProcessEnv = {}, args: string[] = []
   );
 }
 describe('release metadata CLI', () => {
+  it('uses a Windows protected local signing key without writing plaintext private material', async (context) => {
+    if (process.platform !== 'win32') context.skip('Requires Windows DPAPI.');
+    const dir = fixture();
+    const keyDir = path.join(dir, 'protected-key');
+    const { generate, readProtectedSigningKey } = createRequire(__filename)(
+      path.join(root, 'scripts/release-signing-key.cjs'),
+    ) as {
+      generate(directory: string): Promise<unknown>;
+      readProtectedSigningKey(file: string): Promise<import('node:crypto').KeyObject>;
+    };
+    await generate(keyDir);
+    const protectedPath = path.join(keyDir, 'release-private.dpapi');
+    const key = await readProtectedSigningKey(protectedPath);
+    const privatePem = key.export({ format: 'pem', type: 'pkcs8' }).toString();
+    expect(readFileSync(protectedPath).includes(Buffer.from(privatePem))).toBe(false);
+    const result = run(dir, {}, ['--signing-key-file', protectedPath]);
+    expect(result.status, result.stderr).toBe(0);
+    expect(
+      result.stdout + result.stderr + readFileSync(path.join(keyDir, 'key.json'), 'utf8'),
+    ).not.toContain(privatePem);
+    for (const name of ['gamecrafter-release.json', 'SHA256SUMS.txt'])
+      expect(
+        verify(
+          null,
+          readFileSync(path.join(dir, name)),
+          readFileSync(path.join(keyDir, 'release-public.pem')),
+          Buffer.from(readFileSync(path.join(dir, name + '.sig'), 'utf8').trim(), 'base64'),
+        ),
+      ).toBe(true);
+    await expect(generate(keyDir)).rejects.toThrow(/never overwritten/);
+  }, 30000);
   it('requires explicit unsigned prerelease authorization and matching tag', () => {
     const dir = fixture();
     expect(run(dir).status).not.toBe(0);

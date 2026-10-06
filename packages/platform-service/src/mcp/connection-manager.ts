@@ -89,6 +89,7 @@ export class McpConnectionManager {
   private readonly now: () => Date;
   private readonly toolAdapter: McpToolAdapter;
   private stopped = false;
+  private readonly connecting = new Map<string, Promise<McpConnectionState>>();
 
   constructor(private readonly options: McpConnectionManagerOptions) {
     this.now = options.now ?? (() => new Date());
@@ -121,6 +122,7 @@ export class McpConnectionManager {
 
   async stop(): Promise<void> {
     this.stopped = true;
+    await Promise.allSettled(this.connecting.values());
     for (const timer of this.reconnectTimers.values()) clearTimeout(timer);
     this.reconnectTimers.clear();
     for (const [key, pending] of this.pendingInputs) {
@@ -171,7 +173,7 @@ export class McpConnectionManager {
     validateCredentialReferences(merged);
     validateCredentialMap(credentials);
     const wasConnected = this.sessions.has(connectionId);
-    if (wasConnected) await this.disconnect(connectionId);
+    if (wasConnected || this.connecting.has(connectionId)) await this.disconnect(connectionId);
     this.options.database.transaction(() => {
       this.saveConfig(merged);
       this.storeCredentials(connectionId, credentials);
@@ -203,9 +205,23 @@ export class McpConnectionManager {
   }
 
   async connect(connectionId: string): Promise<McpConnectionState> {
+    const pending = this.connecting.get(connectionId);
+    if (pending) return pending;
+    if (this.stopped)
+      throw new RpcError('MCP connection manager is stopped.', RpcErrorCode.McpConnectFailed);
+    const connection = this.connectOnce(connectionId);
+    this.connecting.set(connectionId, connection);
+    try {
+      return await connection;
+    } finally {
+      if (this.connecting.get(connectionId) === connection) this.connecting.delete(connectionId);
+    }
+  }
+
+  private async connectOnce(connectionId: string): Promise<McpConnectionState> {
     const currentRuntime = this.sessions.get(connectionId);
     if (currentRuntime?.session.state.status === 'connected') return currentRuntime.session.state;
-    if (currentRuntime) await this.disconnect(connectionId);
+    if (currentRuntime) await this.disconnectSession(connectionId);
     this.clearReconnectTimer(connectionId);
     const config = this.getConfig(connectionId);
     const initialState = {
@@ -290,6 +306,11 @@ export class McpConnectionManager {
   }
 
   async disconnect(connectionId: string): Promise<McpConnectionState> {
+    await this.connecting.get(connectionId)?.catch(() => undefined);
+    return this.disconnectSession(connectionId);
+  }
+
+  private async disconnectSession(connectionId: string): Promise<McpConnectionState> {
     this.clearReconnectTimer(connectionId);
     const config = this.getConfig(connectionId);
     const runtime = this.sessions.get(connectionId);

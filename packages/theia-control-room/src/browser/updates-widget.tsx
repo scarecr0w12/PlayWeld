@@ -194,8 +194,8 @@ export class UpdatesWidget extends ControlRoomReactWidget {
                     </p>
                   )}
                   <p>
-                    Installation is never automatic. The instructions open after you choose to
-                    install.
+                    A signed Windows package can open after you save your work and close PlayWeld.
+                    Other packages show installation instructions.
                   </p>
                   <button
                     type="button"
