@@ -46,6 +46,10 @@ function run(dir: string, overrides: NodeJS.ProcessEnv = {}, args: string[] = []
 describe('release metadata CLI', () => {
   it('uses a Windows protected local signing key without writing plaintext private material', async (context) => {
     if (process.platform !== 'win32') context.skip('Requires Windows DPAPI.');
+    expect(
+      process.env.SystemRoot,
+      'Forward the Windows system environment to native tests.',
+    ).toBeTruthy();
     const dir = fixture();
     const keyDir = path.join(dir, 'protected-key');
     const { generate, readProtectedSigningKey } = createRequire(__filename)(

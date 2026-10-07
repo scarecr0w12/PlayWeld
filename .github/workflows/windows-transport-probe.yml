@@ -15,3 +15,5 @@ jobs:
       - name: Isolated application protected-key regression
         working-directory: packages/platform-service
         run: npx vitest run src/updates/release-metadata-cli.test.ts --maxWorkers=1 --testTimeout=30000 --hookTimeout=60000
+      - name: Protected-key regression through strict Turbo environment
+        run: npx turbo run test --filter=@gamecrafter/platform-service --force -- src/updates/release-metadata-cli.test.ts

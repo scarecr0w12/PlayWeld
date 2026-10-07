@@ -23,7 +23,19 @@
       "env": ["OS", "PROCESSOR_ARCHITECTURE", "SystemRoot"]
     },
     "@gamecrafter/platform-service#test": {
-      "dependsOn": ["build"]
+      "dependsOn": ["build"],
+      "env": ["OS", "PROCESSOR_ARCHITECTURE", "SystemRoot"],
+      "passThroughEnv": [
+        "USERPROFILE",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "PSModulePath",
+        "windir",
+        "WINDIR",
+        "ComSpec",
+        "COMSPEC",
+        "SystemDrive"
+      ]
     }
   }
 }
