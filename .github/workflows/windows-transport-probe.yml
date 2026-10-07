@@ -1,0 +1,12 @@
+name: Windows credential transport probe
+on:
+  workflow_dispatch:
+jobs:
+  transport:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/probe-windows-dpapi-transport.cjs
