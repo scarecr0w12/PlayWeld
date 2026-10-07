@@ -4,6 +4,10 @@ Complete tracked work, grouped by version and category, with full details, valid
 
 ## Unreleased
 
+No pending work records.
+
+## 0.21.0
+
 ### Fixed
 
 #### Use inherited pipe handles for Electron LPAC workers
@@ -29,6 +33,8 @@ Repair native Electron Node-mode plugin startup when the Windows server denies N
 
 - Complete 0.20.0 source CI 37555962077 and repaired-source CI 37555130951 passed Windows/Linux/browser gates. Tagged Desktop Release 37556533529 preserved its Linux success and exact Windows NUL failure in .artifacts/local-deployment/0.20.0-1791335020097/hosted-windows-package-failure.log.
 - Corrected local/native Electron and focused hosted/runtime/package acceptance are pending until actually run. This record does not promote the failed package or infer security from a launch marker.
+- Corrected package-scoped local isolation passed five cases/one explicit Linux skip, including the actual desktop Electron runtime and all five LPAC boundaries. Focused hosted workflow 37558194826 passed ordinary Node/Electron isolation through six uncached strict Turbo tasks in 7.837 seconds; no boundary assertion was skipped or replaced with a startup marker.
+- Clean 0.21.0 npm installation and all 33 uncached quality tasks passed, with 561 platform tests/six explicit skips, 128 extension tests and 25 tracking checks. Formatting, references/inventory/evidence, documentation links and release coverage/agreement passed. Final version-correct package/installed/hosted publication acceptance receives the separate receipt.
 
 ##### Files
 
@@ -36,8 +42,41 @@ Repair native Electron Node-mode plugin startup when the Windows server denies N
 - `packages/platform-service/src/plugins/isolation/isolation.test.ts`
 - `docs/changes/2026-10-06-electron-lpac-stdio.md`
 - `.github/workflows/windows-transport-probe.yml`
+- `docs/STATUS.md`
+- `docs/RELEASE_GUIDE.md`
 
 ### Maintenance
+
+#### Prepare version 0.21.0
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-06-release-0.21.0.md).
+
+##### Summary
+
+Prepare version 0.21.0 from 0.20.0, retaining all pending work records in the changelog and detailed release notes.
+
+##### Details
+
+Synchronize first-party workspace and internal dependency versions. The lockfile must be refreshed separately. No tag, publication, or build is performed by version preparation.
+
+##### Validation
+
+Clean native Windows npm ci and synchronized workspace/lockfile checks passed. All 33 quality tasks passed uncached, with 561 platform tests/six explicit capability skips and 128 extension tests. Tracking passed 25 checks; formatting, references/inventory/evidence, documentation links, release coverage/agreement and diff checks passed. Local ordinary Node/desktop Electron isolation passed five cases with one explicit Linux-only skip; focused hosted workflow 37558194826 passed the same native boundaries through six uncached strict Turbo tasks in 7.837 seconds. Operational retention also passed after scheduled audit additions, with three negative controls rejecting missing/changed original tasks/settings. Complete hosted/tagged package/installed/publication outcomes receive a separate permanent receipt after the source becomes immutable; publisher signing and full uninstall/rollback remain unverified.
+
+##### Files
+
+- `packages/archive-extractor/package.json`
+- `packages/contracts/package.json`
+- `packages/platform-service/package.json`
+- `packages/plugin-sdk/package.json`
+- `packages/service-client/package.json`
+- `packages/theia-control-room/package.json`
+- `packages/plugins/sample-hello/package.json`
+- `apps/control-room/package.json`
+- `apps/control-room-browser/package.json`
+- `package-lock.json`
 
 #### Retain original task identities while reporting normal additions
 

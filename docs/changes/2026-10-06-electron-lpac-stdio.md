@@ -1,6 +1,6 @@
 # Use inherited pipe handles for Electron LPAC workers
 
-**Release:** Unreleased
+**Release:** 0.21.0
 
 **Impact:** patch
 
@@ -23,6 +23,8 @@ Repair native Electron Node-mode plugin startup when the Windows server denies N
 
 - Complete 0.20.0 source CI 37555962077 and repaired-source CI 37555130951 passed Windows/Linux/browser gates. Tagged Desktop Release 37556533529 preserved its Linux success and exact Windows NUL failure in .artifacts/local-deployment/0.20.0-1791335020097/hosted-windows-package-failure.log.
 - Corrected local/native Electron and focused hosted/runtime/package acceptance are pending until actually run. This record does not promote the failed package or infer security from a launch marker.
+- Corrected package-scoped local isolation passed five cases/one explicit Linux skip, including the actual desktop Electron runtime and all five LPAC boundaries. Focused hosted workflow 37558194826 passed ordinary Node/Electron isolation through six uncached strict Turbo tasks in 7.837 seconds; no boundary assertion was skipped or replaced with a startup marker.
+- Clean 0.21.0 npm installation and all 33 uncached quality tasks passed, with 561 platform tests/six explicit skips, 128 extension tests and 25 tracking checks. Formatting, references/inventory/evidence, documentation links and release coverage/agreement passed. Final version-correct package/installed/hosted publication acceptance receives the separate receipt.
 
 ## Files
 
@@ -30,3 +32,5 @@ Repair native Electron Node-mode plugin startup when the Windows server denies N
 - `packages/platform-service/src/plugins/isolation/isolation.test.ts`
 - `docs/changes/2026-10-06-electron-lpac-stdio.md`
 - `.github/workflows/windows-transport-probe.yml`
+- `docs/STATUS.md`
+- `docs/RELEASE_GUIDE.md`
