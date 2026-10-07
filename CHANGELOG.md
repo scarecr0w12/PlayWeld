@@ -4,6 +4,10 @@ Complete tracked work, grouped by version and category, with full details, valid
 
 ## Unreleased
 
+No pending work records.
+
+## 0.20.0
+
 ### Fixed
 
 #### Preserve native Windows test environment under Turbo strict mode
@@ -28,6 +32,8 @@ Declare the Windows operating-system context required by native service tests in
 
 - Prior local 0.19.0 source gate passed all 33 tasks uncached, 560 platform tests/six skips and 128 extension tests. Its local package/native checks passed. It remains a preserved candidate; the original corrected full hosted Windows run failed and is not described as accepted.
 - Native task configuration, focused strict-mode hosted test and corrected full quality/package/deployment checks are pending until actually executed.
+- Local focused native acceptance passed four cases through six uncached strict Turbo tasks in 6.327 seconds. Hosted workflow 37555130529 passed its direct and strict-Turbo protected-key tests; the strict task ran four cases and six uncached tasks in 7.018 seconds. This exercises the actual previously failing task boundary without relaxing the environment mode or disabling native signing checks.
+- Clean 0.20.0 installation/lockfile checks and the complete local gate passed 33 uncached tasks, 560 platform tests/six explicit skips and 128 extension tests. All 25 tracking checks, formatting, references/inventory/evidence, documentation links and release coverage passed. Complete hosted/package/installed/publication outcomes follow in the acceptance receipt.
 
 ##### Files
 
@@ -35,6 +41,41 @@ Declare the Windows operating-system context required by native service tests in
 - `.github/workflows/windows-transport-probe.yml`
 - `packages/platform-service/src/updates/release-metadata-cli.test.ts`
 - `docs/changes/2026-10-06-native-test-environment.md`
+- `docs/STATUS.md`
+- `docs/RELEASE_GUIDE.md`
+
+### Maintenance
+
+#### Prepare version 0.20.0
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-06-release-0.20.0.md).
+
+##### Summary
+
+Prepare version 0.20.0 from 0.19.0, retaining all pending work records in the changelog and detailed release notes.
+
+##### Details
+
+Synchronize first-party workspace and internal dependency versions. The lockfile must be refreshed separately. No tag, publication, or build is performed by version preparation.
+
+##### Validation
+
+Clean native Windows npm ci and refreshed workspace/lockfile agreement passed. All 33 quality tasks passed uncached, with 560 platform tests/six explicit capability skips and 128 extension tests. Tracking passed all 25 checks; formatting, references/inventory/evidence, documentation links, release coverage/agreement and diff checks passed. Hosted focused workflow 37555130529 passed actual protected-key acceptance both directly and through strict Turbo, with six uncached dependency/test tasks in 7.018 seconds. Final complete hosted/package/installed/publication acceptance receives a separate permanent receipt after the source becomes immutable. No publisher certificate, signed metadata or complete uninstall/rollback is claimed.
+
+##### Files
+
+- `packages/archive-extractor/package.json`
+- `packages/contracts/package.json`
+- `packages/platform-service/package.json`
+- `packages/plugin-sdk/package.json`
+- `packages/service-client/package.json`
+- `packages/theia-control-room/package.json`
+- `packages/plugins/sample-hello/package.json`
+- `apps/control-room/package.json`
+- `apps/control-room-browser/package.json`
+- `package-lock.json`
 
 ## 0.19.0
 
