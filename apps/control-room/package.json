@@ -1,6 +1,6 @@
 {
   "name": "@gamecrafter/control-room",
-  "version": "0.18.0",
+  "version": "0.19.0",
   "private": true,
   "license": "Apache-2.0",
   "description": "PlayWeld local game development control room",
@@ -68,7 +68,7 @@
     "vscode.hlsl": "https://github.com/eclipse-theia/vscode-builtin-extensions/releases/download/1.108.2/vscode.hlsl.vsix"
   },
   "dependencies": {
-    "@gamecrafter/theia-control-room": "0.18.0",
+    "@gamecrafter/theia-control-room": "0.19.0",
     "@theia/core": "1.75.0",
     "@theia/editor": "1.75.0",
     "@theia/electron": "1.75.0",
@@ -88,7 +88,7 @@
     "@theia/workspace": "1.75.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "@gamecrafter/archive-extractor": "0.18.0"
+    "@gamecrafter/archive-extractor": "0.19.0"
   },
   "devDependencies": {
     "@theia/cli": "1.75.0",

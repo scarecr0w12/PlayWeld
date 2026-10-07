@@ -1,6 +1,6 @@
 # Allow bounded fresh installed service readiness
 
-**Release:** Unreleased
+**Release:** 0.19.0
 
 **Impact:** patch
 
@@ -20,6 +20,7 @@ Allow thirty seconds for detached service startup after a cold installed upgrade
 
 - Local 0.18.0 ordinary retention passed four Projects, 139 models and five pools, and all 417 selected installed files matched the stage. The installed native retry and all 29 desktop checks passed; the initial cold-start failure remains recorded.
 - Source CLI lifecycle and corrected fresh package/installed acceptance remain pending for the next version. This change does not repair the separate hosted protected-key failure or claim public release acceptance.
+- The corrected source CLI lifecycle passed; the full 0.19.0 local quality gate passed all 33 tasks uncached with 560 platform tests/six skips and 128 extension tests. Version-correct cold package/installed readiness and public acceptance remain pending for the separate receipt.
 
 ## Files
 

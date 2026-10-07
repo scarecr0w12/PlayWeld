@@ -125,7 +125,7 @@ export async function dpapi(value: Buffer, decrypt: boolean, signal: AbortSignal
       output += chunk.toString();
       if (output.length > 128000) child.kill();
     });
-    // Windows PowerShell requires a usable standard-error handle. Drain it without logging.
+    // Provide a usable standard-error handle and discard diagnostics without logging.
     child.stderr?.resume();
     child.once('error', (error: NodeJS.ErrnoException) => {
       cleanup();

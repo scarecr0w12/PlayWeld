@@ -4,6 +4,10 @@ Complete tracked work, grouped by version and category, with full details, valid
 
 ## Unreleased
 
+No pending work records.
+
+## 0.19.0
+
 ### Fixed
 
 #### Allow bounded fresh installed service readiness
@@ -26,6 +30,7 @@ Allow thirty seconds for detached service startup after a cold installed upgrade
 
 - Local 0.18.0 ordinary retention passed four Projects, 139 models and five pools, and all 417 selected installed files matched the stage. The installed native retry and all 29 desktop checks passed; the initial cold-start failure remains recorded.
 - Source CLI lifecycle and corrected fresh package/installed acceptance remain pending for the next version. This change does not repair the separate hosted protected-key failure or claim public release acceptance.
+- The corrected source CLI lifecycle passed; the full 0.19.0 local quality gate passed all 33 tasks uncached with 560 platform tests/six skips and 128 extension tests. Version-correct cold package/installed readiness and public acceptance remain pending for the separate receipt.
 
 ##### Files
 
@@ -35,15 +40,46 @@ Allow thirty seconds for detached service startup after a cold installed upgrade
 
 ### Maintenance
 
-#### Diagnose hosted Windows credential transport
+#### Prepare version 0.19.0
 
 **Impact:** none
+
+[Permanent work record](docs/changes/2026-10-06-release-0.19.0.md).
+
+##### Summary
+
+Prepare version 0.19.0 from 0.18.0, retaining all pending work records in the changelog and detailed release notes.
+
+##### Details
+
+Synchronize first-party workspace and internal dependency versions. The lockfile must be refreshed separately. No tag, publication, or build is performed by version preparation.
+
+##### Validation
+
+Clean native Windows npm ci and refreshed workspace/lockfile agreement passed. All 33 quality tasks passed uncached, with 560 platform tests/six explicit capability skips and 128 extension tests. All 25 tracking checks, formatting, references/inventory/evidence, documentation links, release coverage and diff checks passed. Focused local process/native protected-key validation passed seven checks, CLI lifecycle passed, and hosted workflow 37553725042 passed its transport round trips and four actual protected-key cases. Full hosted CI and tagged package/installed/publication acceptance are recorded in a separate receipt after the source becomes immutable; unsigned metadata, publisher signing and complete uninstall/rollback remain separate acceptance boundaries.
+
+##### Files
+
+- `packages/archive-extractor/package.json`
+- `packages/contracts/package.json`
+- `packages/platform-service/package.json`
+- `packages/plugin-sdk/package.json`
+- `packages/service-client/package.json`
+- `packages/theia-control-room/package.json`
+- `packages/plugins/sample-hello/package.json`
+- `apps/control-room/package.json`
+- `apps/control-room-browser/package.json`
+- `package-lock.json`
+
+#### Diagnose hosted Windows credential transport
+
+**Impact:** patch
 
 [Permanent work record](docs/changes/2026-10-06-windows-credential-transport-diagnosis.md).
 
 ##### Summary
 
-Add a disposable native Windows transport probe after both hosted 0.18.0 runners reproduced the DPAPI deadline failure.
+Diagnose and repair the Windows PowerShell stderr transport after both hosted 0.18.0 runners reproduced the DPAPI deadline failure; retain a disposable native probe for regression diagnosis.
 
 ##### Details
 
@@ -59,6 +95,8 @@ Add a disposable native Windows transport probe after both hosted 0.18.0 runners
 - Hosted baseline workflow 37552973484 passed EOF and newline protect/unprotect round trips on Node 24.21.0 in 2671ms and 283ms. This rules out a general hosted DPAPI or input-framing failure for that fixture; the exact application test is isolated next. Local phase-instrumented protected-key execution receives EPERM before process startup, while six deterministic/portable tests pass. That unsuccessful local diagnostic is retained without promoting runtime acceptance.
 - Local installed 0.18.0 desktop smoke passed 29 checks with zero renderer errors at .artifacts/documentation-electron/1791333489913. The owned isolated probe left after the first five-second readiness failure was authenticated and stopped by its exact PID/profile; the ordinary service and two unrelated staged services remain available. Public release remains pending corrected Windows acceptance.
 - Focused hosted workflow 37553215366 passed all four actual protected-key tests in 1676ms after using a valid stderr pipe (the protected-key case took 1210ms). The original uninstrumented script with piped/drained stderr then passed all seven local process/protected-key checks in 3.05 seconds. Direct ignored-versus-piped hosted comparison is pending; no timeout is extended again and no native signing assertion is skipped.
+- Follow-up workflow 37553725042 passed both bare original-script stderr modes (ignored 545ms, piped 529ms) and all four actual protected-key cases (the protected-key case took 1230ms). The isolated transport comparison does not reproduce the full-suite failure, so a general claim that ignored stderr always breaks PowerShell is unsupported. Final acceptance requires the corrected complete Windows suite; the helper supplies and drains a usable handle as a measured candidate repair while keeping diagnostics private.
+- Full local 0.19.0 validation passed 33 uncached tasks, including 560 platform tests/six explicit skips and 128 extension tests. Tracking, formatting, references/inventory/evidence, documentation links and release agreement/coverage passed. Final full hosted/package/deployment/publication results receive a separate receipt; the existing 0.18.0 installation and failed tags are preserved.
 
 ##### Files
 
@@ -67,6 +105,8 @@ Add a disposable native Windows transport probe after both hosted 0.18.0 runners
 - `docs/changes/2026-10-06-windows-credential-transport-diagnosis.md`
 - `packages/platform-service/src/engines/unreal/editor-bridge-tools.ts`
 - `packages/platform-service/src/engines/unreal/dpapi-process.test.ts`
+- `docs/STATUS.md`
+- `docs/RELEASE_GUIDE.md`
 
 ## 0.18.0
 
