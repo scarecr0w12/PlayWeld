@@ -89,7 +89,8 @@ async function startDetached(paths: ReturnType<typeof resolvePaths>): Promise<vo
   });
   child.unref();
 
-  const deadline = Date.now() + 5000;
+  // Fresh installed code/profile startup can exceed five seconds on Windows.
+  const deadline = Date.now() + 30000;
   while (Date.now() < deadline) {
     const lock = readLock(paths.lockPath);
     if (lock && isProcessAlive(lock.pid) && (await probeSocket(lock.socketPath))) {

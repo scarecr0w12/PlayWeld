@@ -16,6 +16,7 @@ function fixture() {
   vi.useFakeTimers();
   const child = Object.assign(new EventEmitter(), {
     stdout: new PassThrough(),
+    stderr: new PassThrough(),
     stdin: Object.assign(new PassThrough(), { end: vi.fn() }),
     kill: vi.fn(() => {
       child.emit('close', null);
@@ -31,6 +32,8 @@ it('passes sensitive bytes only on stdin and clears its deadline after success',
   const promise = dpapi(value, false, new AbortController().signal);
   expect(child.stdin.end).toHaveBeenCalledWith(value.toString('base64'));
   expect(JSON.stringify(vi.mocked(spawn).mock.calls)).not.toContain(value.toString('base64'));
+  expect(vi.mocked(spawn).mock.calls[0]?.[2]).toMatchObject({ stdio: ['pipe', 'pipe', 'pipe'] });
+  expect(child.stderr.readableFlowing).toBe(true);
   child.stdout.emit('data', Buffer.from(Buffer.from('protected-output').toString('base64')));
   child.emit('close', 0);
   await expect(promise).resolves.toEqual(Buffer.from('protected-output'));
@@ -57,7 +60,7 @@ it('allows cold startup beyond ten seconds but enforces a bounded redacted deadl
   expect(settled).toBe(false);
   expect(child.kill).not.toHaveBeenCalled();
   await vi.advanceTimersByTimeAsync(20000);
-  expect(await result).toBe('Editor credential helper timed out after 30000ms (phase=unknown).');
+  expect(await result).toBe('Editor credential helper timed out after 30000ms.');
   expect(child.kill).toHaveBeenCalledOnce();
 });
 it('cancels promptly and reports process failure without child diagnostics or key material', async () => {

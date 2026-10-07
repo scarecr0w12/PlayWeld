@@ -4,6 +4,35 @@ Complete tracked work, grouped by version and category, with full details, valid
 
 ## Unreleased
 
+### Fixed
+
+#### Allow bounded fresh installed service readiness
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-06-installed-service-cold-start.md).
+
+##### Summary
+
+Allow thirty seconds for detached service startup after a cold installed upgrade instead of reporting failure after five seconds while the daemon continues starting.
+
+##### Details
+
+- The first 0.18.0 isolated installed probe exhausted the five-second service readiness deadline; the daemon subsequently finished startup, and an unchanged retry passed. The ordinary upgrade's fresh service also required approximately fifteen seconds between process launch and its startup event. This is measured installed-runtime behavior, not a capability failure.
+- Extend only detached startup readiness to thirty seconds. Keep the same live process/socket checks and ordinary stop/checkpoint behavior. Extend the Windows package verifier's outer CLI process bound to forty-five seconds so the inner startup limit can report correctly.
+- Preserve the failed probe log and authenticated cleanup of its exact owned profile/PID. No profile schema, data identity, public branding or compatibility path changes.
+
+##### Validation
+
+- Local 0.18.0 ordinary retention passed four Projects, 139 models and five pools, and all 417 selected installed files matched the stage. The installed native retry and all 29 desktop checks passed; the initial cold-start failure remains recorded.
+- Source CLI lifecycle and corrected fresh package/installed acceptance remain pending for the next version. This change does not repair the separate hosted protected-key failure or claim public release acceptance.
+
+##### Files
+
+- `packages/platform-service/src/cli.ts`
+- `apps/control-room/scripts/verify-windows-native.cjs`
+- `docs/changes/2026-10-06-installed-service-cold-start.md`
+
 ### Maintenance
 
 #### Diagnose hosted Windows credential transport
@@ -21,7 +50,7 @@ Add a disposable native Windows transport probe after both hosted 0.18.0 runners
 - Preserve failed 0.18.0 Windows CI/release logs and the source tag. Linux quality/package and browser smoke passed; publication is not accepted. The local ordinary upgrade retained four Projects, 139 models, five pools and matched 417 installed files. A first isolated installed service startup exceeded its five-second readiness budget; the unchanged retry passed, and that timing limitation remains recorded.
 - Compare EOF-based and newline-framed Windows PowerShell stdin with a fixed non-secret fixture, native DPAPI protect/unprotect and only static phase markers, elapsed time, exit code, length and fixture checksum. No account, credentials, signing material or ordinary profile is read.
 - Provide a manual Windows Actions job without npm installation to distinguish input transport from native crypto/runtime behavior. Both children have twenty-second termination limits. This is diagnostic tooling, not a timeout increase or a skipped release assertion.
-- Extend the hosted probe with a clean dependency/service build and the exact isolated protected-key regression. Add static helper phase markers; consume stderr without exposing its content and include only an allowlisted phase in bounded timeout errors. Sensitive payloads remain stdin-only. Update the deterministic assertion for the additional static diagnostic.
+- Extend the hosted probe with a clean dependency/service build and the exact isolated protected-key regression. Temporary helper phase markers were used for diagnosis and reverted before final runtime acceptance: the final helper keeps its original static PowerShell script, pipes/drains stderr without logging, and preserves static redacted errors and stdin-only sensitive input. Add a direct ignored-versus-piped stderr round-trip comparison with the exact original helper script, and a deterministic regression for the valid drained pipe.
 
 ##### Validation
 
@@ -29,6 +58,7 @@ Add a disposable native Windows transport probe after both hosted 0.18.0 runners
 - The initial expanded local probe was rejected by native process startup with EPERM before phase output, while a minimal static PowerShell phase command and the application DPAPI helper both passed. The probe is retained to test the hosted environment directly; hosted phase results remain pending. Full installed desktop acceptance and public release remain pending; no successful Windows publication is claimed.
 - Hosted baseline workflow 37552973484 passed EOF and newline protect/unprotect round trips on Node 24.21.0 in 2671ms and 283ms. This rules out a general hosted DPAPI or input-framing failure for that fixture; the exact application test is isolated next. Local phase-instrumented protected-key execution receives EPERM before process startup, while six deterministic/portable tests pass. That unsuccessful local diagnostic is retained without promoting runtime acceptance.
 - Local installed 0.18.0 desktop smoke passed 29 checks with zero renderer errors at .artifacts/documentation-electron/1791333489913. The owned isolated probe left after the first five-second readiness failure was authenticated and stopped by its exact PID/profile; the ordinary service and two unrelated staged services remain available. Public release remains pending corrected Windows acceptance.
+- Focused hosted workflow 37553215366 passed all four actual protected-key tests in 1676ms after using a valid stderr pipe (the protected-key case took 1210ms). The original uninstrumented script with piped/drained stderr then passed all seven local process/protected-key checks in 3.05 seconds. Direct ignored-versus-piped hosted comparison is pending; no timeout is extended again and no native signing assertion is skipped.
 
 ##### Files
 

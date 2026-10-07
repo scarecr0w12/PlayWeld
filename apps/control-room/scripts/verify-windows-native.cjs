@@ -136,7 +136,7 @@ function verifyPackagedServiceStartup(unpackedDir, serviceCli) {
       cwd: appDir,
       env,
       encoding: 'utf8',
-      timeout: 20_000,
+      timeout: 45_000,
       windowsHide: true,
     });
 
