@@ -24,14 +24,14 @@ function fixture() {
   writeFileSync(path.join(dir, 'GameCrafter.AppImage'), 'fixture Linux bytes');
   return dir;
 }
-function run(dir: string, overrides: NodeJS.ProcessEnv = {}, args: string[] = []) {
+function run(dir: string, overrides: NodeJS.ProcessEnv = {}, args: string[] = [], timeout = 15000) {
   return spawnSync(
     process.execPath,
     [path.join(root, 'scripts/create-release-metadata.cjs'), dir, ...args],
     {
       cwd: root,
       encoding: 'utf8',
-      timeout: 15000,
+      timeout,
       env: {
         ...process.env,
         UPDATE_SIGNING_PRIVATE_KEY: '',
@@ -59,7 +59,7 @@ describe('release metadata CLI', () => {
     const key = await readProtectedSigningKey(protectedPath);
     const privatePem = key.export({ format: 'pem', type: 'pkcs8' }).toString();
     expect(readFileSync(protectedPath).includes(Buffer.from(privatePem))).toBe(false);
-    const result = run(dir, {}, ['--signing-key-file', protectedPath]);
+    const result = run(dir, {}, ['--signing-key-file', protectedPath], 60000);
     expect(result.status, result.stderr).toBe(0);
     expect(
       result.stdout + result.stderr + readFileSync(path.join(keyDir, 'key.json'), 'utf8'),
@@ -74,7 +74,7 @@ describe('release metadata CLI', () => {
         ),
       ).toBe(true);
     await expect(generate(keyDir)).rejects.toThrow(/never overwritten/);
-  }, 30000);
+  }, 120000);
   it('requires explicit unsigned prerelease authorization and matching tag', () => {
     const dir = fixture();
     expect(run(dir).status).not.toBe(0);

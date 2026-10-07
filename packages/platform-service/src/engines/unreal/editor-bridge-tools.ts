@@ -110,19 +110,38 @@ export async function dpapi(value: Buffer, decrypt: boolean, signal: AbortSignal
       stdio: ['pipe', 'pipe', 'ignore'],
     });
     let output = '';
+    let timedOut = false;
     const stop = () => child.kill();
-    const timer = setTimeout(stop, 10000);
+    const cleanup = () => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', stop);
+    };
+    const timer = setTimeout(() => {
+      timedOut = true;
+      stop();
+    }, 30000);
     signal.addEventListener('abort', stop, { once: true });
     child.stdout?.on('data', (chunk: Buffer) => {
       output += chunk.toString();
       if (output.length > 128000) child.kill();
     });
-    child.once('error', reject);
+    child.once('error', (error: NodeJS.ErrnoException) => {
+      cleanup();
+      reject(new Error(`Editor credential helper could not start (${error.code ?? 'unknown'}).`));
+    });
+    child.stdin?.on('error', () => {
+      cleanup();
+      stop();
+      reject(new Error('Editor credential helper input transport failed.'));
+    });
     child.once('close', (code) => {
-      clearTimeout(timer);
-      signal.removeEventListener('abort', stop);
-      if (code !== 0 || signal.aborted)
-        reject(new Error('Editor credential protection operation failed.'));
+      cleanup();
+      if (signal.aborted) reject(new Error('Editor credential operation cancelled.'));
+      else if (timedOut) reject(new Error('Editor credential helper timed out after 30000ms.'));
+      else if (code !== 0)
+        reject(
+          new Error(`Editor credential protection operation failed (exit=${code ?? 'signal'}).`),
+        );
       else resolve(Buffer.from(output.trim(), 'base64'));
     });
     child.stdin?.end(value.toString('base64'));

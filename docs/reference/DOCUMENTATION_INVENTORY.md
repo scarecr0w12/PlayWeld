@@ -72,7 +72,7 @@ Request methods: **198**; notifications: **28**; settings: **85**; setting group
 | db | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/db/) | 2 |
 | dcc | [Guide](../INTEGRATION_GUIDE.md) | [Source](../../packages/platform-service/src/dcc/) | 5 |
 | dependencies | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/dependencies/) | 2 |
-| engines | [Guide](../INTEGRATION_GUIDE.md) | [Source](../../packages/platform-service/src/engines/) | 5 |
+| engines | [Guide](../INTEGRATION_GUIDE.md) | [Source](../../packages/platform-service/src/engines/) | 6 |
 | ipc | [Guide](../SERVICE_RECIPES.md) | [Source](../../packages/platform-service/src/ipc/) | 3 |
 | knowledge | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/knowledge/) | 11 |
 | mcp | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/mcp/) | 14 |

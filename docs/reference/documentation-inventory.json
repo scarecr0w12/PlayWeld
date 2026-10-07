@@ -255,6 +255,7 @@
         "packages/platform-service/src/engines/engine-service.integration.test.ts",
         "packages/platform-service/src/engines/process-runner.test.ts",
         "packages/platform-service/src/engines/test-report.test.ts",
+        "packages/platform-service/src/engines/unreal/dpapi-process.test.ts",
         "packages/platform-service/src/engines/unreal/editor-bridge-tools.test.ts"
       ],
       "evidence": "Source/schema inventory; test paths are discoverability, not a claim that these tests passed. See DOCUMENTATION_COVERAGE.md for live results and gaps."
@@ -965,6 +966,7 @@
         "packages/platform-service/src/engines/engine-service.integration.test.ts",
         "packages/platform-service/src/engines/process-runner.test.ts",
         "packages/platform-service/src/engines/test-report.test.ts",
+        "packages/platform-service/src/engines/unreal/dpapi-process.test.ts",
         "packages/platform-service/src/engines/unreal/editor-bridge-tools.test.ts"
       ],
       "guide": "INTEGRATION_GUIDE.md"
