@@ -103,14 +103,15 @@ export async function dpapi(value: Buffer, decrypt: boolean, signal: AbortSignal
   if (signal.aborted) throw new Error('Editor credential operation cancelled.');
   if (process.platform !== 'win32')
     throw new Error('PlayWeld editor pairing currently requires Windows DPAPI.');
-  const script = `Add-Type -AssemblyName System.Security;$v=[Convert]::FromBase64String([Console]::In.ReadToEnd());$r=[Security.Cryptography.ProtectedData]::${decrypt ? 'Unprotect' : 'Protect'}($v,$null,[Security.Cryptography.DataProtectionScope]::CurrentUser);[Console]::Write([Convert]::ToBase64String($r));[Array]::Clear($v,0,$v.Length);[Array]::Clear($r,0,$r.Length)`;
+  const script = `[Console]::Error.WriteLine('playweld-dpapi:started');Add-Type -AssemblyName System.Security;[Console]::Error.WriteLine('playweld-dpapi:assembly');$v=[Convert]::FromBase64String([Console]::In.ReadToEnd());[Console]::Error.WriteLine('playweld-dpapi:input');$r=[Security.Cryptography.ProtectedData]::${decrypt ? 'Unprotect' : 'Protect'}($v,$null,[Security.Cryptography.DataProtectionScope]::CurrentUser);[Console]::Error.WriteLine('playweld-dpapi:complete');[Console]::Write([Convert]::ToBase64String($r));[Array]::Clear($v,0,$v.Length);[Array]::Clear($r,0,$r.Length)`;
   return new Promise((resolve, reject) => {
     const child = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
       windowsHide: true,
-      stdio: ['pipe', 'pipe', 'ignore'],
+      stdio: ['pipe', 'pipe', 'pipe'],
     });
     let output = '';
     let timedOut = false;
+    let phase = 'unknown';
     const stop = () => child.kill();
     const cleanup = () => {
       clearTimeout(timer);
@@ -125,6 +126,10 @@ export async function dpapi(value: Buffer, decrypt: boolean, signal: AbortSignal
       output += chunk.toString();
       if (output.length > 128000) child.kill();
     });
+    child.stderr?.on('data', (chunk: Buffer) => {
+      for (const marker of chunk.toString().matchAll(/playweld-dpapi:(started|assembly|input|complete)/g))
+        phase = marker[1]!;
+    });
     child.once('error', (error: NodeJS.ErrnoException) => {
       cleanup();
       reject(new Error(`Editor credential helper could not start (${error.code ?? 'unknown'}).`));
@@ -137,7 +142,8 @@ export async function dpapi(value: Buffer, decrypt: boolean, signal: AbortSignal
     child.once('close', (code) => {
       cleanup();
       if (signal.aborted) reject(new Error('Editor credential operation cancelled.'));
-      else if (timedOut) reject(new Error('Editor credential helper timed out after 30000ms.'));
+      else if (timedOut)
+        reject(new Error(`Editor credential helper timed out after 30000ms (phase=${phase}).`));
       else if (code !== 0)
         reject(
           new Error(`Editor credential protection operation failed (exit=${code ?? 'signal'}).`),

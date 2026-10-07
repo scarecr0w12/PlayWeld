@@ -10,3 +10,8 @@ jobs:
         with:
           node-version: 24
       - run: node scripts/probe-windows-dpapi-transport.cjs
+      - run: npm ci --foreground-scripts
+      - run: npx turbo run build --filter=@gamecrafter/platform-service
+      - name: Isolated application protected-key regression
+        working-directory: packages/platform-service
+        run: npx vitest run src/updates/release-metadata-cli.test.ts --maxWorkers=1 --testTimeout=30000 --hookTimeout=60000

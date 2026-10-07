@@ -57,7 +57,7 @@ it('allows cold startup beyond ten seconds but enforces a bounded redacted deadl
   expect(settled).toBe(false);
   expect(child.kill).not.toHaveBeenCalled();
   await vi.advanceTimersByTimeAsync(20000);
-  expect(await result).toBe('Editor credential helper timed out after 30000ms.');
+  expect(await result).toBe('Editor credential helper timed out after 30000ms (phase=unknown).');
   expect(child.kill).toHaveBeenCalledOnce();
 });
 it('cancels promptly and reports process failure without child diagnostics or key material', async () => {
