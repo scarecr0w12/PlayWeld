@@ -104,8 +104,22 @@ async function main() {
   const state = configuration(false), before = JSON.parse(fs.readFileSync(path.join(directory, 'before.json')));
   // SQLite rows have null prototypes, while persisted JSON has ordinary objects.
   // Compare serialized values by field and keep diagnostics free of full task/config dumps.
-  for (const key of Object.keys(before)) assert.equal(hash(JSON.stringify(state[key])), hash(JSON.stringify(before[key])), 'Retained ordinary configuration: ' + key);
-  save('after', state); save('retention', { version, projects: state.projects.length, models: state.models.length, pools: state.pools.length, retained: true });
-  console.log(JSON.stringify({ version, projects: state.projects.length, models: state.models.length, pools: state.pools.length, retained: true }));
+  for (const key of Object.keys(before)) {
+    if (key !== 'projectState') assert.equal(hash(JSON.stringify(state[key])), hash(JSON.stringify(before[key])), 'Retained ordinary configuration: ' + key);
+  }
+  assert.equal(state.projectState.length, before.projectState.length, 'Retain every Project task/settings context.');
+  const addedTasks = [];
+  for (const previous of before.projectState) {
+    const current = state.projectState.find(project => project.projectId === previous.projectId);
+    assert(current, 'Retain Project context: ' + previous.projectId);
+    assert.equal(current.settingsHash, previous.settingsHash, 'Retain Project settings: ' + previous.projectId);
+    const tasks = new Map(current.tasks.map(task => [task.task_id, task.state]));
+    const originalIds = new Set(previous.tasks.map(task => task.task_id));
+    for (const task of previous.tasks) assert.equal(tasks.get(task.task_id), task.state, 'Retain original task identity/state: ' + task.task_id);
+    for (const task of current.tasks) if (!originalIds.has(task.task_id)) addedTasks.push({ projectId: previous.projectId, taskId: task.task_id, state: task.state });
+  }
+  const report = { version, projects: state.projects.length, models: state.models.length, pools: state.pools.length, retained: true, addedTasks };
+  save('after', state); save('retention', report);
+  console.log(JSON.stringify(report));
 }
 main().catch(error => { console.error(error.message); save('failure-' + phase, { message: error.message }); process.exitCode = 1; });

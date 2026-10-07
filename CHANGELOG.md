@@ -4,7 +4,68 @@ Complete tracked work, grouped by version and category, with full details, valid
 
 ## Unreleased
 
-No pending work records.
+### Fixed
+
+#### Use inherited pipe handles for Electron LPAC workers
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-06-electron-lpac-stdio.md).
+
+##### Summary
+
+Repair native Electron Node-mode plugin startup when the Windows server denies NUL device access inside LPAC, while keeping the existing filesystem/network/job isolation.
+
+##### Details
+
+- Hosted 0.20.0 Windows release quality passed, but the actual packaged Electron LPAC probe failed before worker JavaScript ran: Electron reported that it could not open the NUL device and recommended --no-stdio-init. Linux packaging and complete source CI passed; local installed 0.20.0 passed native and desktop checks. Preserve the failed tagged package and local evidence; no public release is claimed.
+- For the verified current Electron executable only, prepend --no-stdio-init so Electron uses standard pipe handles already established by the native helper instead of opening NUL. Ordinary Node and Python arguments keep their existing behavior. LPAC token, capabilities, allowed paths, restricted networking and kill-on-close job policy are unchanged; no extra filesystem/device access or weaker sandbox is granted.
+- Checked the exact [Electron 42.10.0 NodeMain source](https://github.com/electron/electron/blob/v42.10.0/shell/app/node_main.cc): the switch sets kNoStdioInitialization and is removed before Node parses CLI options. It is distinct from disabling sandbox enforcement.
+- Add an actual Windows Electron executable regression alongside the ordinary Node LPAC test. Require the same private-host/all-applications/source-write denial, scratch-write allowance and network denial; this detects the desktop runtime boundary during source testing instead of waiting for packaging. Linux explicitly skips this Windows-only case.
+- Extend the manual native integration workflow to run these ordinary Node/Electron boundaries through strict Turbo after the existing credential checks, retaining its file identity and renaming its display title for the broader scope.
+- Complete a new version and preserve v0.20.0 rather than changing its source tag or overwriting its installer. Publication and final local upgrade receive a separate permanent receipt.
+
+##### Validation
+
+- Complete 0.20.0 source CI 37555962077 and repaired-source CI 37555130951 passed Windows/Linux/browser gates. Tagged Desktop Release 37556533529 preserved its Linux success and exact Windows NUL failure in .artifacts/local-deployment/0.20.0-1791335020097/hosted-windows-package-failure.log.
+- Corrected local/native Electron and focused hosted/runtime/package acceptance are pending until actually run. This record does not promote the failed package or infer security from a launch marker.
+
+##### Files
+
+- `packages/platform-service/src/plugins/isolation/appcontainer-launcher.ts`
+- `packages/platform-service/src/plugins/isolation/isolation.test.ts`
+- `docs/changes/2026-10-06-electron-lpac-stdio.md`
+- `.github/workflows/windows-transport-probe.yml`
+
+### Maintenance
+
+#### Retain original task identities while reporting normal additions
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-06-retention-background-tasks.md).
+
+##### Summary
+
+Correct the operational upgrade verifier so completed periodic board audits added after startup do not falsely imply lost task identities.
+
+##### Details
+
+- The immediate 0.18.0-to-0.20.0 ordinary upgrade retained all configuration and task identities. A repeated check after desktop smoke found one new succeeded board-maintenance.audit task in each of the four ordinary Projects, created at 2026-10-07T01:25:10Z. All original task states and Project settings remained identical.
+- Inspect the task kinds/timestamps and existing BoardMaintenanceScheduler: its sixty-second tick schedules due periodic audits. Preserve the failed exact-array comparison, immediate-upgrade snapshot and additive-task inspection; no task is removed and no board scheduler setting is changed to silence the check.
+- Keep exact Project/account/model/pool/pricing/settings/key checks. For each Project, require every original task ID and state to remain present, preserve exact settings hashes, and separately report new task IDs/states. Existing snapshots remain compatible. Active/nonterminal-task rejection and database integrity/migration checks remain unchanged.
+- This is source operational acceptance tooling after the immutable 0.20.0 package/tag; it changes no bundled runtime, installer, schema, user data or historical release record. Publication and deployment receive a separate receipt.
+
+##### Validation
+
+- Read-only comparison against checkpointed Project databases found exactly four new succeeded board audits, no removed/changed original task rows and no changed setting keys. Profile identities/pricing/settings/credential key matched, with four Projects, 139 models and five pools.
+- Corrected full-profile retention and final release acceptance remain pending until executed. This record does not treat arbitrary changed/deleted existing tasks as acceptable.
+- Corrected full-profile retention passed after desktop smoke with four Projects, 139 models, five pools, every original task identity/state and all settings/key/pricing/account identities preserved; the four added succeeded audit tasks are reported separately. Negative controls using copied expected snapshots rejected a missing required original task, a changed original task state and a changed Project settings hash. These controls performed no Project/profile mutation.
+
+##### Files
+
+- `scripts/local-deployment-acceptance.cjs`
+- `docs/changes/2026-10-06-retention-background-tasks.md`
 
 ## 0.20.0
 

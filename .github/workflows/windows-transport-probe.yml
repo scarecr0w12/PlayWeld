@@ -1,4 +1,4 @@
-name: Windows credential transport probe
+name: Windows native integration probe
 on:
   workflow_dispatch:
 jobs:
@@ -17,3 +17,5 @@ jobs:
         run: npx vitest run src/updates/release-metadata-cli.test.ts --maxWorkers=1 --testTimeout=30000 --hookTimeout=60000
       - name: Protected-key regression through strict Turbo environment
         run: npx turbo run test --filter=@gamecrafter/platform-service --force -- src/updates/release-metadata-cli.test.ts
+      - name: Ordinary Node and desktop Electron LPAC boundaries
+        run: npx turbo run test --filter=@gamecrafter/platform-service --force -- src/plugins/isolation/isolation.test.ts

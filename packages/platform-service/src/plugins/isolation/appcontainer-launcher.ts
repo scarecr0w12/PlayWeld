@@ -214,7 +214,12 @@ export class AppContainerLauncher implements IsolationLauncher {
     };
     const args =
       path.basename(command).toLowerCase() === 'node.exe' || electron
-        ? ['--preserve-symlinks', '--preserve-symlinks-main', ...spec.args]
+        ? [
+            ...(electron ? ['--no-stdio-init'] : []),
+            '--preserve-symlinks',
+            '--preserve-symlinks-main',
+            ...spec.args,
+          ]
         : spec.args;
     const configuration = {
       ...spec,

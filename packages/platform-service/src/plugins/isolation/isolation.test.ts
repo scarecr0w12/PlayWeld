@@ -1,4 +1,6 @@
 import { createServer } from 'node:net';
+import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -169,6 +171,45 @@ describe('plugin worker isolation', () => {
       available: true,
     });
   });
+
+  it('enforces the same LPAC boundaries using the desktop Electron Node runtime', async (context) => {
+    if (process.platform !== 'win32') context.skip('Requires native Windows Electron isolation.');
+    const appRequire = createRequire(
+      path.resolve(__dirname, '../../../../../apps/control-room/package.json'),
+    );
+    const executable = appRequire('electron') as string;
+    const launcher = path.resolve(
+      __dirname,
+      '../../../lib/plugins/isolation/appcontainer-launcher.js',
+    );
+    const result = spawnSync(
+      executable,
+      [
+        '-e',
+        `new (require(${JSON.stringify(launcher)}).AppContainerLauncher)().probe().then(report=>{console.log(JSON.stringify(report));process.exitCode=report.available?0:1}).catch(error=>{console.error(error.message);process.exitCode=1})`,
+      ],
+      {
+        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+        windowsHide: true,
+        encoding: 'utf8',
+        timeout: 25000,
+      },
+    );
+    expect(result.status, result.stderr || result.error?.message).toBe(0);
+    const report = JSON.parse(result.stdout.trim()) as {
+      available: boolean;
+      checks: Array<{ name: string; ok: boolean }>;
+    };
+    expect(report.available).toBe(true);
+    expect(report.checks.map((check) => check.name)).toEqual([
+      'privateDenied',
+      'allAppsDenied',
+      'sourceDenied',
+      'scratch',
+      'networkDenied',
+    ]);
+    expect(report.checks.every((check) => check.ok)).toBe(true);
+  }, 30000);
 });
 
 async function runAdversarialWorker(
