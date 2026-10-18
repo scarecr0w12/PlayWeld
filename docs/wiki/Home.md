@@ -1,5 +1,7 @@
 # PlayWeld handbook
 
+Welcome to the PlayWeld wiki!
+
 PlayWeld is a free, open-source desktop workspace for game development. Its Eclipse Theia Control Room brings Project files, design records, conversations, supervised agent work and tool connections together. A local platform service owns the operational records.
 
 [Watch the demo](https://playweld.com/#demo) · [Download testing builds](https://github.com/scarecr0w12/PlayWeld/releases)

@@ -4,9 +4,11 @@ The Markdown pages in this directory are the source for the public GitHub wiki. 
 
 ## Publication status
 
-Prepared on docs/wiki-user-handbook from main aa2366c, checked 2026-10-18. The wiki is enabled, but its Git remote still returns Repository not found. The parent thread's existing browser task owns first-page initialization. Wait for that task to confirm initialization and hand off edit ownership before cloning or publishing; do not race its UI edits. Prepared content is complete, but wiki publication remains blocked and is not claimed.
+Published on 2026-10-18 after the user initialized the wiki and the parent confirmed exclusive edit ownership. Initial commit d6c8f5ab4e2df851b8b2763fe854a58e82083769 contained only Home.md with the welcome text; that text and commit history are preserved.
 
-After handoff, clone https://github.com/scarecr0w12/PlayWeld.wiki.git into a separate temporary directory, inspect all existing pages, and preserve unrelated changes. Copy the reviewed handbook pages and navigation into that clone; review the diff, commit, push, and inspect rendered Home, navigation and representative setup/workflow/technical pages. Record the actual wiki commit and result separately from source PR review. Do not publish this internal README as a wiki page.
+Wiki commit dc280c9382334a7dc6d86c5bc30399285ee85af6 on master publishes the 16 handbook pages plus sidebar/footer. The remote ref matches that commit. All 16 public page URLs returned HTTP 200 with expected content and navigation; Home also showed the preserved welcome and footer. These are live HTML checks, not graphical-browser or runtime acceptance. Source docs remain in draft PR #5; wiki publication does not merge that PR.
+
+For later updates, clone the wiki separately, fetch and inspect current pages, preserve unrelated edits, copy reviewed public source pages except this README, review the diff, commit and push normally. Record the actual wiki commit separately from source review. Do not publish this internal README as a wiki page.
 
 ## Content contract
 

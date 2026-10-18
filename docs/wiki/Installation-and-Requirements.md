@@ -16,6 +16,12 @@ On Linux use sha256sum on the downloaded file. A matching checksum checks agreem
 
 The public 0.21.0 executable and metadata are unsigned. Testing prereleases are downloaded manually and excluded from stable automatic updates. The recorded Windows 0.20.0-to-0.21.0 upgrade does not establish full uninstall/rollback or every Linux installation scenario. Do not treat an unsigned package as signed. Follow the [release guide](https://github.com/scarecr0w12/PlayWeld/blob/main/docs/RELEASE_GUIDE.md) and selected release's evidence.
 
+## Install and reach the workspace
+
+On Windows, run the downloaded installer, review its destination/prompts and launch PlayWeld from the installed application entry. On Linux, install the downloaded DEB with your distribution's package manager, or grant the downloaded AppImage executable permission and run that file. Use the package matching your host and read its release notes; these instructions do not certify every distribution or installation scenario.
+
+Wait for **Connected to platform service** in **Project Home**, then follow [your first Project](https://github.com/scarecr0w12/PlayWeld/wiki/First-Project). If the service is unavailable, use [troubleshooting](https://github.com/scarecr0w12/PlayWeld/wiki/Troubleshooting) before creating work. Merely opening the window is not the connection check.
+
 ## Source prerequisites
 
 Use Git, Node 24 or later and npm 11 with the lockfile. Linux native builds need libx11-dev, libxkbfile-dev and libsecret-1-dev; isolation tests need a supported Bubblewrap environment. Windows builds need C++/Python native-module prerequisites; follow the [developer environment](https://github.com/scarecr0w12/PlayWeld/blob/main/docs/DEVELOPER_GUIDE.md#development-environment) and actual compiler errors/Spectre-library guidance.

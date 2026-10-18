@@ -7,12 +7,13 @@ This disposable Godot example teaches workspace setup, discussion and search wit
 For practice from a built source checkout, choose separate profile and editor preference directories before launch:
 
 ```powershell
-$env:GAMECRAFTER_PROFILE_DIR = 'E:\PlayWeldTutorial\profile'
-$env:THEIA_CONFIG_DIR = 'E:\PlayWeldTutorial\theia'
+$tutorialRoot = Join-Path $env:TEMP 'PlayWeldTutorial'
+$env:GAMECRAFTER_PROFILE_DIR = Join-Path $tutorialRoot 'profile'
+$env:THEIA_CONFIG_DIR = Join-Path $tutorialRoot 'theia'
 npm run start -w @gamecrafter/control-room
 ```
 
-Use host-native paths appropriate to your machine. These variables affect new processes; they do not move a running service. See [source setup](https://github.com/scarecr0w12/PlayWeld/wiki/Development-and-Contributing).
+This is an example location, not an existing user profile. Choose an unused tutorial folder and a separate disposable Project parent on your machine. These variables affect new processes; they do not move a running service. See [source setup](https://github.com/scarecr0w12/PlayWeld/wiki/Development-and-Contributing).
 
 Create **Lantern Workshop**, choose **Godot** and a disposable parent directory, then open it. Copy only docs/ and game/ contents from the [checked-in example](https://github.com/scarecr0w12/PlayWeld/blob/main/docs/examples/lantern-workshop/README.md) into the new Project; preserve its generated manifest and operational state. The [walkthrough](https://github.com/scarecr0w12/PlayWeld/blob/main/docs/WORKED_TUTORIAL.md) owns exact copy commands and screenshots.
 
