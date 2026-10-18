@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Setup and troubleshooting
+    url: https://github.com/scarecr0w12/PlayWeld/blob/main/docs/USER_GUIDE.md
+    about: Start with setup, then follow the operations guide for recovery.
+  - name: Current capabilities and evidence
+    url: https://github.com/scarecr0w12/PlayWeld/blob/main/docs/STATUS.md
+    about: Check implemented behavior and open acceptance limits before requesting support.

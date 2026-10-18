@@ -1,6 +1,9 @@
 name: Windows native integration probe
 on:
   workflow_dispatch:
+concurrency:
+  group: windows-native-probe-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   transport:
     runs-on: windows-latest
@@ -9,6 +12,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
       - run: node scripts/probe-windows-dpapi-transport.cjs
       - run: npm ci --foreground-scripts
       - run: npx turbo run build --filter=@gamecrafter/platform-service

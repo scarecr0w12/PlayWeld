@@ -1,0 +1,40 @@
+name: Bug report
+description: Report a reproducible PlayWeld problem.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Search existing issues first. Remove credentials and private Project data from all evidence.
+  - type: input
+    id: version
+    attributes:
+      label: PlayWeld version or commit
+      description: Include the release tag or source commit and installed/source/browser target.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS/version, install method, and relevant engine, provider or connector versions. No credentials.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Give numbered steps using a disposable Project where possible.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected and actual behavior
+      description: Include the exact error, frequency and any workaround.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Sanitized evidence
+      description: Optional logs or screenshots. State whether this used a fixture or a live engine/provider.
