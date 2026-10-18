@@ -8,6 +8,20 @@ Use PlayWeld to organize Projects, discuss design decisions, search Project know
 
 Licensed under [Apache-2.0](LICENSE). PlayWeld was formerly GameCrafter; existing package names, commands, and data paths retain that name for compatibility. See the [branding guide](docs/BRANDING.md).
 
+[Watch the demo](https://playweld.com/#demo) · [Download a testing build](https://github.com/scarecr0w12/PlayWeld/releases) · [Documentation](docs/README.md) · [Contribute](CONTRIBUTING.md)
+
+## Try PlayWeld
+
+1. Watch the [existing demo](https://playweld.com/#demo) to see the workspace.
+2. Open [Releases](https://github.com/scarecr0w12/PlayWeld/releases), choose a testing prerelease, and read its notes before downloading the Windows installer or Linux package. Testing prereleases are obtained manually and are excluded from stable automatic updates.
+3. Follow the [user guide](docs/USER_GUIDE.md), then try the disposable [Lantern Workshop tutorial](docs/WORKED_TUTORIAL.md).
+
+### What the testing prerelease demonstrates
+
+The [0.21.0 testing release](https://github.com/scarecr0w12/PlayWeld/releases/tag/v0.21.0) records passing source CI, rendered desktop checks, scoped Unity/Unreal/Godot editor checks, and a local Windows 0.20.0-to-0.21.0 installed upgrade with retained workspace data. Its Windows and Linux download assets were checksum-verified. These results apply to the recorded versions and fixtures; they do not establish general autonomous game creation or complete Swarm/native-engine execution coverage.
+
+The Windows executable and release metadata are unsigned. Full uninstall/rollback and broader provider, engine and human acceptance remain open. Read the release notes and [implementation status](docs/STATUS.md) for evidence and limits before using important Projects.
+
 ## Start here
 
 | You want to…                                 | Read                                                                                                              |
@@ -17,7 +31,7 @@ Licensed under [Apache-2.0](LICENSE). PlayWeld was formerly GameCrafter; existin
 | Find a screen or understand its controls     | [Control Room handbook](docs/CONTROL_ROOM_HANDBOOK.md)                                                            |
 | Configure models, engines, or external tools | [Models and routing](docs/USER_GUIDE.md#configure-models-and-routing) · [Integrations](docs/INTEGRATION_GUIDE.md) |
 | Troubleshoot or recover your data            | [Operations and recovery](docs/OPERATIONS_GUIDE.md)                                                               |
-| Contribute to PlayWeld                       | [Developer guide](docs/DEVELOPER_GUIDE.md) · [Repository instructions](AGENTS.md)                                 |
+| Contribute to PlayWeld                       | [Contributing](CONTRIBUTING.md) · [Developer guide](docs/DEVELOPER_GUIDE.md)                                      |
 
 Browse the [documentation index](docs/README.md) for workflows, references, architecture, and verification records.
 
@@ -31,13 +45,13 @@ Run these commands from the repository root:
 
 ```bash
 npm ci
-npx turbo run build typecheck lint test
+npm run build
 npm run download:plugins
 npm run build -w @gamecrafter/control-room
 npm run start -w @gamecrafter/control-room
 ```
 
-The Control Room starts the platform service automatically when needed. Once connected, [create or open a Project](docs/USER_GUIDE.md#create-or-open-a-project). Creating a PlayWeld Project organizes your workspace; native game setup is a separate step.
+For contribution checks, use [Contributing](CONTRIBUTING.md). The Control Room starts the platform service automatically when needed. Once connected, [create or open a Project](docs/USER_GUIDE.md#create-or-open-a-project). Creating a PlayWeld Project organizes your workspace; native game setup is a separate step.
 
 For a separate test profile, set `GAMECRAFTER_PROFILE_DIR` before launching. The [tutorial](docs/WORKED_TUTORIAL.md#start-an-isolated-workspace) shows a complete example that also separates editor preferences.
 

@@ -4,6 +4,49 @@ Complete tracked work, grouped by version and category, with full details, valid
 
 ## Unreleased
 
+### Documentation
+
+#### Improve GitHub entry points and contribution guidance
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-18-github-community-entry.md).
+
+##### Summary
+
+Make PlayWeld easier to try and contribute to, publish accurate About metadata, and prepare compact wiki navigation.
+
+##### Details
+
+- Verify the clean main checkout and origin scarecr0w12/PlayWeld at e4824b0 match remote main. Use a separate docs/github-community-refresh worktree, preserving the app checkout and independent Kilo worktrees. Marketing and application builds are untouched.
+- README previously led with guide links and a full source quality gate. Add demo/download/contribution links, a three-step download/tutorial path, and version-specific 0.21.0 evidence with unsigned/uninstall/rollback limits. Source setup builds packages before the app; contribution checks remain in the developer guide. Preserve GameCrafter compatibility identifiers and historical evidence. Include no Star-to-follow request.
+- Add CONTRIBUTING.md covering scoped first contributions, duplicate checks, work records, proportional validation and existing-label triage. Add bug/feature forms with required reproduction/environment or problem/acceptance fields, sanitized evidence guidance, canonical help links and continued blank issues. Add a PR template for behavior, validation, compatibility and records. No new process framework or triage commitment.
+- Live inventory found empty About description/website/topics, an enabled but uninitialized wiki, zero issues and one open dependency PR. Publish the requested desktop/local-service About description, https://playweld.com and desktop-app, eclipse-theia, electron, game-development, open-source and typescript topics. Confirm administrator permission; existing security settings remain unchanged.
+- Publish issue #3 for disposable-host Windows uninstall/rollback acceptance after checking all-state issues for duplicates. Acceptance derives from the public release's existing gap. No destructive lifecycle test runs on ordinary installations.
+- Prepare wiki Home.md and _Sidebar.md with canonical guide/demo/download/status/issue links, avoiding copied version-specific procedures. Git wiki remote returns Repository not found despite has_wiki=true; first-page UI initialization remains blocked without an authenticated browser/wiki API. docs/wiki/README.md explains publication and preservation of intervening edits. Wiki publication is not claimed.
+- Compatibility: docs, issue entry and metadata only; no runtime, storage, RPC, version or migration changes. Impact none matches this scope. Docs/templates await PR review; metadata and issue #3 are already published.
+
+##### Validation
+
+- Remote/status/worktree and remote-main identity inspection passed; original app checkout remains clean on main. Live 0.21.0 release notes/assets support README claims. Website returned HTTP 200 with demo anchor and download links.
+- GitHub Markdown API rendered README; inspected HTML headings, tables and demo/release links. This is rendered HTML inspection, not screenshot or live desktop/engine acceptance.
+- Existing installed YAML parser accepted forms/config with duplicate-key validation. Required fields/unique IDs and contribution relative paths/anchors passed. Contribution links are checked separately because the existing script does not scan this new root guide.
+- Existing-checkout Prettier --check . passed in this worktree. npm run format:check initially lacked worktree node_modules; equivalent installed Prettier avoids installation or mutation of the app dependency tree. Git Bash link scan initially hit sandbox shared-memory denial and was rerun with escalation.
+- Changed Markdown local links/anchors, git diff --check, npm run changelog:update and npm run changelog:check -- --base HEAD passed. Full repository Bash link scan remains in progress; no success claimed for that scan. Full source/build/test gate intentionally skipped for docs/workflow-only changes to avoid competing app builds. No new engine/provider/installer acceptance is claimed.
+
+##### Files
+
+- `README.md`
+- `CONTRIBUTING.md`
+- `.github/ISSUE_TEMPLATE/bug_report.yml`
+- `.github/ISSUE_TEMPLATE/feature_request.yml`
+- `.github/ISSUE_TEMPLATE/config.yml`
+- `.github/pull_request_template.md`
+- `docs/wiki/Home.md`
+- `docs/wiki/_Sidebar.md`
+- `docs/wiki/README.md`
+- `docs/changes/2026-10-18-github-community-entry.md`
+
 ### Maintenance
 
 #### Deploy and publish PlayWeld 0.21.0 testing release
@@ -44,6 +87,35 @@ Install PlayWeld 0.21.0 locally with retained ordinary data and publish its veri
 - `docs/STATUS.md`
 - `docs/RELEASE_GUIDE.md`
 - `docs/changes/2026-10-06-local-0.21.0-publication.md`
+
+#### Avoid duplicate and superseded CI runs
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-18-ci-run-efficiency.md).
+
+##### Summary
+
+Limit push CI to main, retain PR checks, cancel superseded runs and cache npm downloads in the manual native probe.
+
+##### Details
+
+- Every branch push and PR update previously could duplicate full quality/browser runs. Restrict push to main, while PR opened/synchronize/reopened/ready_for_review validates feature work including forks. Branches without PRs no longer automatically run CI. Tags retain the separate release workflow.
+- Add workflow/PR-or-ref concurrency cancellation, keeping independent PRs separate. Preserve the complete Windows/Linux quality checks, browser build/smoke, evidence upload and existing npm cache. No path filters skip documentation PR validation.
+- Add ref-scoped cancellation and setup-node npm download caching to the manual Windows native integration probe. Preserve protected-key and ordinary Node/Electron isolation checks. Native build output is not shared across hosts.
+- Desktop Release remains unchanged. No new publication, deployment, secret, token permission, paid service or matrix expansion. No application/data/RPC change or migration; impact none reflects CI maintenance.
+
+##### Validation
+
+- Existing installed YAML parser accepted both workflows with duplicate-key checks. Assertions confirmed main-only push, PR synchronize, cancellation, two CI jobs, probe npm cache and absence of new permissions/pull_request_target.
+- Diff review confirmed retained checks and unchanged release workflow. Existing-checkout Prettier --check . passed in the isolated worktree.
+- Application build/tests intentionally skipped because source is unchanged and focused validation avoids competing builds. Hosted execution remains subject to the draft PR run, not inferred from static checks. npm run changelog:update, npm run changelog:check -- --base HEAD and git diff --check passed.
+
+##### Files
+
+- `.github/workflows/ci.yml`
+- `.github/workflows/windows-transport-probe.yml`
+- `docs/changes/2026-10-18-ci-run-efficiency.md`
 
 ## 0.21.0
 

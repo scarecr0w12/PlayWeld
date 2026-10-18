@@ -1,0 +1,26 @@
+name: Feature request
+description: Describe a concrete workflow problem and a bounded improvement.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: Search existing issues and the development plan first. Link related work rather than duplicating it.
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Who is blocked, in which workflow, and what happens today?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Proposed outcome and acceptance
+      description: Describe the smallest useful result and how someone could verify it.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and related work
+      description: Include workarounds, relevant issues or plan sections, and engine/provider constraints.
