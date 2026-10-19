@@ -12,12 +12,17 @@ import {
 } from '@gamecrafter/contracts';
 import type { ModelRegistry } from './model-registry';
 import type { ModelRouter } from './router';
+import type { TaskService } from '../tasks/task-service';
+import { runBudgetedModelCall } from '../agents/shared-task-budget';
 
 export interface CompletionContext {
   sessionId?: string;
   signal?: AbortSignal;
   remainingCostUsd?: number;
   remainingTokens?: number;
+  /** Called after preflight, immediately before an external provider request can incur cost. */
+  onDispatch?: () => void;
+  roleConstraints?: readonly string[];
   notify?: (name: 'model/delta', params: RpcNotificationParams<'model/delta'>) => void;
 }
 
@@ -28,11 +33,17 @@ export interface PreparedCompletion {
 }
 
 export class CompletionService {
+  private taskBudgets?: TaskService;
+
   constructor(
     private readonly registry: ModelRegistry,
     private readonly router: ModelRouter,
     private readonly now: () => Date = () => new Date(),
   ) {}
+
+  setTaskBudgetService(tasks: TaskService): void {
+    this.taskBudgets = tasks;
+  }
 
   prepare(
     route: RouteRequest,
@@ -49,6 +60,60 @@ export class CompletionService {
   async complete(
     params: RpcParams<'model/complete'>,
     context: CompletionContext = {},
+    prepared?: PreparedCompletion,
+  ): Promise<ChatResponse> {
+    const projectId = params.projectId ?? ('route' in params ? params.route.projectId : undefined);
+    if (this.taskBudgets && params.taskId) {
+      if (!projectId)
+        throw new RpcError(
+          'Task completion requires its Project identity.',
+          RpcErrorCode.InvalidParams,
+        );
+      if ('route' in params && params.route.projectId && params.route.projectId !== projectId)
+        throw new RpcError('projectId must match route.projectId', RpcErrorCode.InvalidParams);
+      const task = this.taskBudgets.get(projectId, params.taskId);
+      const roleConstraints = [
+        ...new Set([
+          ...(context.roleConstraints ?? []),
+          ...[task.role, task.assignee?.role].filter((role): role is string => Boolean(role)),
+        ]),
+      ];
+      return runBudgetedModelCall(
+        this.taskBudgets,
+        projectId,
+        params.taskId,
+        async (limits, markDispatched) => {
+          const minimum = (left: number | undefined, right: number | undefined) =>
+            left === undefined ? right : right === undefined ? left : Math.min(left, right);
+          const value = await this.completeUnbudgeted(
+            params,
+            {
+              ...context,
+              roleConstraints,
+              remainingCostUsd: minimum(context.remainingCostUsd, limits.remainingCostUsd),
+              remainingTokens: minimum(context.remainingTokens, limits.remainingTokens),
+              onDispatch: () => {
+                markDispatched();
+                context.onDispatch?.();
+              },
+            },
+            prepared,
+          );
+          return {
+            value,
+            costUsd: value.usage.costUsd,
+            tokens: value.usage.inputTokens + value.usage.outputTokens,
+            costStatus: value.usage.costStatus,
+          };
+        },
+      );
+    }
+    return this.completeUnbudgeted(params, context, prepared);
+  }
+
+  private async completeUnbudgeted(
+    params: RpcParams<'model/complete'>,
+    context: CompletionContext,
     prepared?: PreparedCompletion,
   ): Promise<ChatResponse> {
     const nestedProjectId = 'route' in params ? params.route.projectId : undefined;
@@ -75,6 +140,9 @@ export class CompletionService {
         ? this.router.route(
             { ...params.route, projectId: params.route.projectId ?? params.projectId },
             context.sessionId,
+            undefined,
+            false,
+            context.roleConstraints,
           )
         : undefined);
     const modelId = route?.modelId ?? ('modelId' in params ? params.modelId : undefined);
@@ -95,6 +163,7 @@ export class CompletionService {
       context.sessionId,
       context.remainingTokens,
       context.remainingCostUsd,
+      context.roleConstraints,
     );
     const account = this.registry.getRuntimeAccount(model.accountId);
     if (!account || !account.enabled) {
@@ -115,6 +184,8 @@ export class CompletionService {
     const startedAt = this.now().getTime();
     let usageRecorded = false;
     try {
+      context.signal?.throwIfAborted();
+      context.onDispatch?.();
       const response = await provider.complete(account, model, request, {
         signal: context.signal ?? new AbortController().signal,
         ...(request.stream && context.notify

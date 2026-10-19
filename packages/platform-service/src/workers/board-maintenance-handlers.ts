@@ -28,6 +28,8 @@ async function runMaintenance(
   );
   if ('costUsd' in result || typeof result.tokens === 'number') {
     await context.reportUsage({
+      // CompletionService has already persisted task-associated model usage.
+      accountedByService: true,
       ...(typeof result.costUsd === 'number' || result.costUsd === null
         ? { costUsd: result.costUsd }
         : {}),

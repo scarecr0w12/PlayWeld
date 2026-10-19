@@ -17,6 +17,7 @@ import type { SettingsService } from '../settings/settings-service';
 import { ModelRegistry } from './model-registry';
 import { ModelRouter } from './router';
 import { ModelProviderRegistry, type ModelProvider } from './providers';
+import { loadRoleDir } from '../roles/role-loader';
 
 const defaultSettings: Record<string, unknown> = {
   'models.autoRouting.quality': 'quality-first',
@@ -27,6 +28,120 @@ const defaultSettings: Record<string, unknown> = {
 };
 
 describe('ModelRouter', () => {
+  it('intersects facade routing with caller pools while preserving direct plugin routing', async () => {
+    const fixture = await createFixture();
+    try {
+      const role = loadRoleDir(path.resolve(__dirname, '../../roles/engine-engineer'), 'builtin');
+      fixture.router.setRoleResolver((name) => (name === 'engine-engineer' ? role : undefined));
+      for (const modelId of Object.values(fixture.modelIds)) {
+        fixture.registry.updateModel(modelId, { workTypes: [], roles: [] });
+      }
+      fixture.registry.createPool({
+        name: 'engineering',
+        scope: 'platform',
+        target: { kind: 'agent', id: 'engine-engineer' },
+        modelIds: [fixture.modelIds.cheap],
+      });
+      const pluginPool = fixture.registry.createPool({
+        name: 'plugin',
+        scope: 'platform',
+        target: { kind: 'agent', id: 'plugin:example' },
+        modelIds: [fixture.modelIds.good],
+      });
+      const request = { taskType: 'plugin', agentRole: 'plugin:example' };
+      expect(fixture.router.route(request).modelId).toBe(fixture.modelIds.good);
+      expect(() =>
+        fixture.router.route(request, undefined, undefined, false, ['engine-engineer']),
+      ).toThrowError(
+        expect.objectContaining({ data: expect.objectContaining({ stage: 'pools' }) }),
+      );
+      fixture.registry.updatePool(pluginPool.poolId, { modelIds: Object.values(fixture.modelIds) });
+      expect(
+        fixture.router.route(request, undefined, undefined, false, ['engine-engineer']).modelId,
+      ).toBe(fixture.modelIds.cheap);
+      expect(() =>
+        fixture.router.assertRolePools(
+          fixture.modelIds.good,
+          ['engine-engineer'],
+          undefined,
+          'plugin',
+        ),
+      ).toThrowError(
+        expect.objectContaining({ data: expect.objectContaining({ stage: 'pools' }) }),
+      );
+      expect(() =>
+        fixture.router.assertRolePools(
+          fixture.modelIds.cheap,
+          ['engine-engineer'],
+          undefined,
+          'plugin',
+        ),
+      ).not.toThrow();
+      expect(() =>
+        fixture.router.boundCompletion(
+          fixture.registry.getModel(fixture.modelIds.good)!,
+          { messages: [] },
+          request,
+          undefined,
+          undefined,
+          undefined,
+          ['engine-engineer'],
+        ),
+      ).toThrowError(
+        expect.objectContaining({ data: expect.objectContaining({ stage: 'pools' }) }),
+      );
+    } finally {
+      fixture.close();
+    }
+  });
+  it('intersects a role named pool with targeted pools and rejects manual escape', async () => {
+    const fixture = await createFixture();
+    try {
+      const role = loadRoleDir(path.resolve(__dirname, '../../roles/engine-engineer'), 'builtin');
+      fixture.router.setRoleResolver(() => role);
+      fixture.registry.createPool({
+        name: 'engineering',
+        scope: 'platform',
+        target: null,
+        modelIds: [fixture.modelIds.cheap],
+      });
+      fixture.registry.createPool({
+        name: 'code',
+        scope: 'platform',
+        target: { kind: 'task-type', id: 'code' },
+        modelIds: [fixture.modelIds.good],
+      });
+      expect(() =>
+        fixture.router.route({ taskType: 'code', agentRole: 'programmer' }),
+      ).toThrowError(
+        expect.objectContaining({ data: expect.objectContaining({ stage: 'pools' }) }),
+      );
+      expect(() =>
+        fixture.router.route({
+          taskType: 'code',
+          agentRole: 'programmer',
+          manualModelId: fixture.modelIds.good,
+        }),
+      ).toThrow();
+    } finally {
+      fixture.close();
+    }
+  });
+
+  it('preserves unconfigured builtin pool defaults but fails closed for missing custom pools', async () => {
+    const fixture = await createFixture();
+    try {
+      const directory = path.resolve(__dirname, '../../roles/engine-engineer');
+      fixture.router.setRoleResolver(() => loadRoleDir(directory, 'builtin'));
+      expect(
+        fixture.router.route({ taskType: 'code', agentRole: 'programmer' }).candidates,
+      ).toHaveLength(2);
+      fixture.router.setRoleResolver(() => loadRoleDir(directory, 'project'));
+      expect(() => fixture.router.route({ taskType: 'code', agentRole: 'programmer' })).toThrow();
+    } finally {
+      fixture.close();
+    }
+  });
   it('rejects unknown pricing under a strict budget even with a cheap historical outcome', async () => {
     const fixture = await createFixture();
     try {

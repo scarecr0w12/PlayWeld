@@ -85,6 +85,7 @@ describe('completion dispatch budget gate', () => {
       usage: { inputTokens: 1, outputTokens: 0, costUsd: 0 },
     }));
     const registry = {
+      listPools: () => [],
       getModel: () => model,
       getRuntimeAccount: () => ({ enabled: true, providerKind: 'fake' }),
       getProvider: () => ({ complete, embed }),

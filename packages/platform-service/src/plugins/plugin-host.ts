@@ -38,6 +38,7 @@ import type { PluginRegistry } from './plugin-registry';
 interface PluginInvocation {
   taskId: string | null;
   agentRole: string | null;
+  roleConstraints?: string[];
   accessMode: AccessMode;
   signal?: AbortSignal;
 }
@@ -522,6 +523,10 @@ export class PluginHost {
       {
         accessCeiling: invocation.accessMode,
         agentRole: `plugin:${worker.plugin.pluginId}`,
+        roleConstraints: [
+          ...(invocation.roleConstraints ?? []),
+          ...(invocation.agentRole ? [invocation.agentRole] : []),
+        ],
         signal: invocation.signal,
       },
     );
@@ -563,7 +568,13 @@ export class PluginHost {
         projectId: worker.projectId,
         ...(invocation?.taskId ? { taskId: invocation.taskId } : {}),
       },
-      { signal: invocation?.signal },
+      {
+        signal: invocation?.signal,
+        roleConstraints: [
+          ...(invocation?.roleConstraints ?? []),
+          ...(invocation?.agentRole ? [invocation.agentRole] : []),
+        ],
+      },
     );
     this.options.database
       .prepare(
@@ -715,6 +726,7 @@ export class PluginHost {
       worker.currentInvocation = {
         taskId: context.taskId,
         agentRole: context.agentRole ?? null,
+        roleConstraints: context.roleConstraints,
         accessMode: context.accessMode,
         signal: context.signal,
       };

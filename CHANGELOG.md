@@ -4,7 +4,487 @@ Complete tracked work, grouped by version and category, with full details, valid
 
 ## Unreleased
 
-No pending work records.
+### Fixed
+
+#### Refresh authorized tools between running agent turns (F09)
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-18-agent-tool-refresh-fix.md).
+
+##### Summary
+
+MCP list-change events refreshed the service registry, but running agents continued advertising their startup tool/schema snapshot. Private worker IPC now requests a fresh role/access-filtered snapshot at each model-turn boundary before schema-aware compaction and token estimation.
+
+##### Details
+
+- MCP list-change events refreshed the service registry, but running agents continued advertising their startup tool/schema snapshot. Private worker IPC now requests a fresh role/access-filtered snapshot at each model-turn boundary before schema-aware compaction and token estimation.
+- Added/removed/schema-changed tools are reflected in subsequent turns without restarting the worker. Runtime-internal completion/question tools are retained appropriately; broker checks still authorize every execution.
+- Tool inspection failures are returned to the worker as structured errors rather than escaping the asynchronous supervisor handler as unhandled rejections. The worker fails safely if discovery cannot establish the current authorized tools.
+- No public RPC or persisted schema change, no new protocol revision assumption, and no migration. The mechanism consumes the existing authoritative registry rather than duplicating MCP discovery. Patch impact.
+
+##### Validation
+
+- Agent runtime regression checks changed schemas/tool membership across turns; real worker IPC tests verify refreshed snapshots and safe failure propagation. The final five-case worker IPC suite passed.
+- MCP protocol and connector tests remain fixture evidence unless explicitly reported as a live engine operation; no external provider was required.
+- Final `npx turbo run build typecheck lint test` passed: 33/33 tasks successful, 22 cache hits for unchanged task inputs, 7m24.71s. The changed platform-service suite ran uncached: 128 files passed, 678 tests passed and six skipped. Theia Control Room verification passed 133 tests across 28 files; other workspaces contributed 76 passing tests and one skip, for 887 passing test cases and seven skips across the monorepo gate. App wrapper test/typecheck/lint scripts that intentionally print skip are not counted as additional test cases. Both Electron and browser application builds completed with zero build errors.
+- Skips were existing Windows/platform prerequisites or unavailable real Godot: Linux-only plugin/isolation cases, symlink/process/credential permission cases, and the archive symlink case. The suite did run real local Blender/WSL inspect/export/render and exception tests, real local Qdrant persistence/isolation tests, and Windows LPAC probes with Node and Electron. Unity/Unreal engine identity/bridge cases and paid-provider behavior used deterministic fixtures; no paid external model/asset generation, ordinary production profile acceptance, or new installer lifecycle was performed.
+- The first broad gate exposed the missing gameplay-module fixture, successful-parent continuation incompatibility, and duplicate board-audit usage; those were corrected without weakening the preserved acceptance assertions. Because source corrections occurred while that initial run was active, its mixed-state failures are not the acceptance result. A fresh complete run supplied the successful result above. A final planner-role cleanup was rebuilt and its role/registry/bundled-skill checks passed seven tests across three files.
+- `bash scripts/check-links.sh` passed with All links OK. `npm run format:check`, `git diff --check`, `npm run changelog:update`, and `npm run changelog:check -- --base HEAD` passed. The final full-gate output is retained locally at `.artifacts/agent-swarm-fixes/full-turbo.log`. Existing manifests/lockfile and the six pre-existing repository Electron processes were preserved; no release/version assignment was performed.
+
+##### Files
+
+- `packages/platform-service/src/agents/agent-runtime.ts`
+- `packages/platform-service/src/agents/agent-runtime.test.ts`
+- `packages/platform-service/src/workers/supervisor.ts`
+- `packages/platform-service/src/workers/types.ts`
+- `packages/platform-service/src/workers/worker-main.ts`
+- `packages/platform-service/src/workers/supervisor-await.test.ts`
+- `packages/platform-service/src/workers/supervisor-await-fixture.cjs`
+- `docs/SKILLS_AGENTS_AND_TOOLS.md`
+- `docs/changes/2026-10-18-agent-tool-refresh-fix.md`
+
+#### Apply role module, pool and board-subscription metadata (F10)
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-18-role-metadata-policy-fix.md).
+
+##### Summary
+
+Role requiresModules, modelPool and boardSubscriptions fields previously had no runtime consumers. TaskService now validates agent-task module prerequisites against the current Project manifest before creating work. Missing modules produce an actionable role error instead of implicit module enablement.
+
+##### Details
+
+- Role requiresModules, modelPool and boardSubscriptions fields previously had no runtime consumers. TaskService now validates agent-task module prerequisites against the current Project manifest before creating work. Missing modules produce an actionable role error instead of implicit module enablement.
+- ModelRouter intersects configured named role pools with existing role/task/global pool constraints, including manual IDs and prepared completion preflight. Builtin names remain optional defaults until configured; missing custom-role pool names fail closed. Unrecognized ad hoc routing identities retain existing routing instead of being mistaken for invalid installed roles.
+- Plugin/facade model requests preserve plugin attribution while intersecting originating role pool constraints. Central completion infers the recorded task roles as additional restrictions, so changing routing identity or supplying a raw model ID cannot escape the task pool.
+- Agent-task creation reconciles persisted agent-role board subscription filters: wildcard means all topics, empty declarations remove stale role filters, changed filters replace previous declarations, and user/task subscriptions remain untouched. Records do not start agents automatically.
+- Implicit agent roles normalize to coordinator, matching runtime defaults and applying the same role ceiling/subscription policy. Documentation records these engineering defaults without changing confirmed decisions or work-package status.
+- The existing scripted swarm acceptance fixture now explicitly enables its gameplay module when creating the disposable Project. Previously it implicitly delegated gameplay engineers without declaring that prerequisite; correcting the fixture preserves the new prerequisite check instead of weakening it.
+- No RPC/storage schema or dependency change; no migration required. Existing custom roles with unresolved named pools or missing required modules must correct their configuration. Patch impact restores documented role behavior.
+
+##### Validation
+
+- Named-pool, module-prerequisite, board-reconciliation and implicit-coordinator regressions failed before their fixes and passed afterward. The final owned-area run passed 57 tests across 13 files with one Windows symlink skip.
+- The subsequent facade pool regression passed before dependency restoration; the final combined six-file run passed 58 tests after restoration, including pool/facade and paid asset-approval coverage. An independent read-only review found the facade pool interaction and it was corrected before final verification.
+- Final `npx turbo run build typecheck lint test` passed: 33/33 tasks successful, 22 cache hits for unchanged task inputs, 7m24.71s. The changed platform-service suite ran uncached: 128 files passed, 678 tests passed and six skipped. Theia Control Room verification passed 133 tests across 28 files; other workspaces contributed 76 passing tests and one skip, for 887 passing test cases and seven skips across the monorepo gate. App wrapper test/typecheck/lint scripts that intentionally print skip are not counted as additional test cases. Both Electron and browser application builds completed with zero build errors.
+- Skips were existing Windows/platform prerequisites or unavailable real Godot: Linux-only plugin/isolation cases, symlink/process/credential permission cases, and the archive symlink case. The suite did run real local Blender/WSL inspect/export/render and exception tests, real local Qdrant persistence/isolation tests, and Windows LPAC probes with Node and Electron. Unity/Unreal engine identity/bridge cases and paid-provider behavior used deterministic fixtures; no paid external model/asset generation, ordinary production profile acceptance, or new installer lifecycle was performed.
+- The first broad gate exposed the missing gameplay-module fixture, successful-parent continuation incompatibility, and duplicate board-audit usage; those were corrected without weakening the preserved acceptance assertions. Because source corrections occurred while that initial run was active, its mixed-state failures are not the acceptance result. A fresh complete run supplied the successful result above. A final planner-role cleanup was rebuilt and its role/registry/bundled-skill checks passed seven tests across three files.
+- `bash scripts/check-links.sh` passed with All links OK. `npm run format:check`, `git diff --check`, `npm run changelog:update`, and `npm run changelog:check -- --base HEAD` passed. The final full-gate output is retained locally at `.artifacts/agent-swarm-fixes/full-turbo.log`. Existing manifests/lockfile and the six pre-existing repository Electron processes were preserved; no release/version assignment was performed.
+
+##### Files
+
+- `packages/platform-service/src/models/router.ts`
+- `packages/platform-service/src/models/router.test.ts`
+- `packages/platform-service/src/models/completion-service.ts`
+- `packages/platform-service/src/models/completion-service.test.ts`
+- `packages/platform-service/src/models/completion-task-budget.test.ts`
+- `packages/platform-service/src/plugins/plugin-host.ts`
+- `packages/platform-service/src/tasks/task-service.ts`
+- `packages/platform-service/src/tasks/task-role-policy.test.ts`
+- `packages/platform-service/src/change/swarm-coordination.integration.test.ts`
+- `packages/platform-service/src/service.ts`
+- `docs/INTEGRATION_GUIDE.md`
+- `docs/SKILLS_AGENTS_AND_TOOLS.md`
+- `docs/changes/2026-10-18-role-metadata-policy-fix.md`
+
+#### Use semantic work types for agent skill eligibility (F06)
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-18-skill-work-type-fix.md).
+
+##### Summary
+
+Agent skill search, activation and supporting-resource reads previously filtered by the handler name agent.run, hiding skills configured for semantic work such as code. They now resolve the role snapshot's primary work type, matching model execution, with coordination as the shared empty-role fallback.
+
+##### Details
+
+- Agent skill search, activation and supporting-resource reads previously filtered by the handler name agent.run, hiding skills configured for semantic work such as code. They now resolve the role snapshot's primary work type, matching model execution, with coordination as the shared empty-role fallback.
+- Ordinary non-agent task kinds retain their original work-type behavior. Role and engine/access eligibility filters remain in place; the fix does not make filtered skills universally available.
+- The regression configures role/work-type-specific skill metadata and verifies the same agent can discover, activate and read its supporting instructions. Existing catalog statistics remain recorded against existing task kinds; no historical activation rows are rewritten.
+- No public schema, stored data or dependency migration is needed. Patch impact corrects skill availability. Updated integration/contract documentation explains the semantic-work-type distinction.
+
+##### Validation
+
+- The new semantic search/activation/resource regression failed before implementation and passed afterward. The final owned skills/roles/router/task-role run passed 57 tests across 13 files with one existing Windows symlink skip.
+- Final `npx turbo run build typecheck lint test` passed: 33/33 tasks successful, 22 cache hits for unchanged task inputs, 7m24.71s. The changed platform-service suite ran uncached: 128 files passed, 678 tests passed and six skipped. Theia Control Room verification passed 133 tests across 28 files; other workspaces contributed 76 passing tests and one skip, for 887 passing test cases and seven skips across the monorepo gate. App wrapper test/typecheck/lint scripts that intentionally print skip are not counted as additional test cases. Both Electron and browser application builds completed with zero build errors.
+- Skips were existing Windows/platform prerequisites or unavailable real Godot: Linux-only plugin/isolation cases, symlink/process/credential permission cases, and the archive symlink case. The suite did run real local Blender/WSL inspect/export/render and exception tests, real local Qdrant persistence/isolation tests, and Windows LPAC probes with Node and Electron. Unity/Unreal engine identity/bridge cases and paid-provider behavior used deterministic fixtures; no paid external model/asset generation, ordinary production profile acceptance, or new installer lifecycle was performed.
+- The first broad gate exposed the missing gameplay-module fixture, successful-parent continuation incompatibility, and duplicate board-audit usage; those were corrected without weakening the preserved acceptance assertions. Because source corrections occurred while that initial run was active, its mixed-state failures are not the acceptance result. A fresh complete run supplied the successful result above. A final planner-role cleanup was rebuilt and its role/registry/bundled-skill checks passed seven tests across three files.
+- `bash scripts/check-links.sh` passed with All links OK. `npm run format:check`, `git diff --check`, `npm run changelog:update`, and `npm run changelog:check -- --base HEAD` passed. The final full-gate output is retained locally at `.artifacts/agent-swarm-fixes/full-turbo.log`. Existing manifests/lockfile and the six pre-existing repository Electron processes were preserved; no release/version assignment was performed.
+
+##### Files
+
+- `packages/platform-service/src/skills/skill-service.ts`
+- `packages/platform-service/src/skills/skill-catalog.test.ts`
+- `docs/INTEGRATION_GUIDE.md`
+- `docs/SKILLS_AGENTS_AND_TOOLS.md`
+- `docs/changes/2026-10-18-skill-work-type-fix.md`
+
+#### Give builtin specialists scoped integrated tool grants (F07)
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-18-specialist-connector-grants-fix.md).
+
+##### Summary
+
+Engine engineers, asset producers and validators previously received no tools from their corresponding integrated connector families. Builtin role definitions now enumerate appropriate engine operations, DCC operations and asset generation/job/import/preview/file operations; validators receive connector discovery/inspection while mutation exclusions remain.
+
+##### Details
+
+- Engine engineers, asset producers and validators previously received no tools from their corresponding integrated connector families. Builtin role definitions now enumerate appropriate engine operations, DCC operations and asset generation/job/import/preview/file operations; validators receive connector discovery/inspection while mutation exclusions remain.
+- The broker supports a trusted engine wrapper's delegation to exactly its selected MCP implementation. This internal context cannot be supplied by ordinary tool/call RPC input, cannot grant arbitrary server access, and still enforces explicit downstream denies, effective access policy, Project availability and locks.
+- Removed the planner's dangling task/create tool pattern, which matched no registered agent tool. Its role text now states the existing division of responsibility: submit the plan with tasks/complete, then let the coordinator create executable child tasks through tasks/delegate. No functioning task-creation API was removed from the planner.
+- Role integration tests inspect the actual started service's registered tool catalog and prove paid asset generation still creates an Ask Always approval. The fixture uses a nonexistent account and rejects approval, so no provider request is made.
+- A separate real broker regression proves direct raw MCP access, wrong selected-tool delegation, and a disallowed owning wrapper all fail; the exact authorized selection succeeds once, and an explicit downstream deny blocks it afterward.
+- No public schema or migration. Roles retain their access ceilings and process/filesystem contracts. Paid generation remains approval-gated, and arbitrary engine console access is not added through a blanket wildcard. Patch impact.
+
+##### Validation
+
+- Role-grant and asset tests reproduced missing grants before implementation. The final six-file scoped run passed 58 tests, including asset approval denial.
+- The new focused broker delegation regression passed; its other 16 tests were intentionally filtered in that invocation. It uses an in-memory MCP handler rather than a real engine.
+- Final `npx turbo run build typecheck lint test` passed: 33/33 tasks successful, 22 cache hits for unchanged task inputs, 7m24.71s. The changed platform-service suite ran uncached: 128 files passed, 678 tests passed and six skipped. Theia Control Room verification passed 133 tests across 28 files; other workspaces contributed 76 passing tests and one skip, for 887 passing test cases and seven skips across the monorepo gate. App wrapper test/typecheck/lint scripts that intentionally print skip are not counted as additional test cases. Both Electron and browser application builds completed with zero build errors.
+- Skips were existing Windows/platform prerequisites or unavailable real Godot: Linux-only plugin/isolation cases, symlink/process/credential permission cases, and the archive symlink case. The suite did run real local Blender/WSL inspect/export/render and exception tests, real local Qdrant persistence/isolation tests, and Windows LPAC probes with Node and Electron. Unity/Unreal engine identity/bridge cases and paid-provider behavior used deterministic fixtures; no paid external model/asset generation, ordinary production profile acceptance, or new installer lifecycle was performed.
+- The first broad gate exposed the missing gameplay-module fixture, successful-parent continuation incompatibility, and duplicate board-audit usage; those were corrected without weakening the preserved acceptance assertions. Because source corrections occurred while that initial run was active, its mixed-state failures are not the acceptance result. A fresh complete run supplied the successful result above. A final planner-role cleanup was rebuilt and its role/registry/bundled-skill checks passed seven tests across three files.
+- `bash scripts/check-links.sh` passed with All links OK. `npm run format:check`, `git diff --check`, `npm run changelog:update`, and `npm run changelog:check -- --base HEAD` passed. The final full-gate output is retained locally at `.artifacts/agent-swarm-fixes/full-turbo.log`. Existing manifests/lockfile and the six pre-existing repository Electron processes were preserved; no release/version assignment was performed.
+
+##### Files
+
+- `packages/platform-service/roles/engine-engineer/ROLE.md`
+- `packages/platform-service/roles/asset-producer/ROLE.md`
+- `packages/platform-service/roles/validator/ROLE.md`
+- `packages/platform-service/roles/planner/ROLE.md`
+- `packages/platform-service/src/roles/role-tools.integration.test.ts`
+- `packages/platform-service/src/tools/tool-broker.ts`
+- `packages/platform-service/src/tools/tool-broker.integration.test.ts`
+- `packages/platform-service/src/engines/engine-connector-service.ts`
+- `docs/INTEGRATION_GUIDE.md`
+- `docs/SKILLS_AGENTS_AND_TOOLS.md`
+- `docs/changes/2026-10-18-specialist-connector-grants-fix.md`
+
+#### Yield and reacquire swarm capacity around child waits (F05)
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-18-swarm-await-capacity-fix.md).
+
+##### Summary
+
+Coordinators previously occupied execution slots while tasks/await polled queued descendants, starving children at a one-worker limit and when all slots held waiting coordinators. The supervisor now yields capacity only around supervised child waits while retaining the running task, leases, heartbeat and checkpoints.
+
+##### Details
+
+- Coordinators previously occupied execution slots while tasks/await polled queued descendants, starving children at a one-worker limit and when all slots held waiting coordinators. The supervisor now yields capacity only around supervised child waits while retaining the running task, leases, heartbeat and checkpoints.
+- Await completion, timeout and error must reacquire a normal slot before the tool result returns. Resumption is prioritized over new tasks and counts toward configured concurrency. Additional tool calls while yielded are rejected; cancellation and process exit abort pending controllers and release waiters.
+- Real forked-worker regressions exercise concurrency one and two with two coordinators and children, timeout resumption, subtree cancellation, refreshed tool snapshots and once-only service-accounted usage.
+- No public task state, RPC shape or database migration was introduced. Concurrency remains an active execution limit; yielded coordinators remain supervised processes. Patch impact restores progress without increasing the configured active slot limit.
+
+##### Validation
+
+- The focused worker IPC suite passed five tests after the final refresh-error regression. Its broker fixture invokes the actual registered tasks/await handler with actual TaskService and forked child IPC.
+- The earlier combined five-file worker/runtime/budget regression run passed 47 tests. These are fixture/process checks, not a live paid-model swarm acceptance claim.
+- Final `npx turbo run build typecheck lint test` passed: 33/33 tasks successful, 22 cache hits for unchanged task inputs, 7m24.71s. The changed platform-service suite ran uncached: 128 files passed, 678 tests passed and six skipped. Theia Control Room verification passed 133 tests across 28 files; other workspaces contributed 76 passing tests and one skip, for 887 passing test cases and seven skips across the monorepo gate. App wrapper test/typecheck/lint scripts that intentionally print skip are not counted as additional test cases. Both Electron and browser application builds completed with zero build errors.
+- Skips were existing Windows/platform prerequisites or unavailable real Godot: Linux-only plugin/isolation cases, symlink/process/credential permission cases, and the archive symlink case. The suite did run real local Blender/WSL inspect/export/render and exception tests, real local Qdrant persistence/isolation tests, and Windows LPAC probes with Node and Electron. Unity/Unreal engine identity/bridge cases and paid-provider behavior used deterministic fixtures; no paid external model/asset generation, ordinary production profile acceptance, or new installer lifecycle was performed.
+- The first broad gate exposed the missing gameplay-module fixture, successful-parent continuation incompatibility, and duplicate board-audit usage; those were corrected without weakening the preserved acceptance assertions. Because source corrections occurred while that initial run was active, its mixed-state failures are not the acceptance result. A fresh complete run supplied the successful result above. A final planner-role cleanup was rebuilt and its role/registry/bundled-skill checks passed seven tests across three files.
+- `bash scripts/check-links.sh` passed with All links OK. `npm run format:check`, `git diff --check`, `npm run changelog:update`, and `npm run changelog:check -- --base HEAD` passed. The final full-gate output is retained locally at `.artifacts/agent-swarm-fixes/full-turbo.log`. Existing manifests/lockfile and the six pre-existing repository Electron processes were preserved; no release/version assignment was performed.
+
+##### Files
+
+- `packages/platform-service/src/workers/supervisor.ts`
+- `packages/platform-service/src/workers/types.ts`
+- `packages/platform-service/src/workers/worker-main.ts`
+- `packages/platform-service/src/workers/supervisor-await.test.ts`
+- `packages/platform-service/src/workers/supervisor-await-fixture.cjs`
+- `docs/changes/2026-10-18-swarm-await-capacity-fix.md`
+
+#### Enforce model budgets across delegated task trees (F03)
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-18-swarm-shared-budget-fix.md).
+
+##### Summary
+
+Delegated children previously had independent spend counters without enforcement of an ancestor's request envelope. The central CompletionService now applies shared subtree cost/token limits to every task-associated completion, covering agent tools, direct completion RPCs, plugin model calls and MCP sampling.
+
+##### Details
+
+- Delegated children previously had independent spend counters without enforcement of an ancestor's request envelope. The central CompletionService now applies shared subtree cost/token limits to every task-associated completion, covering agent tools, direct completion RPCs, plugin model calls and MCP sampling.
+- The service serializes budgeted dispatch per request tree, recalculates durable descendant spend against every ancestor ceiling, and records provider-dispatch reservations and settlements in existing task events. Unbudgeted requests retain parallel dispatch. Known actual usage is recorded immediately once; runtime progress marks service-accounted usage to avoid duplicate charges.
+- Reservation creation occurs immediately before provider dispatch, after model/pool/capacity/pricing preflight. Deterministic rejected or already-aborted requests leave no reservation. Interrupted or unknown/partial monetary charges retain explicit unresolved holds under a monetary envelope instead of inventing actual spend. Exact tokens settle token-only reservations even when dollar pricing is unknown.
+- Delegation inherits or narrows parent cost and duration ceilings, preserves an explicit optional parent token ceiling, and does not let coordinators invent token ceilings. Optional decision assessment without a verifiable cost/token bound is skipped under a finite envelope. Duration expiry cancels its subtree; each task's duration is measured from its own start.
+- Completed current tasks cannot dispatch paid requests, and model delegation requires a running parent. Service-created followups under successful ancestors retain the original root's aggregate budget; failed/cancelled ancestors or a durable cancellation request revoke further dispatch. Added regressions cover successful-parent continuation without budget reset and cancellation markers after service reconstruction.
+- The full suite exposed duplicate board-maintenance usage after accounting moved into the central service. Its worker progress now marks that already-persisted usage as service-accounted, retaining progress telemetry without charging the same tokens twice. The existing routed board-audit regression retains its exact 14-token expectation.
+- Documentation separates model-dollar envelopes from externally approved asset-provider credits. No budget is silently assigned a currency conversion. No database/RPC migration or dependency change is required. Patch impact restores existing budget promises; current product version remains unchanged.
+
+##### Validation
+
+- SQLite helper regressions cover concurrent siblings, nested limits, more than 200 descendants, reconstructed service state, unknown/partial prices, interrupted dispatch, no-dispatch rejection, terminal ancestors, and unbudgeted concurrency.
+- The central completion regression uses actual in-memory Project SQLite plus real CompletionService/ModelRouter and a deterministic provider fixture: a sibling cannot exceed the root envelope, direct model IDs retain task-role pools, and cancellation causes no provider dispatch/reservation.
+- The final scoped budget/router/role run passed 58 tests across six files. An initial new fixture used an input capacity smaller than conservative message framing; the fixture capacity/pricing were corrected, with production guards preserved.
+- npm ci was attempted but Windows denied replacement of an Electron executable held by existing repository processes. Dependencies were restored with npm install --ignore-scripts --no-package-lock, then synchronized against the unchanged lockfile using npm install --ignore-scripts. npm run postinstall applied both maintained patches; npm rebuild and node node_modules/electron/install.js succeeded. No tracked manifest or lockfile changed and existing Electron processes were not stopped.
+- Final `npx turbo run build typecheck lint test` passed: 33/33 tasks successful, 22 cache hits for unchanged task inputs, 7m24.71s. The changed platform-service suite ran uncached: 128 files passed, 678 tests passed and six skipped. Theia Control Room verification passed 133 tests across 28 files; other workspaces contributed 76 passing tests and one skip, for 887 passing test cases and seven skips across the monorepo gate. App wrapper test/typecheck/lint scripts that intentionally print skip are not counted as additional test cases. Both Electron and browser application builds completed with zero build errors.
+- Skips were existing Windows/platform prerequisites or unavailable real Godot: Linux-only plugin/isolation cases, symlink/process/credential permission cases, and the archive symlink case. The suite did run real local Blender/WSL inspect/export/render and exception tests, real local Qdrant persistence/isolation tests, and Windows LPAC probes with Node and Electron. Unity/Unreal engine identity/bridge cases and paid-provider behavior used deterministic fixtures; no paid external model/asset generation, ordinary production profile acceptance, or new installer lifecycle was performed.
+- The first broad gate exposed the missing gameplay-module fixture, successful-parent continuation incompatibility, and duplicate board-audit usage; those were corrected without weakening the preserved acceptance assertions. Because source corrections occurred while that initial run was active, its mixed-state failures are not the acceptance result. A fresh complete run supplied the successful result above. A final planner-role cleanup was rebuilt and its role/registry/bundled-skill checks passed seven tests across three files.
+- `bash scripts/check-links.sh` passed with All links OK. `npm run format:check`, `git diff --check`, `npm run changelog:update`, and `npm run changelog:check -- --base HEAD` passed. The final full-gate output is retained locally at `.artifacts/agent-swarm-fixes/full-turbo.log`. Existing manifests/lockfile and the six pre-existing repository Electron processes were preserved; no release/version assignment was performed.
+
+##### Files
+
+- `packages/platform-service/src/agents/shared-task-budget.ts`
+- `packages/platform-service/src/agents/shared-task-budget.test.ts`
+- `packages/platform-service/src/agents/agent-tools.ts`
+- `packages/platform-service/src/agents/agent-tools.test.ts`
+- `packages/platform-service/src/agents/agent-runtime.ts`
+- `packages/platform-service/src/workers/types.ts`
+- `packages/platform-service/src/workers/supervisor.ts`
+- `packages/platform-service/src/workers/board-maintenance-handlers.ts`
+- `packages/platform-service/src/models/completion-service.ts`
+- `packages/platform-service/src/models/completion-service.test.ts`
+- `packages/platform-service/src/models/completion-task-budget.test.ts`
+- `packages/platform-service/src/service.ts`
+- `docs/INTEGRATION_GUIDE.md`
+- `docs/SKILLS_AGENTS_AND_TOOLS.md`
+- `docs/changes/2026-10-18-swarm-shared-budget-fix.md`
+
+#### Fence task trees before cancellation waits (F04)
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-18-task-cancellation-fencing-fix.md).
+
+##### Summary
+
+Cancellation previously snapshotted descendants and awaited deepest-first worker shutdown while ancestors could still delegate. It now persists the complete snapshot as cancelled synchronously before publishing callbacks or awaiting shutdown.
+
+##### Details
+
+- Cancellation previously snapshotted descendants and awaited deepest-first worker shutdown while ancestors could still delegate. It now persists the complete snapshot as cancelled synchronously before publishing callbacks or awaiting shutdown.
+- Task creation walks every ancestor and rejects failed/cancelled owners and durable cancellation requests before duplicate detection or insertion. A `task.cancel_requested` event fences even a successfully completed root whose active followups are cancelled; the barrier survives database close/reopen. Reentrant callbacks and workers waiting during shutdown cannot extend a cancelled tree.
+- Internal event publication reads all generated cancellation events instead of applying the public query's default event-page limit. A 256-task cancellation publishes all 513 generated request/state/cancellation events.
+- Successfully completed ancestors still permit service-created reconciliation, revert and feedback followups within the original request tree and shared budget. A broad terminal-ancestor rejection initially broke that established workflow during verification; it was narrowed while adding a durable cancellation barrier. Agent delegation separately requires its own parent to be running. No persisted schema or public state value was added; the new internal event uses the extensible existing event contract. Parent/child IDs and successful history are preserved, no migration required. Patch impact.
+
+##### Validation
+
+- Four original SQLite regression cases were run before the fix and reproduced the failures. Following successful-parent compatibility and durable cancellation-barrier corrections, graph/store verification passed 13 tests across two files; task-service integration previously passed 14 tests.
+- These tests use actual Project migrations and SQLite, plus controlled callbacks for shutdown timing; no ordinary profile was changed.
+- Final `npx turbo run build typecheck lint test` passed: 33/33 tasks successful, 22 cache hits for unchanged task inputs, 7m24.71s. The changed platform-service suite ran uncached: 128 files passed, 678 tests passed and six skipped. Theia Control Room verification passed 133 tests across 28 files; other workspaces contributed 76 passing tests and one skip, for 887 passing test cases and seven skips across the monorepo gate. App wrapper test/typecheck/lint scripts that intentionally print skip are not counted as additional test cases. Both Electron and browser application builds completed with zero build errors.
+- Skips were existing Windows/platform prerequisites or unavailable real Godot: Linux-only plugin/isolation cases, symlink/process/credential permission cases, and the archive symlink case. The suite did run real local Blender/WSL inspect/export/render and exception tests, real local Qdrant persistence/isolation tests, and Windows LPAC probes with Node and Electron. Unity/Unreal engine identity/bridge cases and paid-provider behavior used deterministic fixtures; no paid external model/asset generation, ordinary production profile acceptance, or new installer lifecycle was performed.
+- The first broad gate exposed the missing gameplay-module fixture, successful-parent continuation incompatibility, and duplicate board-audit usage; those were corrected without weakening the preserved acceptance assertions. Because source corrections occurred while that initial run was active, its mixed-state failures are not the acceptance result. A fresh complete run supplied the successful result above. A final planner-role cleanup was rebuilt and its role/registry/bundled-skill checks passed seven tests across three files.
+- `bash scripts/check-links.sh` passed with All links OK. `npm run format:check`, `git diff --check`, `npm run changelog:update`, and `npm run changelog:check -- --base HEAD` passed. The final full-gate output is retained locally at `.artifacts/agent-swarm-fixes/full-turbo.log`. Existing manifests/lockfile and the six pre-existing repository Electron processes were preserved; no release/version assignment was performed.
+
+##### Files
+
+- `packages/platform-service/src/tasks/task-graph.ts`
+- `packages/platform-service/src/tasks/task-store.ts`
+- `packages/platform-service/src/tasks/task-graph.test.ts`
+- `docs/changes/2026-10-18-task-cancellation-fencing-fix.md`
+
+#### Propagate dependency outcomes beyond public page limits (F08)
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-18-task-dependency-propagation-fix.md).
+
+##### Summary
+
+Dependency propagation previously listed only the first 200 pending/blocked tasks and then filtered for the completed prerequisite. Relevant dependents beyond that public page could remain pending or miss failure propagation indefinitely.
+
+##### Details
+
+- Dependency propagation previously listed only the first 200 pending/blocked tasks and then filtered for the completed prerequisite. Relevant dependents beyond that public page could remain pending or miss failure propagation indefinitely.
+- TaskStore now queries dependents directly in SQLite by dependency ID without a public row-page limit; TaskGraph applies success/failure transitions to the complete matching set.
+- Regressions place more than 200 unrelated pending rows before more than 200 actual dependents, and verify both successful prerequisites and failed prerequisites propagate correctly.
+- The public task-list default remains bounded. No schema or migration is required; only internal dependency queries change. Patch impact restores existing graph semantics.
+
+##### Validation
+
+- SQLite success and failure propagation regressions failed before the fix and passed afterward. Graph/store verification passed 10 tests and existing task-service integration passed 14 tests.
+- Final `npx turbo run build typecheck lint test` passed: 33/33 tasks successful, 22 cache hits for unchanged task inputs, 7m24.71s. The changed platform-service suite ran uncached: 128 files passed, 678 tests passed and six skipped. Theia Control Room verification passed 133 tests across 28 files; other workspaces contributed 76 passing tests and one skip, for 887 passing test cases and seven skips across the monorepo gate. App wrapper test/typecheck/lint scripts that intentionally print skip are not counted as additional test cases. Both Electron and browser application builds completed with zero build errors.
+- Skips were existing Windows/platform prerequisites or unavailable real Godot: Linux-only plugin/isolation cases, symlink/process/credential permission cases, and the archive symlink case. The suite did run real local Blender/WSL inspect/export/render and exception tests, real local Qdrant persistence/isolation tests, and Windows LPAC probes with Node and Electron. Unity/Unreal engine identity/bridge cases and paid-provider behavior used deterministic fixtures; no paid external model/asset generation, ordinary production profile acceptance, or new installer lifecycle was performed.
+- The first broad gate exposed the missing gameplay-module fixture, successful-parent continuation incompatibility, and duplicate board-audit usage; those were corrected without weakening the preserved acceptance assertions. Because source corrections occurred while that initial run was active, its mixed-state failures are not the acceptance result. A fresh complete run supplied the successful result above. A final planner-role cleanup was rebuilt and its role/registry/bundled-skill checks passed seven tests across three files.
+- `bash scripts/check-links.sh` passed with All links OK. `npm run format:check`, `git diff --check`, `npm run changelog:update`, and `npm run changelog:check -- --base HEAD` passed. The final full-gate output is retained locally at `.artifacts/agent-swarm-fixes/full-turbo.log`. Existing manifests/lockfile and the six pre-existing repository Electron processes were preserved; no release/version assignment was performed.
+
+##### Files
+
+- `packages/platform-service/src/tasks/task-store.ts`
+- `packages/platform-service/src/tasks/task-graph.ts`
+- `packages/platform-service/src/tasks/task-graph.test.ts`
+- `docs/changes/2026-10-18-task-dependency-propagation-fix.md`
+
+### Security
+
+#### Preserve session policy through engine and DCC RPCs (F01)
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-18-connector-session-policy-fix.md).
+
+##### Summary
+
+Engine/run and dcc/run previously discarded their authenticated RPC session context, allowing Project Full policy to override a session's Restricted or Ask Always policy. Both connector service run methods now accept an internal broker context and forward it from the service RPC handlers.
+
+##### Details
+
+- Engine/run and dcc/run previously discarded their authenticated RPC session context, allowing Project Full policy to override a session's Restricted or Ask Always policy. Both connector service run methods now accept an internal broker context and forward it from the service RPC handlers.
+- The change retains normal Project/task ceilings and connector capability validation. Engine live-bridge calls carry the effective access ceiling and inherited role constraints into the selected MCP operation.
+- Authenticated-service regressions compare ordinary tool/call with both wrapper paths under Project Full plus session Restricted, assert both are denied with audited Restricted policy, then verify each wrapper creates an Ask Always approval and honors rejection. An independent session retains Project Full.
+- Compatibility: RPC payloads and persisted schemas are unchanged; optional internal connector parameters preserve existing callers. Previously bypassed session restrictions now apply. No migration required; patch impact is appropriate.
+
+##### Validation
+
+- The new connector-session-policy.integration.test.ts passed both engine and DCC cases. Node stood in for installed executables; no mutating engine/DCC process was approved.
+- Initial narrow broker/session run passed 18 tests across two files before the later additional connector delegation regression. Full verification results follow below.
+- Final `npx turbo run build typecheck lint test` passed: 33/33 tasks successful, 22 cache hits for unchanged task inputs, 7m24.71s. The changed platform-service suite ran uncached: 128 files passed, 678 tests passed and six skipped. Theia Control Room verification passed 133 tests across 28 files; other workspaces contributed 76 passing tests and one skip, for 887 passing test cases and seven skips across the monorepo gate. App wrapper test/typecheck/lint scripts that intentionally print skip are not counted as additional test cases. Both Electron and browser application builds completed with zero build errors.
+- Skips were existing Windows/platform prerequisites or unavailable real Godot: Linux-only plugin/isolation cases, symlink/process/credential permission cases, and the archive symlink case. The suite did run real local Blender/WSL inspect/export/render and exception tests, real local Qdrant persistence/isolation tests, and Windows LPAC probes with Node and Electron. Unity/Unreal engine identity/bridge cases and paid-provider behavior used deterministic fixtures; no paid external model/asset generation, ordinary production profile acceptance, or new installer lifecycle was performed.
+- The first broad gate exposed the missing gameplay-module fixture, successful-parent continuation incompatibility, and duplicate board-audit usage; those were corrected without weakening the preserved acceptance assertions. Because source corrections occurred while that initial run was active, its mixed-state failures are not the acceptance result. A fresh complete run supplied the successful result above. A final planner-role cleanup was rebuilt and its role/registry/bundled-skill checks passed seven tests across three files.
+- `bash scripts/check-links.sh` passed with All links OK. `npm run format:check`, `git diff --check`, `npm run changelog:update`, and `npm run changelog:check -- --base HEAD` passed. The final full-gate output is retained locally at `.artifacts/agent-swarm-fixes/full-turbo.log`. Existing manifests/lockfile and the six pre-existing repository Electron processes were preserved; no release/version assignment was performed.
+
+##### Files
+
+- `packages/platform-service/src/service.ts`
+- `packages/platform-service/src/engines/engine-connector-service.ts`
+- `packages/platform-service/src/dcc/dcc-connector-service.ts`
+- `packages/platform-service/src/tools/connector-session-policy.integration.test.ts`
+- `docs/changes/2026-10-18-connector-session-policy-fix.md`
+
+#### Retain caller role restrictions across plugin facades (F02)
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-18-plugin-role-policy-fix.md).
+
+##### Summary
+
+Plugin host callbacks previously replaced the calling agent role with a plugin identity, and broker role checks exempted that identity. Nested calls now retain originating role constraints while keeping plugin execution attribution and capability checks.
+
+##### Details
+
+- Plugin host callbacks previously replaced the calling agent role with a plugin identity, and broker role checks exempted that identity. Nested calls now retain originating role constraints while keeping plugin execution attribution and capability checks.
+- The broker intersects explicit caller, recorded task/assignee, and inherited roles. Constraint propagation through tool handler context and engine-to-MCP calls preserves nested restrictions; explicit downstream deny patterns remain authoritative.
+- The native sample-plugin lifecycle regression grants a custom role the plugin facade but denies fs/read-file. The facade still runs, while its host callback returns RoleToolDenied and writes a denied audit record. The preceding unrestrained plugin call reads the same fixture file successfully.
+- Compatibility: no public RPC or data schema changes and no migration. Trusted plugins still need their accepted capabilities and effective access mode. An allowed facade no longer implies authority to bypass the originating agent's role; patch impact reflects restored policy.
+
+##### Validation
+
+- The native plugin integration regression ran through the actual sandboxed sample plugin and authenticated service. Its first broader run passed that regression but exposed an ad hoc plugin-role routing error; the router resolver was corrected to ignore only missing role definitions, and the focused plugin-model case then passed.
+- Plugin and broker checks use disposable profiles/files; no production credentials or external engine/provider were invoked.
+- Final `npx turbo run build typecheck lint test` passed: 33/33 tasks successful, 22 cache hits for unchanged task inputs, 7m24.71s. The changed platform-service suite ran uncached: 128 files passed, 678 tests passed and six skipped. Theia Control Room verification passed 133 tests across 28 files; other workspaces contributed 76 passing tests and one skip, for 887 passing test cases and seven skips across the monorepo gate. App wrapper test/typecheck/lint scripts that intentionally print skip are not counted as additional test cases. Both Electron and browser application builds completed with zero build errors.
+- Skips were existing Windows/platform prerequisites or unavailable real Godot: Linux-only plugin/isolation cases, symlink/process/credential permission cases, and the archive symlink case. The suite did run real local Blender/WSL inspect/export/render and exception tests, real local Qdrant persistence/isolation tests, and Windows LPAC probes with Node and Electron. Unity/Unreal engine identity/bridge cases and paid-provider behavior used deterministic fixtures; no paid external model/asset generation, ordinary production profile acceptance, or new installer lifecycle was performed.
+- The first broad gate exposed the missing gameplay-module fixture, successful-parent continuation incompatibility, and duplicate board-audit usage; those were corrected without weakening the preserved acceptance assertions. Because source corrections occurred while that initial run was active, its mixed-state failures are not the acceptance result. A fresh complete run supplied the successful result above. A final planner-role cleanup was rebuilt and its role/registry/bundled-skill checks passed seven tests across three files.
+- `bash scripts/check-links.sh` passed with All links OK. `npm run format:check`, `git diff --check`, `npm run changelog:update`, and `npm run changelog:check -- --base HEAD` passed. The final full-gate output is retained locally at `.artifacts/agent-swarm-fixes/full-turbo.log`. Existing manifests/lockfile and the six pre-existing repository Electron processes were preserved; no release/version assignment was performed.
+
+##### Files
+
+- `packages/platform-service/src/plugins/plugin-host.ts`
+- `packages/platform-service/src/plugins/plugin-service.integration.test.ts`
+- `packages/platform-service/src/tools/tool-broker.ts`
+- `packages/platform-service/src/tools/tool-registry.ts`
+- `packages/platform-service/src/engines/engine-connector-service.ts`
+- `packages/platform-service/src/service.ts`
+- `docs/changes/2026-10-18-plugin-role-policy-fix.md`
+
+### Maintenance
+
+#### Agent, swarm, and integration consistency review
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-18-agent-swarm-integration-review.md).
+
+##### Summary
+
+Investigation only: reviewed the current PlayWeld agent, swarm, skill, plugin, MCP, and engine/DCC integration paths. Identified ten actionable inconsistencies or contract gaps. No runtime fixes, dependency changes, release preparation, profile changes, or external engine/provider mutations were performed by this review.
+
+##### Details
+
+- Scope and snapshot: inspected the current working tree on 2026-10-18, including pre-existing model-discovery, token-budget, package-version, generated-reference, and release edits. These edits were preserved and were not treated as changes authored or validated by this investigation. Reviewed repository/Kilo agent procedures separately from the service's builtin `ROLE.md` agents; these are different execution systems, not duplicate runtime definitions. Used Development OS, Specialist Reasoning, and Evidence Stewardship plugin skills, two independent read-only review agents, and the actual Context7 resolve/query tools for the official MCP tool-list notification contract. The diff-oriented `code-review` skill and the Codex Security scan skill were inspected for fit, but their workflows were not run; this was a system audit, not a completed Codex Security workbench scan.
+
+###### F01 — P1: engine and DCC RPC wrappers lose session access policy
+
+- Evidence: `packages/platform-service/src/service.ts:498` and `:517` discard the RPC context for `engine/run` and `dcc/run`. Their connector services call the broker without session context at `packages/platform-service/src/engines/engine-connector-service.ts:375` and `packages/platform-service/src/dcc/dcc-connector-service.ts:302`. Ordinary `tool/call` forwards the session at `service.ts:731`.
+- Trigger and consequence: Project access is Full, but the requesting session is Restricted or Ask Always. A connector operation uses the broader Project policy, whereas the equivalent ordinary tool call honors the session. Applicable task ceilings and other broker checks still exist; this is a session-policy propagation defect, not an authentication bypass claim.
+- Probe: current-source broker policy comparison returned `direct tool/call access=restricted` and `engine/dcc wrapper access=full`. Invoking the actual engine connector `run` method with fake capabilities and a stopping broker spy reached `engine/build` without a broker context. The corresponding DCC omission is source-reviewed; an attempted DCC probe stopped at UUID validation and does not establish execution through that broker path.
+- Recommended correction: propagate authenticated session context through both connector entry points and nested calls. Add an isolated RPC regression comparing direct and wrapped execution under Project Full plus session Restricted/Ask Always.
+
+###### F02 — P1: nested plugin calls discard the caller's role restrictions
+
+- Evidence: `packages/platform-service/src/plugins/plugin-host.ts:715` saves the calling role, but `:524` substitutes `plugin:<id>` for downstream `host/tool/call`. `packages/platform-service/src/tools/tool-broker.ts:326` prefers that explicit role over the task's recorded role; `:588` exempts `plugin:` identities from role allowlists and disallowed tools.
+- Trigger and consequence: a custom role allows a trusted plugin facade but denies its downstream tool. A plugin granted `tools.call` and any additional required host capability can make that downstream broker call without the caller's role restriction. Plugin capability grants, Project availability, effective access mode, approvals, and resource locks remain separate constraints. A Full or appropriately approved task with a restrictive role is the consequential case; the probe did not execute a forbidden engine operation under Restricted mode.
+- Probe: actual source-loaded `PluginHost.callHostTool` received an invocation with role `reviewer` and emitted nested broker context `{accessCeiling: 'restricted', agentRole: 'plugin:fixture'}` for `engine/console`. Actual broker `roleAllows` returned true for the replacement role. This establishes loss of the role constraint, not successful console execution or OS sandbox escape.
+- Recommended correction: retain plugin identity and capabilities while also intersecting nested calls with the originating agent's role restrictions. Add a regression with an allowed facade and explicitly denied downstream operation.
+
+###### F03 — P1: delegation does not preserve a request-wide cost envelope
+
+- Evidence: `packages/platform-service/src/agents/agent-tools.ts:310` builds a child budget from model arguments and inherits only an explicitly supplied parent token ceiling. Parent cost and duration limits are not inherited automatically. `packages/platform-service/src/tasks/task-graph.ts:108` starts a separate child spend counter; `packages/platform-service/src/workers/supervisor.ts:528` accounts usage against the individual task. No ancestor aggregation was found in these paths. The target contract in `docs/SKILLS_AGENTS_AND_TOOLS.md:131` describes inherited and subdivided budgets.
+- Trigger and consequence: a coordinator with a user-supplied one-dollar cost limit delegates without a child budget. Its child has no corresponding cost ceiling, and descendant spend is not charged to the root's envelope. Other configured model limits may still apply; they do not establish the requested subtree budget.
+- Probe: actual delegation handler with parent budget `{maxTokens:10000,maxCostUsd:1,maxDurationMs:1000}` and spend `{tokens:9000,costUsd:0.9}` produced child budget `{maxTokens:10000}`.
+- Qualification: the current dirty-tree change deliberately prevents models from inventing token ceilings and copies an explicit parent token ceiling. That behavior is documented in `roles/coordinator/ROLE.md` and covered by its current tests; it is not itself being reported as an accidental regression. The finding concerns cost-envelope inheritance and aggregate accounting. Duration semantics also need an explicit root-deadline versus per-task contract.
+- Recommended correction: enforce the user's request cost envelope across descendants using atomic reservations or aggregate accounting; preserve the intended optional token-budget behavior.
+
+###### F04 — P1: cancellation can miss children delegated during shutdown
+
+- Evidence: `packages/platform-service/src/tasks/task-graph.ts:163` snapshots descendants once, then processes them deepest first while awaiting shutdown at `:197`. Ancestors remain able to run during those awaits. Creation at `:55` has no cancellation barrier on the parent/ancestor chain.
+- Trigger and consequence: parent P has child A; while cancellation of P awaits A's shutdown, P delegates B. B is outside the snapshot and can remain ready or execute after P is cancelled.
+- Probe: executed actual `TaskGraph.cancel` with an isolated store and inserted B during the awaited child-stop callback. Result: cancelled tasks were A and P; P was `cancelled`, B remained `ready`.
+- Recommended correction: fence the subtree against new delegation before awaiting shutdown, reject creation beneath cancelling or terminal ancestors, and cover the concurrent-delegation case. A second unfenced sweep alone does not close the race.
+
+###### F05 — P1: waiting coordinators can starve their own children
+
+- Evidence: `packages/platform-service/src/workers/supervisor.ts:193` counts every non-stopped, unfinished worker against Project concurrency and skips dispatch at `:220` when full. `packages/platform-service/src/agents/agent-tools.ts:389` implements `tasks/await` by polling inside the existing parent worker without yielding execution capacity.
+- Trigger and consequence: with `agents.maxConcurrentPerProject=1`, a coordinator delegates a child and awaits it; the child cannot start until the parent releases its slot. The same starvation occurs at higher limits when all slots are occupied by coordinators waiting for queued descendants. The call times out rather than waiting forever, but repeated waits do not make progress.
+- Probe: actual `tasks/await` handler plus actual `WorkerSupervisor.schedule`, with a stub store and one active parent, returned `childStarts:0`, child state `ready`, and `timedOut:true` for a 60ms wait. This is method-interaction evidence, not a full child-process/provider test.
+- Recommended correction: represent dependency waiting explicitly and yield execution capacity with guarded resumption that still enforces the Project concurrency limit.
+
+###### F06 — P2: skill work-type eligibility uses the execution kind
+
+- Evidence: `packages/platform-service/src/skills/skill-service.ts:87` and `:137` pass `task.kind` as `workType`. For service agents this is `agent.run`, while roles and model routing use semantic work types such as `code`. `packages/platform-service/src/skills/skill-catalog.ts` applies exact membership filtering.
+- Trigger and consequence: author a skill eligible for `code` and the engine-engineer role. It appears in a direct catalog query for `code`, but disappears from that role's agent-task search and cannot activate during the task. Unfiltered bundled skills can still work, so ordinary bundled-skill tests do not establish this integration.
+- Probe: used actual current `SkillCatalog` and `SkillService` with a disposable in-memory fixture. Direct `code` catalog returned `[code-only]`; `searchForTask` for the engine-engineer `agent.run` task returned `[]`; activation rejected it as ineligible.
+- Recommended correction: define and consistently resolve the task's semantic work type for skill discovery, activation, resource reads, and outcome statistics, separately from its execution handler kind. Cover role and skill metadata together.
+
+###### F07 — P2: builtin specialist roles cannot use their integrated tool families
+
+- Evidence: `packages/platform-service/roles/engine-engineer/ROLE.md:8`, `packages/platform-service/roles/asset-producer/ROLE.md:8`, and `packages/platform-service/roles/validator/ROLE.md:7` omit engine/DCC tool patterns. `packages/platform-service/src/tools/tool-broker.ts:587` enforces those patterns; `packages/platform-service/src/workers/supervisor.ts:407` sends the filtered tool snapshot to agents.
+- Trigger and consequence: delegate engine, DCC, or structured engine validation work to the corresponding builtin specialist. Its offered tools lack the owning connector APIs even when those APIs are installed and otherwise available. Shell-based work may still work, but it does not provide the same structured capability gates, connector run records, or live-bridge path. The asset producer also has no explicit asset-provider tool family grant; that observation was source-reviewed, not included in the 20-tool probe.
+- Probe: loaded real builtin role files, registered actual engine and DCC tool definitions, and invoked actual broker inspection. Each of engine-engineer, asset-producer, and validator received zero of 20 integrated tools, all excluded as `role_tool_denied`.
+- Recommended correction: grant selected operations appropriate to each role and its access ceiling, preserve lock/approval checks, and deliberately handle any downstream MCP authorization. Do not replace the allowlists with blanket access. The planner's `task/create` pattern also has no matching registered agent tool; distinguish a plan-only role from an actually task-creating role when reconciling these definitions.
+
+###### F08 — P2: dependency propagation silently stops at 200 candidates
+
+- Evidence: `packages/platform-service/src/tasks/task-graph.ts:317` lists pending/blocked tasks without a limit before filtering by dependency ID; `packages/platform-service/src/tasks/task-store.ts:170` defaults to 200 rows. The scheduler dispatches ready/running tasks, so omitted pending dependents do not become runnable automatically.
+- Trigger and consequence: complete a prerequisite with 201 pending dependents. One remains pending. Older unrelated pending tasks can also consume the first page and hide a smaller relevant dependency set. Failure propagation uses the same bounded candidate scan.
+- Probe: actual `TaskGraph`, actual `TaskStore`, Project migrations, and disposable in-memory SQLite produced `ready:200`, `pending:1`, prerequisite `succeeded`.
+- Recommended correction: query dependents directly or paginate the full candidate set. Cover both large fanout and unrelated older pending tasks.
+
+###### F09 — P2: MCP registry refresh does not refresh running agents' offered tools
+
+- Evidence: `packages/platform-service/src/mcp/session.ts` handles `notifications/tools/list_changed`; the connection manager refreshes registry tools. However, `packages/platform-service/src/workers/supervisor.ts:405` sends tools only in the worker startup command, and `packages/platform-service/src/agents/agent-runtime.ts:182` merges that snapshot once for later completion requests. No running-worker tool update path was found.
+- Trigger and consequence: an MCP server adds, removes, or changes a tool while an agent is running. Registry discovery updates, but the agent continues advertising its original tool set/schemas until a new worker attempt. Added tools cannot be selected from the offered set; removed or changed tools can provoke avoidable execution or validation failures. This is source-traced; no dynamic running-model refresh simulation was performed.
+- Standards cross-check: Context7's actual resolver and documentation query returned the official [MCP 2025-11-25 tools contract](https://modelcontextprotocol.io/specification/2025-11-25/server/tools), which defines `tools/list` and the list-change notification. That cross-check supports the registry-refresh expectation; the running-agent inconsistency is derived from PlayWeld source, not an assertion that the protocol requires a particular worker architecture.
+- Recommended correction: refresh the authorized tool/schema set at safe turn boundaries or provide a versioned worker update mechanism, retaining role/access filtering and context-size accounting.
+
+###### F10 — P2 contract gap: several role fields are parsed but have no runtime consumer
+
+- Evidence: `packages/platform-service/src/roles/role-loader.ts:55`, `:56`, and `:64` populate `requiresModules`, `modelPool`, and `boardSubscriptions`. A source search across packages excluding generated libraries and tests found these fields only in contracts and the loader. The model router instead selects pools by pool target role/task type in `packages/platform-service/src/models/router.ts:593`; it never resolves the role's named `model-pool` field. `docs/SKILLS_AGENTS_AND_TOOLS.md:104` describes named-pool intersection, and `docs/INTEGRATION_GUIDE.md:136` describes role model-pool usage.
+- Consequence: changing these declarative role fields does not itself enforce required modules, select the named pool, or subscribe that role to board topics. Targeted model pools configured separately can still work; ordinary explicit board reads can still work. The finding is incomplete wiring and misleading configuration expectations, not proof that all routing or board behavior fails.
+- Recommended correction: either wire each field into its owning service with cross-area checks, or explicitly expose/document it as unsupported metadata until implemented. Preserve the distinction between target architecture and currently implemented behavior. Evidence is source inspection rather than live configuration acceptance.
+
+- Compatibility and migration: this investigation changes only its permanent work record and the generated changelog. It adds no RPC/storage schema, changes no agent policy, removes no functionality, and requires no migration. All findings remain unresolved recommendations. Impact `none` is appropriate because the review ships no runtime behavior change; no version bump was performed by this task.
+
+##### Validation
+
+- `npm exec -w @gamecrafter/platform-service -- vitest run src/agents/agent-runtime.test.ts src/agents/agent-tools.test.ts src/roles/role-loader.test.ts src/roles/role-registry.test.ts src/change/swarm-coordination.integration.test.ts src/tools/tool-broker.integration.test.ts --maxWorkers=1`: passed, 6 files / 50 tests. Existing worktree tests passed; this does not establish coverage of the new findings.
+- `npm exec -w @gamecrafter/platform-service -- vitest run src/skills/skill-catalog.test.ts src/skills/skills.integration.test.ts src/mcp/session.test.ts src/agents/agent-approval.integration.test.ts --maxWorkers=1 --testTimeout=30000 --hookTimeout=60000`: passed, 4 files / 30 tests.
+- Independent integration reviewer: `npx vitest run src/mcp/mcp-tool-adapter.test.ts src/skills/skill-catalog.test.ts src/engines/engine-tools.test.ts src/dcc/dcc-tools.test.ts --maxWorkers=1 --testTimeout=30000 --hookTimeout=60000` from `packages/platform-service`: passed, 3 files / 7 tests. No engine-tools test file matched; four files were not executed. Skill-catalog tests overlap the main review's second run, so these are supplementary executions rather than seven additional unique tests.
+- Isolated current-source probes used transient `typescript.transpileModule` require hooks and bounded fixtures; no probe test files were retained. Evidence and qualifications are recorded per finding above. Only the dependency-fanout probe used the real database seam and Project migrations; method-level mocks elsewhere do not prove full-process or installed behavior.
+- `bash scripts/check-links.sh`: passed, `All links OK`. `npm run format:check`: passed for all matched repository files. `npm run changelog:update` completed, and `npm run changelog:check -- --base HEAD` passed, including current worktree coverage and generated freshness. These maintenance checks do not validate the runtime findings or certify unrelated release work.
+- Full Turbo build/typecheck/lint/test, dependency reinstall, live provider completion, real engine/DCC mutations, desktop UI journeys, and installer acceptance were not run for this investigation-only change. The existing dirty tree was not reset or repaired.
+
+##### Files
+
+- `docs/changes/2026-10-18-agent-swarm-integration-review.md`
 
 ## 0.21.1
 

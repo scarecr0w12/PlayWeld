@@ -53,6 +53,22 @@ export class TaskGraph {
     }
 
     const parent = input.parentTaskId ? this.requireTask(input.parentTaskId) : undefined;
+    // Successful work can receive service-owned reconciliation and feedback
+    // followups in its original request tree. Revoked trees cannot be extended.
+    // Check every ancestor before deduplication or insertion.
+    for (let ancestor = parent; ancestor;) {
+      if (
+        ancestor.state === 'failed' ||
+        ancestor.state === 'cancelled' ||
+        this.options.store.cancellationRequested(ancestor.taskId)
+      ) {
+        throw new RpcError(
+          `Cannot create a child beneath failed or cancelled request: ${ancestor.taskId}`,
+          RpcErrorCode.InvalidTaskTransition,
+        );
+      }
+      ancestor = ancestor.parentTaskId ? this.requireTask(ancestor.parentTaskId) : undefined;
+    }
     const depth = parent ? parent.depth + 1 : 0;
     const maxDepth = this.options.settings.resolve('agents.maxSpawnDepth', {
       projectId: this.options.projectId,
@@ -160,6 +176,10 @@ export class TaskGraph {
 
   async cancel(taskId: string, reason = 'cancelled'): Promise<string[]> {
     this.requireTask(taskId);
+    const previousSeq = this.options.store.latestEventSeq();
+    // Successful historical outcomes stay intact, while revocation of their
+    // request subtree survives both completed-root cancellation and restarts.
+    this.options.store.appendEvent(taskId, 'task.cancel_requested', { reason }, 'user');
     const tasks = this.options.store.list({ limit: Number.MAX_SAFE_INTEGER });
     const byParent = new Map<string, TaskRecord[]>();
     for (const task of tasks) {
@@ -183,20 +203,25 @@ export class TaskGraph {
         (left, right) => right.depth - left.depth || right.createdAt.localeCompare(left.createdAt),
       );
     const cancelled: string[] = [];
+    const updates: TaskRecord[] = [];
+    // Fence the entire tree synchronously before yielding to worker shutdown or
+    // invoking callbacks that could re-enter task creation.
     for (const task of candidates) {
       const current = this.options.store.get(task.taskId);
       if (!current || isTerminal(current.state)) continue;
-      const previousSeq = this.options.store.latestEventSeq();
       const updated = this.options.store.transition(current.taskId, 'cancelled', reason, 'user', {
         lease: null,
         finishedAt: this.now().toISOString(),
       });
       this.options.store.appendEvent(current.taskId, TaskEventKind.Cancelled, { reason }, 'user');
-      this.emitEventsSince(previousSeq);
-      this.options.onTaskChanged?.(updated);
-      await this.options.onCancelTask?.(current.taskId);
-      this.options.onTaskTerminal?.(updated);
+      updates.push(updated);
       cancelled.push(current.taskId);
+    }
+    this.emitEventsSince(previousSeq);
+    for (const updated of updates) {
+      this.options.onTaskChanged?.(updated);
+      await this.options.onCancelTask?.(updated.taskId);
+      this.options.onTaskTerminal?.(updated);
     }
     return cancelled;
   }
@@ -314,9 +339,8 @@ export class TaskGraph {
   }
 
   onTaskTerminal(task: TaskRecord): void {
-    const candidates = this.options.store.list({ states: ['pending', 'blocked'] });
+    const candidates = this.options.store.dependents(task.taskId, ['pending', 'blocked']);
     for (const candidate of candidates) {
-      if (!candidate.dependsOn.includes(task.taskId)) continue;
       const dependencies = candidate.dependsOn.map((taskId) => this.requireTask(taskId));
       const hasFailedDependency = dependencies.some(
         (dependency) => dependency.state === 'failed' || dependency.state === 'cancelled',
@@ -357,7 +381,9 @@ export class TaskGraph {
   }
 
   private emitEventsSince(afterSeq: number): void {
-    for (const event of this.options.store.events({ afterSeq })) this.options.onTaskEvent?.(event);
+    for (const event of this.options.store.events({ afterSeq, limit: Number.MAX_SAFE_INTEGER })) {
+      this.options.onTaskEvent?.(event);
+    }
   }
 }
 

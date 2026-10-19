@@ -12,6 +12,7 @@ import {
   type RouteDecision,
   type RouteOutcome,
   type RouteRequest,
+  type RoleRecord,
 } from '@gamecrafter/contracts';
 import type { Database } from '../db/database';
 import type { SettingsService } from '../settings/settings-service';
@@ -64,10 +65,17 @@ const sourceWeights: Record<RouteOutcome['source'], number> = {
 export class ModelRouter {
   private readonly now: () => Date;
   private readonly random: () => number;
+  private roleResolver?: (roleName: string, projectId?: string) => RoleRecord | undefined;
 
   constructor(private readonly options: RouterOptions) {
     this.now = options.now ?? (() => new Date());
     this.random = options.random ?? Math.random;
+  }
+
+  setRoleResolver(
+    resolver: (roleName: string, projectId?: string) => RoleRecord | undefined,
+  ): void {
+    this.roleResolver = resolver;
   }
 
   preview(request: RouteRequest, sessionId?: string): RouteDecision {
@@ -79,6 +87,7 @@ export class ModelRouter {
     sessionId?: string,
     advice?: { modelId: string; assessmentId: string },
     preview = false,
+    roleConstraints: readonly string[] = [],
   ): RouteDecision {
     const enabledModels = this.options.registry
       .listModels({ enabledOnly: true })
@@ -120,7 +129,7 @@ export class ModelRouter {
     }
     eligible = capabilityModels;
 
-    const poolResult = this.filterByPools(request);
+    const poolResult = this.filterByPools(request, roleConstraints);
     if (poolResult.modelIds !== null) {
       const allowedModelIds = new Set(poolResult.modelIds);
       eligible = eligible.filter((model) => allowedModelIds.has(model.modelId));
@@ -266,10 +275,15 @@ export class ModelRouter {
     sessionId?: string,
     remainingTokens?: number,
     remainingCostUsd?: number,
+    roleConstraints: readonly string[] = [],
   ): ChatRequest {
     const fail = (reason: string): never => {
       throw noEligibleModel('constraints', [reason]);
     };
+    const pools = this.filterByPools(route, roleConstraints);
+    if (pools.modelIds !== null && !pools.modelIds.has(model.modelId)) {
+      throw noEligibleModel('pools', pools.removedBy);
+    }
     if (!model.enabled || model.availability === 'unavailable')
       fail('model unavailable or unselected');
     for (const capability of route.requiredCapabilities ?? []) {
@@ -590,7 +604,24 @@ export class ModelRouter {
       .sort((left, right) => left.modelId.localeCompare(right.modelId));
   }
 
-  private filterByPools(request: RouteRequest): {
+  assertRolePools(
+    modelId: string,
+    roleConstraints: readonly string[],
+    projectId?: string,
+    taskType = 'completion',
+  ): void {
+    for (const agentRole of new Set(roleConstraints)) {
+      const pools = this.filterByPools({ projectId, taskType, agentRole });
+      if (pools.modelIds !== null && !pools.modelIds.has(modelId)) {
+        throw noEligibleModel('pools', pools.removedBy);
+      }
+    }
+  }
+
+  private filterByPools(
+    request: RouteRequest,
+    roleConstraints: readonly string[] = [],
+  ): {
     modelIds: Set<string> | null;
     removedBy: string[];
     noPoolsConfigured: boolean;
@@ -625,6 +656,34 @@ export class ModelRouter {
     } else if (globalPools.length > 0) {
       allowed = unionPoolModelIds(globalPools);
       removedBy = globalPools.map((pool) => `pool:${pool.poolId}`);
+    }
+    const role = request.agentRole
+      ? this.roleResolver?.(request.agentRole, request.projectId)
+      : undefined;
+    if (role?.modelPool) {
+      const namedPools = pools.filter(
+        (pool) => pool.poolId === role.modelPool || pool.name === role.modelPool,
+      );
+      // Builtin names are defaults for installations which have not configured
+      // those pools yet. Custom roles must name an existing pool explicitly.
+      if (namedPools.length === 0 && role.scope !== 'builtin') {
+        throw noEligibleModel('pools', [`role-pool-not-found:${role.modelPool}`]);
+      }
+      if (namedPools.length > 0) {
+        const named = unionPoolModelIds(namedPools);
+        allowed = allowed === null ? named : new Set([...allowed].filter((id) => named.has(id)));
+        removedBy.push(...namedPools.map((pool) => `role-pool:${pool.poolId}`));
+      }
+    }
+    for (const agentRole of new Set(roleConstraints)) {
+      if (agentRole === request.agentRole) continue;
+      const caller = this.filterByPools({ ...request, agentRole });
+      if (caller.modelIds !== null) {
+        const permitted = caller.modelIds;
+        allowed =
+          allowed === null ? permitted : new Set([...allowed].filter((id) => permitted.has(id)));
+        removedBy.push(...caller.removedBy);
+      }
     }
     if (allowed === null) {
       return { modelIds: null, removedBy: [], noPoolsConfigured: true };

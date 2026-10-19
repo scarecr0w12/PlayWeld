@@ -235,6 +235,7 @@ export class PlatformService {
       },
     );
     const skillInstaller = new SkillInstaller(database, paths.profileDir, settingsService);
+    completionService.setTaskBudgetService(taskService);
     const skillRegistry = new SkillRegistry({
       profile,
       projectDatabases,
@@ -249,6 +250,15 @@ export class PlatformService {
       pluginRoleDirectories: (projectId) => pluginRegistry.roleDirectories(projectId),
     });
     taskService.setRoleResolver((roleName, projectId) => roleRegistry.get(roleName, projectId));
+    modelRouter.setRoleResolver((roleName, projectId) => {
+      try {
+        return roleRegistry.get(roleName, projectId);
+      } catch (error) {
+        if (error instanceof RpcError && error.code === RpcErrorCode.RoleNotFound) return undefined;
+        throw error;
+      }
+    });
+    taskService.setProjectModulesResolver((projectId) => workspace.get(projectId).modules);
     const skillCatalog = new SkillCatalog({
       registry: skillRegistry,
       workspace,
@@ -495,8 +505,10 @@ export class PlatformService {
         return { removed: true };
       },
       'engine/capabilities': ({ projectId, refresh }) => engines().capabilities(projectId, refresh),
-      'engine/run': ({ projectId, operation, params, taskId }) =>
-        engines().run(projectId, operation, params ?? {}, taskId),
+      'engine/run': ({ projectId, operation, params, taskId }, context) =>
+        engines().run(projectId, operation, params ?? {}, taskId, {
+          sessionId: context.sessionId,
+        }),
       'engine/runs': ({ projectId, limit }) => ({ runs: engines().runs(projectId, limit) }),
       'engine/run/get': ({ projectId, runId }) => engines().getRun(projectId, runId),
       'engine/setLiveBridge': ({ projectId, connectionId }) =>
@@ -514,8 +526,10 @@ export class PlatformService {
       },
       'dcc/capabilities': ({ projectId, tool, refresh }) =>
         dcc().capabilities(projectId, tool, refresh),
-      'dcc/run': ({ projectId, tool, operation, params, taskId }) =>
-        dcc().run(projectId, tool, operation, params ?? {}, taskId),
+      'dcc/run': ({ projectId, tool, operation, params, taskId }, context) =>
+        dcc().run(projectId, tool, operation, params ?? {}, taskId, {
+          sessionId: context.sessionId,
+        }),
       'dcc/runs': ({ projectId, tool, limit }) => ({ runs: dcc().runs(projectId, tool, limit) }),
       'dcc/run/get': ({ projectId, runId }) => dcc().getRun(projectId, runId),
       'dcc/setLiveBridge': ({ projectId, tool, connectionId }) =>
@@ -1020,6 +1034,7 @@ export class PlatformService {
         boardMaintenanceRef.scheduler?.scheduleSync(decision);
       },
     });
+    taskService.setBoardService(board());
     boardMaintenanceRef.scheduler = new BoardMaintenanceScheduler({
       board: board(),
       tasks: taskService,

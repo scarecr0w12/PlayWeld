@@ -3,6 +3,9 @@ import path from 'node:path';
 import {
   minAccessMode,
   isTerminal,
+  RpcError,
+  RpcErrorCode,
+  type BoardSubscriptionFilter,
   type RoleRecord,
   type TaskCreateInput,
   type TaskEvent,
@@ -16,6 +19,7 @@ import { SettingsService } from '../settings/settings-service';
 import { HandlerRegistry } from '../workers/handler-registry';
 import { TaskGraph, type CreatedTask } from './task-graph';
 import { TaskStore, type TaskEventFilter, type TaskListFilter } from './task-store';
+import type { BoardService } from '../board/board-service';
 
 export interface ProjectTaskRuntime {
   projectId: string;
@@ -49,6 +53,8 @@ export class TaskService {
   private readonly taskEventListeners = new Map<string, Set<TaskEventListener>>();
   private supervisor?: TaskSupervisorPort;
   private roleResolver?: (roleName: string, projectId: string) => RoleRecord;
+  private projectModulesResolver?: (projectId: string) => string[];
+  private board?: Pick<BoardService, 'subscriptions' | 'subscribe' | 'unsubscribe'>;
 
   constructor(
     private readonly profile: ProfileStore,
@@ -64,6 +70,14 @@ export class TaskService {
 
   setRoleResolver(resolver: (roleName: string, projectId: string) => RoleRecord): void {
     this.roleResolver = resolver;
+  }
+
+  setProjectModulesResolver(resolver: (projectId: string) => string[]): void {
+    this.projectModulesResolver = resolver;
+  }
+
+  setBoardService(board: Pick<BoardService, 'subscriptions' | 'subscribe' | 'unsubscribe'>): void {
+    this.board = board;
   }
 
   projectIds(): string[] {
@@ -105,8 +119,20 @@ export class TaskService {
   }
 
   create(input: TaskCreateInput, options: { deferStart?: boolean } = {}): CreatedTask {
-    const roleName = input.role ?? (input.kind === 'agent.run' ? input.assignee?.role : undefined);
+    const roleName =
+      input.role ??
+      (input.kind === 'agent.run' ? (input.assignee?.role ?? 'coordinator') : undefined);
     const role = roleName ? this.roleResolver?.(roleName, input.projectId) : undefined;
+    if (input.kind === 'agent.run' && role?.requiresModules.length) {
+      const modules = this.projectModulesResolver?.(input.projectId) ?? [];
+      const missing = role.requiresModules.filter((module) => !modules.includes(module));
+      if (missing.length) {
+        throw new RpcError(
+          `Role ${role.name} requires Project modules: ${missing.join(', ')}`,
+          RpcErrorCode.RoleInvalid,
+        );
+      }
+    }
     const project = role ? this.profile.getById(input.projectId) : undefined;
     const projectInstructionsPath = project ? path.join(project.path, 'AGENTS.md') : undefined;
     const memoryPath =
@@ -173,8 +199,30 @@ export class TaskService {
     const result = this.runtime(input.projectId).graph.create(normalizedInput, {
       deferReady: options.deferStart,
     });
+    if (input.kind === 'agent.run' && role)
+      this.synchronizeRoleSubscriptions(input.projectId, role);
     if (!options.deferStart) void this.supervisor?.schedule();
     return result;
+  }
+
+  private synchronizeRoleSubscriptions(projectId: string, role: RoleRecord): void {
+    if (!this.board) return;
+    const subscriber = { kind: 'agent' as const, role: role.name };
+    const topics = [...new Set(role.boardSubscriptions)];
+    const expected: BoardSubscriptionFilter | undefined =
+      topics.length === 0 ? undefined : topics.includes('*') ? {} : { tags: topics };
+    let retained = false;
+    for (const subscription of this.board.subscriptions(projectId, subscriber)) {
+      const filter = subscription.filter;
+      const matching =
+        expected !== undefined &&
+        Object.keys(filter).every((key) => key === 'tags') &&
+        (filter.tags?.length ?? 0) === (expected.tags?.length ?? 0) &&
+        (filter.tags ?? []).every((tag) => expected.tags?.includes(tag));
+      if (matching && !retained) retained = true;
+      else this.board.unsubscribe(projectId, subscription.subscriptionId);
+    }
+    if (expected && !retained) this.board.subscribe(projectId, subscriber, expected);
   }
 
   createAttempt(original: TaskRecord, feedback: string): TaskRecord {

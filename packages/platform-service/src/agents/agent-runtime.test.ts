@@ -13,6 +13,58 @@ import { estimateRequestTokens, modelContext } from './model-context';
 const timestamp = '2026-09-29T00:00:00.000Z';
 
 describe('agent runtime', () => {
+  it('refreshes added, removed and changed tool schemas before each model turn', async () => {
+    const definitions = (version: number) =>
+      [
+        {
+          toolId: version === 1 ? 'mcp/old' : 'mcp/new',
+          description: `Schema ${version}`,
+          inputSchema: {
+            type: 'object',
+            properties: { value: { type: version === 1 ? 'string' : 'number' } },
+          },
+        },
+      ] as TaskHandlerContext['tools'];
+    const offered: unknown[] = [];
+    const context = createContext(
+      [
+        response([], 'Continue'),
+        response([
+          {
+            id: 'done',
+            name: 'tasks/complete',
+            arguments: JSON.stringify({ summary: 'Done', artifacts: [], evidence: [], claims: [] }),
+          },
+        ]),
+      ],
+      {
+        tool: async (id, args) => {
+          if (id === 'model/complete')
+            offered.push(structuredClone((args as { request: { tools: unknown } }).request.tools));
+        },
+      },
+    );
+    context.tools = definitions(1);
+    let refreshes = 0;
+    context.refreshTools = async () => definitions(++refreshes);
+    await runAgentTask(context);
+    expect(refreshes).toBe(2);
+    expect(offered[0]).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'mcp/old' })]),
+    );
+    expect(offered[1]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'mcp/new',
+          inputSchema: expect.objectContaining({ properties: { value: { type: 'number' } } }),
+        }),
+      ]),
+    );
+    expect(offered[1]).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'mcp/old' })]),
+    );
+  });
+
   it('repairs interrupted checkpoint tool calls before asking the provider to continue', async () => {
     const calls = [
       { id: 'written', name: 'fs/write-file', arguments: '{}' },

@@ -5,7 +5,7 @@ work-types: asset-production, art, audio, dcc
 requires-modules: assets
 model-pool: asset-producer
 max-access: ask-always
-tools: fs/read-file, fs/list, fs/write-file, process/run, board/read
+tools: fs/read-file, fs/list, fs/write-file, process/run, board/read, dcc/discover, dcc/inspect, dcc/import, dcc/export, dcc/convert, dcc/render-preview, dcc/run-script, dcc/validate, asset/generate, asset/job, asset/jobs, asset/import, asset/preview, asset/files
 skills: asset-pipeline, visual-consistency
 mcp-servers: []
 max-turns: 60

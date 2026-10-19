@@ -463,6 +463,7 @@ describe('swarm coordination through the RPC harness', () => {
     const project = await client.call('project/create', {
       name: 'Swarm Coordination Project',
       engine: { family: 'godot' },
+      modules: ['gameplay'],
       parentDirectory: projectsDirectory,
       folderName: 'swarm-coordination-project',
     });

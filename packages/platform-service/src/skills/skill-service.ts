@@ -10,6 +10,7 @@ import {
   type SkillRecord,
   type SkillResourceReadParams,
   type SkillResourceReadResult,
+  type TaskRecord,
 } from '@gamecrafter/contracts';
 import type { SettingsService } from '../settings/settings-service';
 import type { TaskService } from '../tasks/task-service';
@@ -84,7 +85,7 @@ export class SkillService {
       projectId,
       query,
       agentRole: task?.assignee?.role,
-      workType: task?.kind,
+      workType: this.taskWorkType(task),
       accessMode: effectiveAccessMode ?? this.accessMode(projectId),
     });
   }
@@ -134,7 +135,7 @@ export class SkillService {
         {
           projectId,
           agentRole: task?.assignee?.role,
-          workType: task?.kind,
+          workType: this.taskWorkType(task),
           taskText: task?.goal,
           accessMode,
         },
@@ -147,6 +148,18 @@ export class SkillService {
         RpcErrorCode.SkillNotFound,
       );
     }
+  }
+
+  private taskWorkType(task: TaskRecord | undefined): string | undefined {
+    if (!task || task.kind !== 'agent.run') return task?.kind;
+    const roleName = task.role ?? task.assignee?.role;
+    if (!roleName) return task.kind;
+    // Match agent/model routing: the primary role work type describes the
+    // semantic task, while agent.run only identifies its execution handler.
+    const input = task.input as { role?: RoleRecord } | null;
+    const role =
+      input?.role?.name === roleName ? input.role : this.roles.get(roleName, task.projectId);
+    return role.workTypes[0] ?? 'coordination';
   }
 
   validate(directory: string): {

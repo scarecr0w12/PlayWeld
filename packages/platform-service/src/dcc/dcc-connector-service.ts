@@ -24,7 +24,7 @@ import type { McpConnectionManager } from '../mcp/connection-manager';
 import type { ProfileStore } from '../profile/profile-store';
 import type { ProjectDatabases } from '../projects/project-databases';
 import type { SettingsService } from '../settings/settings-service';
-import type { ToolBroker } from '../tools/tool-broker';
+import type { ToolBroker, ToolCallContext } from '../tools/tool-broker';
 import type { ToolContext, ToolRegistry } from '../tools/tool-registry';
 import { requireExistingProjectPath, resolveProjectPath } from '../assets/path-utils';
 import { runEngineProcess } from '../engines/process-runner';
@@ -256,6 +256,7 @@ export class DccConnectorService {
     operation: DccOperation,
     params: Record<string, unknown> = {},
     taskId?: string,
+    context: ToolCallContext = {},
   ): Promise<DccRun> {
     if (operation === 'run-script') this.assertScriptAllowed(projectId, params);
     const report = await this.capabilities(projectId, tool);
@@ -299,12 +300,15 @@ export class DccConnectorService {
     this.saveRun(initial);
     this.options.events.runChanged(projectId, tool, initial);
     try {
-      const call = await this.options.toolBroker.call({
-        projectId,
-        toolId: `dcc/${operation}`,
-        input: { tool, params, runId },
-        ...(taskId ? { taskId } : {}),
-      });
+      const call = await this.options.toolBroker.call(
+        {
+          projectId,
+          toolId: `dcc/${operation}`,
+          input: { tool, params, runId },
+          ...(taskId ? { taskId } : {}),
+        },
+        context,
+      );
       return runValidator.assert(call.output);
     } catch (error) {
       const current = this.getRun(projectId, runId);

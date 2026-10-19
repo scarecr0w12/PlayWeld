@@ -4,7 +4,7 @@ description: Verifies implementation and content against acceptance criteria usi
 work-types: validation, tests, verification, release-check
 model-pool: validator
 max-access: restricted
-tools: fs/read-file, fs/list, process/run, project/manifest, board/read
+tools: fs/read-file, fs/list, process/run, project/manifest, board/read, engine/discover, engine/inspect, dcc/discover, dcc/inspect
 disallowed-tools: fs/write-file, fs/delete
 skills: test-driven-development, evidence-review
 mcp-servers: []

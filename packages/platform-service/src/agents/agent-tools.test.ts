@@ -1,15 +1,73 @@
 import { describe, expect, it, vi } from 'vitest';
-import { RpcErrorCode } from '@gamecrafter/contracts';
+import { RpcErrorCode, type TaskRecord } from '@gamecrafter/contracts';
 import { registerAgentTools, type AgentToolOptions } from './agent-tools';
 import { ToolRegistry, type ToolContext } from '../tools/tool-registry';
 
 describe('agent delegation locks', () => {
+  it.each(['ready', 'succeeded', 'failed', 'cancelled', 'waiting_input'])(
+    'rejects delegation from a %s parent without creating work',
+    (state) => {
+      const create = vi.fn();
+      const registry = new ToolRegistry();
+      registerAgentTools(registry, {
+        tasks: { get: () => ({ taskId: 'parent', state, budget: {} }), create },
+      } as unknown as AgentToolOptions);
+      expect(() =>
+        registry
+          .get('tasks/delegate')!
+          .handler({ taskId: 'parent', projectId: 'project' } as ToolContext, {
+            role: 'writer',
+            goal: 'Write',
+          }),
+      ).toThrowError(expect.objectContaining({ code: RpcErrorCode.InvalidTaskTransition }));
+      expect(create).not.toHaveBeenCalled();
+    },
+  );
+
+  it('inherits and narrows parent cost and duration envelopes without inventing tokens', async () => {
+    const create = vi.fn(() => ({ task: { taskId: 'child' }, deduplicated: false }));
+    const registry = new ToolRegistry();
+    registerAgentTools(registry, {
+      tasks: {
+        get: () => ({
+          taskId: 'parent',
+          state: 'running',
+          budget: { maxCostUsd: 1, maxDurationMs: 1000 },
+        }),
+        create,
+      },
+      roles: { get: () => ({ name: 'writer', maxAccess: 'restricted', isolation: 'none' }) },
+      locks: { list: () => [] },
+    } as unknown as AgentToolOptions);
+    const delegate = registry.get('tasks/delegate')!.handler;
+    const context = {
+      taskId: 'parent',
+      projectId: 'project',
+      accessMode: 'restricted',
+    } as ToolContext;
+    await delegate(context, { role: 'writer', goal: 'Write' });
+    expect(create).toHaveBeenLastCalledWith(
+      expect.objectContaining({ budget: { maxCostUsd: 1, maxDurationMs: 1000 } }),
+    );
+    await delegate(context, {
+      role: 'writer',
+      goal: 'Write',
+      budget: { maxCostUsd: 9, maxDurationMs: 500, maxTokens: 100 },
+    });
+    expect(create).toHaveBeenLastCalledWith(
+      expect.objectContaining({ budget: { maxCostUsd: 1, maxDurationMs: 500 } }),
+    );
+  });
   it.each([undefined, 250_000])('inherits only the user token ceiling (%s)', async (maxTokens) => {
     const create = vi.fn(() => ({ task: { taskId: 'child' }, deduplicated: false }));
     const registry = new ToolRegistry();
     registerAgentTools(registry, {
       tasks: {
-        get: () => ({ taskId: 'parent', budget: maxTokens === undefined ? {} : { maxTokens } }),
+        get: () => ({
+          taskId: 'parent',
+          state: 'running',
+          budget: maxTokens === undefined ? {} : { maxTokens },
+        }),
         create,
       },
       roles: { get: () => ({ name: 'writer', maxAccess: 'restricted', isolation: 'none' }) },
@@ -33,7 +91,7 @@ describe('agent delegation locks', () => {
     const locks = [{ taskId: 'parent', resource: 'file:docs/canon/WORLD.md', mode: 'exclusive' }];
     const registry = new ToolRegistry();
     registerAgentTools(registry, {
-      tasks: { get: () => ({ taskId: 'parent', budget: {} }), create },
+      tasks: { get: () => ({ taskId: 'parent', state: 'running', budget: {} }), create },
       roles: {
         get: () => ({ name: 'narrative-designer', maxAccess: 'restricted', isolation: 'none' }),
       },
@@ -80,6 +138,7 @@ describe('agent model cost reporting', () => {
     const registry = new ToolRegistry();
     registerAgentTools(registry, {
       tasks: {
+        runtime: () => budgetRuntime(),
         get: () => ({
           taskId: 'task',
           role: 'programmer',
@@ -108,7 +167,15 @@ describe('agent model cost reporting', () => {
   it('preserves unknown model cost on the paid model tool result', async () => {
     const registry = new ToolRegistry();
     registerAgentTools(registry, {
-      tasks: { get: () => ({ taskId: 'task', role: 'programmer', budget: {} }) },
+      tasks: {
+        runtime: () => budgetRuntime(),
+        get: () => ({
+          taskId: 'task',
+          role: 'programmer',
+          budget: {},
+          spent: { costUsd: 0, tokens: 0 },
+        }),
+      },
       roles: { get: () => ({ workTypes: ['code'] }) },
       completion: {
         complete: vi.fn(async () => ({
@@ -137,3 +204,20 @@ describe('agent model cost reporting', () => {
     expect(result).toMatchObject({ costUsd: null, costStatus: 'unknown' });
   });
 });
+
+function budgetRuntime() {
+  return {
+    store: {
+      tree: () => [
+        {
+          taskId: 'task',
+          budget: { maxCostUsd: 1, maxTokens: 10000 },
+          spent: { costUsd: 0.4, tokens: 2000 },
+        } as TaskRecord,
+      ],
+      events: () => [],
+      appendEvent: vi.fn(),
+    },
+    graph: { update: vi.fn() },
+  };
+}

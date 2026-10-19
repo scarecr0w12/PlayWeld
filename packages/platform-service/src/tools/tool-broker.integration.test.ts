@@ -20,7 +20,7 @@ import {
 import { connect, type ServiceClient } from '@gamecrafter/service-client';
 import { resolvePaths, type ServicePaths } from '../paths';
 import { PlatformService } from '../service';
-import type { ToolBroker } from './tool-broker';
+import { ToolBroker, type ToolBrokerOptions } from './tool-broker';
 import { Database } from '../db/database';
 
 const temporaryDirectories: string[] = [];
@@ -61,6 +61,75 @@ afterEach(async () => {
 });
 
 describe('Tool broker integration', () => {
+  it('scopes connector delegation to its selected MCP tool and retains explicit downstream denies', async () => {
+    await setSetting('access.mode', 'project', 'full');
+    const directory = path.join(projectPath, '.gamecrafter', 'roles', 'bridge-reader');
+    mkdirSync(directory, { recursive: true });
+    const role = (deny = '') =>
+      writeFileSync(
+        path.join(directory, 'ROLE.md'),
+        `---\nname: bridge-reader\ndescription: Scoped connector authorization.\nwork-types: review\nmax-access: full\ntools: engine/screenshot\n${deny}---\nInspect through the connector.\n`,
+      );
+    role();
+    const original = (service as unknown as { toolBroker: ToolBroker }).toolBroker;
+    const options = (original as unknown as { options: ToolBrokerOptions }).options;
+    let executed = 0;
+    options.registry.register(
+      {
+        toolId: 'fixture/capture',
+        title: 'Fixture capture',
+        description: 'In-memory MCP fixture.',
+        inputSchema: { type: 'object' },
+        executionMode: 'live-editor',
+        sideEffects: 'none',
+        evidence: 'Fixture invocation',
+        capabilities: [],
+        source: 'mcp:fixture',
+      },
+      () => {
+        executed++;
+        return { output: { captured: true } };
+      },
+    );
+    const broker = new ToolBroker({
+      ...options,
+      isToolAvailable: () => true,
+      requiredLocks: () => [],
+    });
+    const request = { projectId, toolId: 'fixture/capture', input: {} };
+    await expect(broker.call(request, { agentRole: 'bridge-reader' })).rejects.toMatchObject({
+      code: RpcErrorCode.RoleToolDenied,
+    });
+    await expect(
+      broker.call(request, {
+        agentRole: 'bridge-reader',
+        delegatedTool: { toolId: 'fixture/other', viaToolId: 'engine/screenshot' },
+      }),
+    ).rejects.toMatchObject({ code: RpcErrorCode.RoleToolDenied });
+    await expect(
+      broker.call(request, {
+        agentRole: 'bridge-reader',
+        delegatedTool: { toolId: 'fixture/capture', viaToolId: 'engine/console' },
+      }),
+    ).rejects.toMatchObject({ code: RpcErrorCode.RoleToolDenied });
+    expect(
+      (
+        await broker.call(request, {
+          agentRole: 'bridge-reader',
+          delegatedTool: { toolId: 'fixture/capture', viaToolId: 'engine/screenshot' },
+        })
+      ).output,
+    ).toEqual({ captured: true });
+    role('disallowed-tools: fixture/capture\n');
+    await expect(
+      broker.call(request, {
+        agentRole: 'bridge-reader',
+        delegatedTool: { toolId: 'fixture/capture', viaToolId: 'engine/screenshot' },
+      }),
+    ).rejects.toMatchObject({ code: RpcErrorCode.RoleToolDenied });
+    expect(executed).toBe(1);
+  });
+
   it('retains native filesystem error codes in failed tool audit records', async () => {
     await setSetting('access.mode', 'project', 'full');
     const result = await callTool('fs/write-file', {
