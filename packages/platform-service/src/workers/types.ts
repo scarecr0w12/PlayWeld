@@ -10,6 +10,7 @@ export interface TaskHandlerContext {
   task: TaskRecord;
   input: unknown;
   tools: ToolDefinition[];
+  refreshTools?(): Promise<ToolDefinition[]>;
   initialCheckpoint: unknown;
   signal: AbortSignal;
   progress(message: string, percent?: number): void;
@@ -20,6 +21,8 @@ export interface TaskHandlerContext {
 }
 
 export interface ReportedUsage {
+  /** Model dispatch already persisted this usage before returning to the worker. */
+  accountedByService?: boolean;
   costUsd?: number | null;
   costStatus?: 'known' | 'partial' | 'unknown';
   tokens?: number;
@@ -52,6 +55,7 @@ export type WorkerCommand =
   | { type: 'checkpoint-and-stop' };
 
 export type WorkerMessage =
+  | { type: 'tools-request'; requestId: string }
   | { type: 'heartbeat' }
   | { type: 'answer-received'; questionId: string }
   | {

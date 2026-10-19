@@ -1,6 +1,6 @@
 # PlayWeld integration and extension guide
 
-**Last updated:** 2026-10-06
+**Last updated:** 2026-10-18
 
 **Audience:** Engine, DCC, MCP, skill, role, plugin and provider integrators. [Documentation index](README.md).
 
@@ -134,6 +134,14 @@ Third-party skills require review of their `SKILL.md` before installation and lo
 Builtin roles are coordinator, planner, explorer, game-designer, gameplay-engineer, engine-engineer, asset-producer, narrative-designer, reviewer, validator and board-maintainer. Their packages live in [platform-service/roles](../packages/platform-service/roles/).
 
 A role defines its responsibility, relevant skills, model-pool usage and allowed tools/access ceiling. Central runtime/broker enforcement applies in addition to role prose. A reviewer or validator should report artifact/test evidence, not merely echo an implementation agent's completion claim.
+
+Agent tasks require the modules declared by their role to be enabled in `gamecrafter.project.json`. Named role model pools constrain routed, manual and prepared completions, including completions requested through a plugin facade. Builtin pool names are optional defaults until configured; a custom role's missing pool is an error. The primary role work type determines skill eligibility, rather than the `agent.run` handler name. Role board subscriptions reconcile on agent task creation, with `*` selecting all topics; they do not start agents automatically.
+
+Engine engineers have enumerated engine connector grants; asset producers have enumerated DCC and asset-generation/import grants; validators have connector discovery/inspection grants. Paid generation still requires approval under the asset producer's Ask Always ceiling. Connector capabilities and resource locks must also permit the operation. Nested engine-to-MCP calls retain the wrapper's scoped authority and explicit downstream denies; granting a wrapper does not grant general access to its MCP server.
+
+Model completions associated with a task share ancestor cost/token envelopes across the task tree, including direct completion RPCs, plugin completions and MCP sampling. Durable reservations prevent replay after uncertain provider charges. A token-only task can continue with unknown dollar pricing when its token use is known. Optional decision calls without a verifiable bound are skipped under a finite envelope. Provider-dispatch reservations and settlements remain in task events; rejected calls return explicit budget errors. Do not automatically replay a charge whose outcome is uncertain. External asset-provider credits remain separately approved and recorded.
+
+Coordinators waiting through `tasks/await` yield execution capacity and reacquire a slot before continuing. Tool definitions refresh between turns. Engine/DCC RPC operations retain the requesting session's access settings; plugin callbacks retain their calling agent's role restrictions in addition to plugin capability grants.
 
 Keep a role focused on domain responsibility; do not make every role a generic unrestricted executor. Registered Project skills can extend domain knowledge without moving durable task policy into a role document.
 

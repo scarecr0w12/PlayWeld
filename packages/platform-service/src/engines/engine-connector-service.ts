@@ -32,7 +32,7 @@ import type { McpConnectionManager } from '../mcp/connection-manager';
 import type { ProfileStore } from '../profile/profile-store';
 import type { ProjectDatabases } from '../projects/project-databases';
 import type { SettingsService } from '../settings/settings-service';
-import type { ToolBroker } from '../tools/tool-broker';
+import type { ToolBroker, ToolCallContext } from '../tools/tool-broker';
 import type { ToolContext, ToolRegistry } from '../tools/tool-registry';
 import type { BoardService } from '../board/board-service';
 import { GodotConnector } from './godot/godot-connector';
@@ -330,6 +330,7 @@ export class EngineConnectorService {
     operation: EngineOperation,
     params: Record<string, unknown> = {},
     taskId?: string,
+    context: ToolCallContext = {},
   ): Promise<EngineOperationRun> {
     const project = this.projectContext(projectId);
     if (typeof params.family === 'string' && params.family !== project.family) {
@@ -372,12 +373,15 @@ export class EngineConnectorService {
     this.saveRun(initial);
     this.options.events.runChanged(projectId, initial);
     try {
-      const call = await this.options.toolBroker.call({
-        projectId,
-        toolId: `engine/${operation}`,
-        input: { params, runId },
-        ...(taskId ? { taskId } : {}),
-      });
+      const call = await this.options.toolBroker.call(
+        {
+          projectId,
+          toolId: `engine/${operation}`,
+          input: { params, runId },
+          ...(taskId ? { taskId } : {}),
+        },
+        context,
+      );
       return runValidator.assert(call.output);
     } catch (error) {
       const current = this.getRun(projectId, runId);
@@ -1046,7 +1050,13 @@ export class EngineConnectorService {
           : params,
         ...(context.taskId ? { taskId: context.taskId } : {}),
       },
-      { accessCeiling: context.accessMode, agentRole: context.agentRole, signal: context.signal },
+      {
+        accessCeiling: context.accessMode,
+        agentRole: context.agentRole,
+        roleConstraints: context.roleConstraints,
+        delegatedTool: { toolId: tool.toolId, viaToolId: `engine/${operation}` },
+        signal: context.signal,
+      },
     );
     const reportArtifact = this.writeMcpArtifact(
       runDirectory,

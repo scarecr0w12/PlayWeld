@@ -455,9 +455,21 @@ async function createFixture(initialSettings: Record<string, unknown> = {}) {
     beta: discovered.models.find((model) => model.providerModelId === 'beta')!.modelId,
     outsider: discovered.models.find((model) => model.providerModelId === 'outsider')!.modelId,
   };
-  registry.updateModel(modelIds.alpha, { workTypes: ['code'], roles: ['programmer'] });
-  registry.updateModel(modelIds.beta, { workTypes: ['code'], roles: ['programmer'] });
-  registry.updateModel(modelIds.outsider, { workTypes: ['art'], roles: ['programmer'] });
+  registry.updateModel(modelIds.alpha, {
+    enabled: true,
+    workTypes: ['code'],
+    roles: ['programmer'],
+  });
+  registry.updateModel(modelIds.beta, {
+    enabled: true,
+    workTypes: ['code'],
+    roles: ['programmer'],
+  });
+  registry.updateModel(modelIds.outsider, {
+    enabled: true,
+    workTypes: ['art'],
+    roles: ['programmer'],
+  });
 
   const values = new Map(
     Object.entries({

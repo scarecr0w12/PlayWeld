@@ -53,7 +53,18 @@ describe('Agent execution with the default approval policy', () => {
           if (request.url === '/v1/models') {
             response.end(
               JSON.stringify({
-                data: [{ id: 'approval-model', capabilities: { chat: true, tools: true } }],
+                data: [
+                  {
+                    id: 'approval-model',
+                    capabilities: {
+                      chat: true,
+                      tools: true,
+                      contextWindow: 1_000_000,
+                      maxOutputTokens: 4096,
+                    },
+                    pricing: { inputPerMTokUsd: 0.01, outputPerMTokUsd: 0.01 },
+                  },
+                ],
               }),
             );
           } else {
@@ -98,7 +109,10 @@ describe('Agent execution with the default approval policy', () => {
         isLocal: true,
         baseUrl: `http://127.0.0.1:${address.port}/v1`,
       });
-      const { models } = await client.call('model/discover', { accountId: account.accountId });
+      const { models } = await client.call('model/discover', {
+        accountId: account.accountId,
+        providerModelIds: ['approval-model'],
+      });
       await client.call('pool/create', {
         name: 'Coordinator fixture',
         scope: 'project',

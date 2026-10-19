@@ -314,7 +314,14 @@ async function startFakeModelServer(): Promise<string> {
               {
                 id: 'swarm-test-model',
                 display_name: 'Swarm scripted model',
-                capabilities: { chat: true, tools: true, streaming: false },
+                capabilities: {
+                  chat: true,
+                  tools: true,
+                  streaming: false,
+                  contextWindow: 65536,
+                  maxInputTokens: 57344,
+                  maxOutputTokens: 8192,
+                },
                 pricing: { inputPerMTokUsd: 0, outputPerMTokUsd: 0 },
               },
             ],
@@ -456,6 +463,7 @@ describe('swarm coordination through the RPC harness', () => {
     const project = await client.call('project/create', {
       name: 'Swarm Coordination Project',
       engine: { family: 'godot' },
+      modules: ['gameplay'],
       parentDirectory: projectsDirectory,
       folderName: 'swarm-coordination-project',
     });
@@ -487,7 +495,10 @@ describe('swarm coordination through the RPC harness', () => {
     );
     const baseUrl = await startFakeModelServer();
     const account = await addFakeAccount(baseUrl);
-    const discovery = await client.call('model/discover', { accountId: account.accountId });
+    const discovery = await client.call('model/discover', {
+      accountId: account.accountId,
+      providerModelIds: ['swarm-test-model'],
+    });
     const modelId = discovery.models[0]!.modelId;
     for (const role of ['coordinator', 'gameplay-engineer']) {
       await client.call('pool/create', {
@@ -575,7 +586,7 @@ describe('swarm coordination through the RPC harness', () => {
       budget: { maxTokens: 100_000 },
     });
     const rootTask = await waitForTask(request.rootTaskId);
-    expect(rootTask.state).toBe('succeeded');
+    expect(rootTask.state, JSON.stringify(rootTask.error)).toBe('succeeded');
     expect(delegatedTaskIds).toHaveLength(2);
     const taskA = await waitForTask(delegatedTaskIds[0]!);
     const taskB = await waitForTask(delegatedTaskIds[1]!);

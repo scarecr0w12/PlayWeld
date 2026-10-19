@@ -456,4 +456,13 @@ export const profileMigrations: Migration[] = [
         ON a2a_remote_tasks(local_task_id, updated_at DESC);
     `,
   },
+  {
+    id: 19,
+    name: 'retain model discovery availability independently of enabled selection',
+    up: `
+      ALTER TABLE models ADD COLUMN availability TEXT NOT NULL DEFAULT 'unknown'
+        CHECK (availability IN ('available', 'unavailable', 'unknown'));
+      ALTER TABLE models ADD COLUMN last_seen_at TEXT;
+    `,
+  },
 ];

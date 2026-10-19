@@ -179,7 +179,7 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
     );
   }
 
-  const toolDefinitions = mergeToolDefinitions(context.tools, eligibleSkills);
+  let toolDefinitions = mergeToolDefinitions(context.tools, eligibleSkills);
   let spentCost = context.task.spent.costUsd;
   let spentTokens = context.task.spent.tokens;
   let assessmentId = evidence.find((entry) => entry.kind === 'decision-assessment')?.ref;
@@ -273,6 +273,7 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
           spentCost += usage.costUsd ?? 0;
           spentTokens += (usage.inputTokens ?? 0) + (usage.outputTokens ?? 0);
           await context.reportUsage({
+            accountedByService: true,
             costUsd: usage.costUsd,
             costStatus: usage.costUsd === null ? 'unknown' : 'known',
             ...(usage.inputTokens === null ? {} : { inputTokens: usage.inputTokens }),
@@ -316,6 +317,9 @@ export async function runAgentTask(context: TaskHandlerContext): Promise<TaskRes
       if (context.signal.aborted)
         throw new RpcError('Agent task cancelled.', RpcErrorCode.InvalidParams);
     }
+    // Refresh only between model turns, before compaction accounts for schemas.
+    if (context.refreshTools)
+      toolDefinitions = mergeToolDefinitions(await context.refreshTools(), eligibleSkills);
     const requestId = `agent:${context.task.taskId}:${turn + 1}`;
     const capacity = modelContext(
       await context.tool('model/prepare', {
@@ -689,6 +693,7 @@ function mergeToolDefinitions(
 
 function usageFrom(response: ChatResponse): ReportedUsage & { tokens: number } {
   return {
+    accountedByService: true,
     costUsd: response.usage.costUsd,
     costStatus:
       response.usage.costStatus ?? (response.usage.costUsd === null ? 'unknown' : 'known'),

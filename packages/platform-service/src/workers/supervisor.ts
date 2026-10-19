@@ -25,6 +25,8 @@ interface RunningWorker {
   answerAcks: Map<string, (received: boolean) => void>;
   toolCalls: Map<string, AbortController>;
   cancelTimer?: NodeJS.Timeout;
+  yielded?: boolean;
+  resumeCapacity?: () => void;
 }
 
 export interface WorkerScheduleSnapshot {
@@ -191,9 +193,26 @@ export class WorkerSupervisor implements TaskSupervisorPort {
         (worker) => worker.projectId === projectId,
       );
       const activeWorkers = projectWorkers.filter(
-        (worker) => !worker.stopRequested && !worker.finalMessage,
+        (worker) => !worker.stopRequested && !worker.finalMessage && !worker.yielded,
       );
       let active = activeWorkers.length;
+      // Reacquisition takes precedence over new dispatch and consumes a normal slot.
+      for (const worker of projectWorkers) {
+        if (active >= maxConcurrent) break;
+        if (
+          !worker.stopRequested &&
+          !worker.finalMessage &&
+          worker.yielded &&
+          worker.resumeCapacity
+        ) {
+          worker.yielded = false;
+          const resume = worker.resumeCapacity;
+          worker.resumeCapacity = undefined;
+          activeWorkers.push(worker);
+          active += 1;
+          resume();
+        }
+      }
       const tasks = runtime.store.list({ states: ['ready', 'running'], limit: 1_000 });
       const readyTasks = tasks.filter((task) => task.state === 'ready');
       const now = this.now().getTime();
@@ -474,6 +493,32 @@ export class WorkerSupervisor implements TaskSupervisorPort {
       return;
     }
     if (!isCurrentWorker) return;
+    if (message.type === 'tools-request') {
+      const task = runtime.store.get(worker.taskId);
+      if (!worker.stopRequested && !this.disposed && task?.state === 'running') {
+        try {
+          this.send(worker.child, {
+            type: 'tool-result',
+            requestId: message.requestId,
+            output:
+              this.options.tools?.inspectTools(runtime.projectId, {
+                agentRole: task.role ?? task.assignee?.role,
+                accessCeiling: task.assignee?.accessCeiling,
+              }).tools ?? [],
+          });
+        } catch (error) {
+          this.send(worker.child, {
+            type: 'tool-result',
+            requestId: message.requestId,
+            error: {
+              message: error instanceof Error ? error.message : String(error),
+              retryable: false,
+            },
+          });
+        }
+      }
+      return;
+    }
     if (message.type === 'heartbeat') {
       if (worker.stopRequested) return;
       const task = runtime.store.get(worker.taskId);
@@ -512,6 +557,17 @@ export class WorkerSupervisor implements TaskSupervisorPort {
     if (worker.stopRequested || this.disposed) return;
 
     if (message.type === 'tool-call') {
+      if (worker.yielded) {
+        this.send(worker.child, {
+          type: 'tool-result',
+          requestId: message.requestId,
+          error: {
+            message: 'Worker is awaiting task dependencies and cannot start another operation.',
+            retryable: false,
+          },
+        });
+        return;
+      }
       const task = runtime.store.get(worker.taskId);
       if (!task || task.state !== 'running') return;
       const controller = new AbortController();
@@ -523,7 +579,7 @@ export class WorkerSupervisor implements TaskSupervisorPort {
     if (message.type === 'progress') {
       const task = runtime.store.get(worker.taskId);
       if (!task || task.state !== 'running') return;
-      if (message.usage) {
+      if (message.usage && !message.usage.accountedByService) {
         runtime.graph.update(worker.taskId, {
           spent: {
             costUsd: task.spent.costUsd + (message.usage.costUsd ?? 0),
@@ -559,6 +615,17 @@ export class WorkerSupervisor implements TaskSupervisorPort {
     message: Extract<WorkerMessage, { type: 'tool-call' }>,
     controller: AbortController,
   ): Promise<void> {
+    const yieldsCapacity = message.toolId === 'tasks/await' && worker.toolCalls.size === 1;
+    if (yieldsCapacity) {
+      worker.yielded = true;
+      void this.schedule();
+    }
+    const reply = async (result: WorkerCommand): Promise<void> => {
+      if (yieldsCapacity && !controller.signal.aborted && !worker.stopRequested && !this.disposed)
+        await this.reacquireCapacity(worker, controller.signal);
+      if (!worker.stopRequested && !controller.signal.aborted && !this.disposed)
+        this.send(worker.child, result);
+    };
     try {
       if (!this.options.tools) throw new Error('Tool broker is unavailable');
       const call = await this.options.tools.call(
@@ -585,13 +652,13 @@ export class WorkerSupervisor implements TaskSupervisorPort {
         if (call.error?.code) Object.assign(error, { code: call.error.code });
         throw error;
       }
-      this.send(worker.child, {
+      await reply({
         type: 'tool-result',
         requestId: message.requestId,
         output: call.output,
       });
     } catch (error) {
-      this.send(worker.child, {
+      await reply({
         type: 'tool-result',
         requestId: message.requestId,
         error: {
@@ -607,6 +674,23 @@ export class WorkerSupervisor implements TaskSupervisorPort {
     } finally {
       worker.toolCalls.delete(message.requestId);
     }
+  }
+
+  private async reacquireCapacity(worker: RunningWorker, signal: AbortSignal): Promise<void> {
+    await new Promise<void>((resolve) => {
+      const finish = () => {
+        signal.removeEventListener('abort', finish);
+        worker.resumeCapacity = undefined;
+        resolve();
+      };
+      if (signal.aborted) {
+        finish();
+        return;
+      }
+      signal.addEventListener('abort', finish, { once: true });
+      worker.resumeCapacity = finish;
+      void this.schedule();
+    });
   }
 
   private async onWorkerError(

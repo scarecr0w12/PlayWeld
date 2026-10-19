@@ -13,6 +13,10 @@ import type { SettingsService } from '../settings/settings-service';
 import { SkillInstaller } from './skill-installer';
 import { SkillRegistry } from './skill-registry';
 import { SkillCatalog } from './skill-catalog';
+import { SkillService } from './skill-service';
+import { RoleRegistry } from '../roles/role-registry';
+import { TaskService } from '../tasks/task-service';
+import { HandlerRegistry } from '../workers/handler-registry';
 
 const directories: string[] = [];
 
@@ -86,6 +90,8 @@ function makeFixture() {
     installer,
     catalog,
     values,
+    settings,
+    profileDir,
     close() {
       projectDatabases.close();
       profileDatabase.close();
@@ -99,6 +105,80 @@ afterEach(() => {
 });
 
 describe('skill catalog', () => {
+  it('uses the agent role semantic work type consistently for search, activation and resource reads', async () => {
+    const fixture = makeFixture();
+    try {
+      const source = path.join(fixture.root, 'skills');
+      writeSkill(source, 'scene-audit', 'Audit a Godot scene hierarchy.', 'fs.read:project');
+      mkdirSync(path.join(source, 'scene-audit', 'references'));
+      writeFileSync(path.join(source, 'scene-audit', 'references', 'guide.md'), 'Audit guide.');
+      await fixture.installer.install(source, 'scene-audit');
+      fixture.registry.enable(fixture.projectId, { name: 'scene-audit', enabled: true });
+      const rolesRoot = path.join(fixture.projectPath, '.gamecrafter', 'roles', 'engine-engineer');
+      mkdirSync(rolesRoot, { recursive: true });
+      writeFileSync(
+        path.join(rolesRoot, 'ROLE.md'),
+        '---\nname: engine-engineer\ndescription: Code role.\nwork-types: code\nmax-access: restricted\n---\nAudit code.\n',
+      );
+      const roles = new RoleRegistry({ profile: fixture.profile, profileDir: fixture.profileDir });
+      const handlers = new HandlerRegistry();
+      handlers.register('agent.run', { module: path.join(fixture.root, 'unused.js') });
+      handlers.register('noop.tool', { module: path.join(fixture.root, 'unused.js') });
+      const tasks = new TaskService(
+        fixture.profile,
+        fixture.projectDatabases,
+        fixture.settings as SettingsService,
+        handlers,
+        { taskChanged() {}, taskEvent() {}, taskQuestion() {} },
+      );
+      tasks.setRoleResolver((name, projectId) => roles.get(name, projectId));
+      const task = tasks.create(
+        {
+          projectId: fixture.projectId,
+          kind: 'agent.run',
+          role: 'engine-engineer',
+          title: 'Audit scene',
+          goal: 'Audit scene hierarchy',
+        },
+        { deferStart: true },
+      ).task;
+      const service = new SkillService(
+        fixture.installer,
+        fixture.registry,
+        fixture.catalog,
+        roles,
+        tasks,
+        fixture.settings as SettingsService,
+      );
+      expect(
+        service.searchForTask(fixture.projectId, 'scene', task.taskId).map((entry) => entry.name),
+      ).toContain('scene-audit');
+      await expect(
+        service.activate(fixture.projectId, 'scene-audit', task.taskId),
+      ).resolves.toBeDefined();
+      expect(
+        service.readResource({
+          projectId: fixture.projectId,
+          name: 'scene-audit',
+          taskId: task.taskId,
+          resource: 'references/guide.md',
+        }),
+      ).toBeDefined();
+      const ordinary = tasks.create(
+        {
+          projectId: fixture.projectId,
+          kind: 'noop.tool',
+          assignee: { role: 'engine-engineer' },
+          title: 'Other task',
+          goal: 'Other task',
+        },
+        { deferStart: true },
+      ).task;
+      expect(service.searchForTask(fixture.projectId, 'scene', ordinary.taskId)).toEqual([]);
+    } finally {
+      fixture.close();
+    }
+  });
   it('filters role, work type, engine, genre, and restricted capabilities before lexical ranking', async () => {
     const fixture = makeFixture();
     try {

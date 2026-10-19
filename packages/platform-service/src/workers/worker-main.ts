@@ -75,6 +75,10 @@ async function run(payload: WorkerRunPayload): Promise<void> {
       task: payload.task,
       input: payload.input,
       tools: payload.tools ?? [],
+      refreshTools: async () =>
+        callTool(payload, undefined, undefined, activeController.signal) as Promise<
+          import('@gamecrafter/contracts').ToolDefinition[]
+        >,
       initialCheckpoint: payload.checkpoint,
       signal: activeController.signal,
       progress: (message, percent) => {
@@ -157,7 +161,7 @@ async function ask(
 
 async function callTool(
   payload: WorkerRunPayload,
-  toolId: string,
+  toolId: string | undefined,
   input: unknown,
   signal: AbortSignal,
 ): Promise<unknown> {
@@ -175,15 +179,19 @@ async function callTool(
     pendingToolCalls.set(requestId, { resolve, reject, removeAbort });
   });
   try {
-    await send({
-      type: 'tool-call',
-      requestId,
-      toolId,
-      input,
-      ...(payload.task.assignee?.accessCeiling
-        ? { accessCeiling: payload.task.assignee.accessCeiling }
-        : {}),
-    });
+    await send(
+      toolId === undefined
+        ? { type: 'tools-request', requestId }
+        : {
+            type: 'tool-call',
+            requestId,
+            toolId,
+            input,
+            ...(payload.task.assignee?.accessCeiling
+              ? { accessCeiling: payload.task.assignee.accessCeiling }
+              : {}),
+          },
+    );
   } catch (error) {
     const pending = pendingToolCalls.get(requestId);
     pendingToolCalls.delete(requestId);

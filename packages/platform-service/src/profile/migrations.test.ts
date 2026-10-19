@@ -33,7 +33,7 @@ describe('profile migrations', () => {
       expect(tables).toContain('a2a_inbound_config');
       expect(tables).toContain('a2a_inbound_clients');
       expect(tables).toContain('a2a_remote_tasks');
-      expect(database.prepare('SELECT id FROM schema_migrations').all()).toHaveLength(18);
+      expect(database.prepare('SELECT id FROM schema_migrations').all()).toHaveLength(19);
       expect(
         database
           .prepare('PRAGMA table_info(a2a_remote_tasks)')

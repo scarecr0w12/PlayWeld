@@ -41,13 +41,25 @@ async function createFakeServer(): Promise<string> {
             ? {
                 id: 'plain-chat',
                 display_name: 'Plain chat',
-                capabilities: { chat: true },
+                capabilities: {
+                  chat: true,
+                  contextWindow: 8192,
+                  maxInputTokens: 6144,
+                  maxOutputTokens: 2048,
+                },
               }
             : profile === 'cheap'
               ? {
                   id: 'cheap-low-quality',
                   display_name: 'Cheap low-quality',
-                  capabilities: { chat: true, tools: true, streaming: true },
+                  capabilities: {
+                    chat: true,
+                    tools: true,
+                    streaming: true,
+                    contextWindow: 65536,
+                    maxInputTokens: 57344,
+                    maxOutputTokens: 8192,
+                  },
                   pricing: { inputPerMTokUsd: 0.1, outputPerMTokUsd: 0.1 },
                 }
               : {
@@ -58,6 +70,9 @@ async function createFakeServer(): Promise<string> {
                     tools: true,
                     streaming: true,
                     structuredOutput: true,
+                    contextWindow: 65536,
+                    maxInputTokens: 57344,
+                    maxOutputTokens: 8192,
                   },
                   pricing: { inputPerMTokUsd: 1, outputPerMTokUsd: 1 },
                 };
@@ -259,10 +274,18 @@ describe('model registry and adaptive routing integration', () => {
       const baseUrl = await createFakeServer();
       const cheap = await addAccount(baseUrl, 'Cheap worker', 'cheap');
       const good = await addAccount(baseUrl, 'Good worker', 'good');
-      const cheapModel = (await client.call('model/discover', { accountId: cheap.accountId }))
-        .models[0]!;
-      const goodModel = (await client.call('model/discover', { accountId: good.accountId }))
-        .models[0]!;
+      const cheapModel = (
+        await client.call('model/discover', {
+          accountId: cheap.accountId,
+          providerModelIds: ['cheap-low-quality'],
+        })
+      ).models[0]!;
+      const goodModel = (
+        await client.call('model/discover', {
+          accountId: good.accountId,
+          providerModelIds: ['good-expensive'],
+        })
+      ).models[0]!;
       const judge = await addAccount(baseUrl, 'Typed judge', 'judge');
       await client.call('pool/create', {
         name: 'Bounded worker candidates',
@@ -316,7 +339,7 @@ describe('model registry and adaptive routing integration', () => {
         input: {},
       });
       const task = await waitForAgentTask(created.task.taskId);
-      expect(task.state).toBe('succeeded');
+      expect(task.state, JSON.stringify(task.error)).toBe('succeeded');
       const history = await client.call('decisions/history', {
         schemaVersion: 1,
         projectId,
@@ -379,9 +402,16 @@ describe('model registry and adaptive routing integration', () => {
     service = await startService(paths);
     client = await connectService(service.socketPath, paths);
     const account = await addAccount(await createFakeServer(), 'Plain chat account', 'plain');
-    const discovered = await client.call('model/discover', { accountId: account.accountId });
+    const discovered = await client.call('model/discover', {
+      accountId: account.accountId,
+      providerModelIds: ['plain-chat'],
+    });
     const model = discovered.models[0]!;
     expect(model.capabilities).toMatchObject({ chat: true, streaming: null });
+    await client.call('model/update', {
+      modelId: model.modelId,
+      patch: { pricing: { inputPerMTokUsd: 0.1, outputPerMTokUsd: 0.2 } },
+    });
     await client.call('pool/create', {
       name: 'Chat models',
       scope: 'platform',
@@ -430,8 +460,15 @@ describe('model registry and adaptive routing integration', () => {
       folderName: 'second-project',
     });
     const account = await addAccount(await createFakeServer(), 'Scoped local', 'plain');
-    const discovered = await client.call('model/discover', { accountId: account.accountId });
+    const discovered = await client.call('model/discover', {
+      accountId: account.accountId,
+      providerModelIds: ['plain-chat'],
+    });
     const model = discovered.models[0]!;
+    await client.call('model/update', {
+      modelId: model.modelId,
+      patch: { pricing: { inputPerMTokUsd: 0.1, outputPerMTokUsd: 0.2 } },
+    });
     const completionRequestsBefore = fakeRequests.filter(
       (request) => request.path === '/v1/chat/completions',
     ).length;
@@ -470,7 +507,7 @@ describe('model registry and adaptive routing integration', () => {
     ).toHaveLength(1);
   });
 
-  it('exposes model usage in audit without turning unknown, cached, or tiny costs into zero', async () => {
+  it('rejects unpriced completions before dispatch and audits cached or tiny known costs', async () => {
     const root = mkdtempSync(path.join(tmpdir(), 'gc-model-audit-cost-'));
     temporaryDirectories.push(root);
     projectsDirectory = path.join(root, 'projects');
@@ -486,29 +523,21 @@ describe('model registry and adaptive routing integration', () => {
     });
     projectId = project.projectId;
     const account = await addAccount(await createFakeServer(), 'Unpriced local', 'plain');
-    const discovered = await client.call('model/discover', { accountId: account.accountId });
+    const discovered = await client.call('model/discover', {
+      accountId: account.accountId,
+      providerModelIds: ['plain-chat'],
+    });
     const model = discovered.models[0]!;
 
-    scriptedCompletions.push({
-      choices: [{ message: { content: 'Unpriced reply' }, finish_reason: 'stop' }],
-      usage: {
-        prompt_tokens: 20,
-        completion_tokens: 8,
-        prompt_tokens_details: { cached_tokens: 4 },
-      },
-    });
-    const unpriced = await client.call('model/complete', {
-      projectId,
-      route: { projectId, taskType: 'chat', manualModelId: model.modelId },
-      request: { messages: [{ role: 'user', content: 'fixture prompt' }] },
-    });
-    expect(unpriced.usage).toMatchObject({
-      inputTokens: 20,
-      outputTokens: 8,
-      cacheReadInputTokens: 4,
-      costUsd: null,
-      costStatus: 'unknown',
-    });
+    await expect(
+      client.call('model/complete', {
+        projectId,
+        route: { projectId, taskType: 'chat', manualModelId: model.modelId },
+        request: { messages: [{ role: 'user', content: 'fixture prompt' }] },
+      }),
+    ).rejects.toMatchObject({ code: -32042, data: { stage: 'constraints' } });
+    expect(fakeRequests.filter((request) => request.path === '/v1/chat/completions')).toEqual([]);
+    expect((await client.call('audit/read', { projectId })).modelUsage).toEqual([]);
 
     await client.call('model/update', {
       modelId: model.modelId,
@@ -558,14 +587,6 @@ describe('model registry and adaptive routing integration', () => {
     const audit = await client.call('audit/read', { projectId });
     expect(audit).toMatchObject({
       modelUsage: expect.arrayContaining([
-        expect.objectContaining({
-          modelId: model.modelId,
-          inputTokens: 20,
-          outputTokens: 8,
-          cacheReadInputTokens: 4,
-          costUsd: null,
-          costStatus: 'unknown',
-        }),
         expect.objectContaining({
           modelId: model.modelId,
           inputTokens: 20,
@@ -626,8 +647,12 @@ describe('model registry and adaptive routing integration', () => {
     const goodAccount = await addAccount(baseUrl, 'Good local', 'good');
     const cheapDiscovery = await client.call('model/discover', {
       accountId: cheapAccount.accountId,
+      providerModelIds: ['cheap-low-quality'],
     });
-    const goodDiscovery = await client.call('model/discover', { accountId: goodAccount.accountId });
+    const goodDiscovery = await client.call('model/discover', {
+      accountId: goodAccount.accountId,
+      providerModelIds: ['good-expensive'],
+    });
     expect(cheapDiscovery.added).toBe(1);
     expect(goodDiscovery.added).toBe(1);
     const cheapModelId = cheapDiscovery.models[0]!.modelId;
@@ -803,7 +828,10 @@ describe('model registry and adaptive routing integration', () => {
     projectId = project.projectId;
     const baseUrl = await createFakeServer();
     const account = await addAccount(baseUrl, 'Agent runtime model', 'good');
-    const discovered = await client.call('model/discover', { accountId: account.accountId });
+    const discovered = await client.call('model/discover', {
+      accountId: account.accountId,
+      providerModelIds: ['good-expensive'],
+    });
     const modelId = discovered.models[0]!.modelId;
     await client.call('pool/create', {
       name: 'Coordinator runtime pool',
@@ -872,13 +900,14 @@ describe('model registry and adaptive routing integration', () => {
       title: 'Run coordinator agent',
       goal: 'Read the discussion board, then report completion.',
       role: 'coordinator',
-      budget: { maxTokens: 10_000 },
+      // The ready model reserves its full advertised input/output capacity per turn.
+      budget: { maxTokens: 100_000 },
       contract: { required: ['generated'], validators: [] },
       input: {},
     });
     const task = await waitForAgentTask(created.task.taskId);
 
-    expect(task.state).toBe('succeeded');
+    expect(task.state, JSON.stringify(task.error)).toBe('succeeded');
     expect(task.result).toMatchObject({
       summary: 'Reviewed the board and completed the task.',
       claims: [{ kind: 'generated', ref: 'agent-summary' }],

@@ -18,6 +18,7 @@ import {
   type DecisionAssessmentRequest,
   type RouteRequest,
 } from '@gamecrafter/contracts';
+import { runBudgetedModelCall } from './shared-task-budget';
 import { projectRelativePath, resolveProjectPath } from '../assets/path-utils';
 import type { CompletionService, PreparedCompletion } from '../models/completion-service';
 import type { DecisionService } from '../models/decision-service';
@@ -72,28 +73,49 @@ export function registerAgentTools(registry: ToolRegistry, options: AgentToolOpt
           );
         const roleName = context.agentRole ?? task?.role ?? task?.assignee?.role;
         const role = roleName ? options.roles.get(roleName, context.projectId) : undefined;
-        const assessment = await options.decisions!.assess(
-          {
-            ...request,
-            summary: task?.goal ?? request.summary,
-            route: task
-              ? {
-                  ...request.route,
-                  projectId: context.projectId,
-                  agentRole: roleName,
-                  taskType: role?.workTypes[0] ?? 'coordination',
-                  requiredCapabilities: [
-                    ...new Set([
-                      ...(request.route.requiredCapabilities ?? []),
-                      'chat' as const,
-                      'tools' as const,
-                    ]),
-                  ],
-                }
-              : request.route,
-          },
-          context.signal,
-        );
+        const assessment = task
+          ? await runBudgetedModelCall(
+              options.tasks,
+              context.projectId,
+              task.taskId,
+              async (_limits, markDispatched) => {
+                markDispatched();
+                const value = await assess();
+                return {
+                  value,
+                  costUsd: value.reused ? 0 : value.usage.costUsd,
+                  tokens: value.reused
+                    ? 0
+                    : (value.usage.inputTokens ?? 0) + (value.usage.outputTokens ?? 0),
+                };
+              },
+              true,
+            )
+          : await assess();
+        async function assess() {
+          return options.decisions!.assess(
+            {
+              ...request,
+              summary: task?.goal ?? request.summary,
+              route: task
+                ? {
+                    ...request.route,
+                    projectId: context.projectId,
+                    agentRole: roleName,
+                    taskType: role?.workTypes[0] ?? 'coordination',
+                    requiredCapabilities: [
+                      ...new Set([
+                        ...(request.route.requiredCapabilities ?? []),
+                        'chat' as const,
+                        'tools' as const,
+                      ]),
+                    ],
+                  }
+                : request.route,
+            },
+            context.signal,
+          );
+        }
         if (task && !assessment.reused)
           options.tasks
             .runtime(context.projectId)
@@ -245,7 +267,19 @@ export function registerAgentTools(registry: ToolRegistry, options: AgentToolOpt
             },
             request: asRecord(args.request) as never,
           },
-          { signal: context.signal },
+          {
+            signal: context.signal,
+            ...(task.budget.maxCostUsd === undefined
+              ? {}
+              : {
+                  remainingCostUsd: Math.max(0, task.budget.maxCostUsd - task.spent.costUsd),
+                }),
+            ...(task.budget.maxTokens === undefined
+              ? {}
+              : {
+                  remainingTokens: Math.max(0, task.budget.maxTokens - task.spent.tokens),
+                }),
+          },
           prepared,
         );
         return {
@@ -285,6 +319,11 @@ export function registerAgentTools(registry: ToolRegistry, options: AgentToolOpt
     ),
     (context, input) => {
       const parent = requireTask(options.tasks, context);
+      if (parent.state !== 'running')
+        throw new RpcError(
+          'Only a running parent agent task can delegate new work.',
+          RpcErrorCode.InvalidTaskTransition,
+        );
       const args = asRecord(input);
       const roleName = stringValue(args.role);
       const goal = stringValue(args.goal);
@@ -297,6 +336,16 @@ export function registerAgentTools(registry: ToolRegistry, options: AgentToolOpt
       // a user-supplied task token ceiling; coordinators cannot invent one.
       if (parent.budget.maxTokens === undefined) delete childBudget.maxTokens;
       else childBudget.maxTokens = parent.budget.maxTokens;
+      if (parent.budget.maxCostUsd !== undefined)
+        childBudget.maxCostUsd = Math.min(
+          Number(childBudget.maxCostUsd ?? Infinity),
+          parent.budget.maxCostUsd,
+        );
+      if (parent.budget.maxDurationMs !== undefined)
+        childBudget.maxDurationMs = Math.min(
+          Number(childBudget.maxDurationMs ?? Infinity),
+          parent.budget.maxDurationMs,
+        );
       const isolation =
         args.isolation === 'none' || args.isolation === 'worktree'
           ? args.isolation

@@ -3,6 +3,7 @@ import {
   RpcErrorCode,
   uuidv7,
   type Model,
+  type ChatRequest,
   type ModelPool,
   type ModelUsageRecord,
   type DecisionAssessment,
@@ -11,6 +12,7 @@ import {
   type RouteDecision,
   type RouteOutcome,
   type RouteRequest,
+  type RoleRecord,
 } from '@gamecrafter/contracts';
 import type { Database } from '../db/database';
 import type { SettingsService } from '../settings/settings-service';
@@ -63,10 +65,17 @@ const sourceWeights: Record<RouteOutcome['source'], number> = {
 export class ModelRouter {
   private readonly now: () => Date;
   private readonly random: () => number;
+  private roleResolver?: (roleName: string, projectId?: string) => RoleRecord | undefined;
 
   constructor(private readonly options: RouterOptions) {
     this.now = options.now ?? (() => new Date());
     this.random = options.random ?? Math.random;
+  }
+
+  setRoleResolver(
+    resolver: (roleName: string, projectId?: string) => RoleRecord | undefined,
+  ): void {
+    this.roleResolver = resolver;
   }
 
   preview(request: RouteRequest, sessionId?: string): RouteDecision {
@@ -78,8 +87,11 @@ export class ModelRouter {
     sessionId?: string,
     advice?: { modelId: string; assessmentId: string },
     preview = false,
+    roleConstraints: readonly string[] = [],
   ): RouteDecision {
-    const enabledModels = this.options.registry.listModels({ enabledOnly: true });
+    const enabledModels = this.options.registry
+      .listModels({ enabledOnly: true })
+      .filter((model) => model.availability !== 'unavailable');
     let eligible = enabledModels;
     if (eligible.length === 0) {
       throw noEligibleModel('enabled-models', ['no enabled models or accounts']);
@@ -117,7 +129,7 @@ export class ModelRouter {
     }
     eligible = capabilityModels;
 
-    const poolResult = this.filterByPools(request);
+    const poolResult = this.filterByPools(request, roleConstraints);
     if (poolResult.modelIds !== null) {
       const allowedModelIds = new Set(poolResult.modelIds);
       eligible = eligible.filter((model) => allowedModelIds.has(model.modelId));
@@ -139,8 +151,9 @@ export class ModelRouter {
     const constrained = estimates.filter((estimate) => {
       if (
         constraints.maxCostUsd !== null &&
-        estimate.estimatedCostUsd !== null &&
-        estimate.estimatedCostUsd > constraints.maxCostUsd
+        (!hasFreshPricing(estimate.model, this.now()) ||
+          estimate.estimatedCostUsd === null ||
+          estimate.estimatedCostUsd > constraints.maxCostUsd)
       ) {
         return false;
       }
@@ -186,7 +199,9 @@ export class ModelRouter {
       const remainingBudget = this.remainingExplorationBudget(request.projectId, sessionId);
       const affordable = scored.filter(
         (candidate) =>
-          candidate.estimatedCostUsd !== null && candidate.estimatedCostUsd <= remainingBudget,
+          hasFreshPricing(candidate.estimate.model, this.now()) &&
+          candidate.estimatedCostUsd !== null &&
+          candidate.estimatedCostUsd <= remainingBudget,
       );
       if (affordable.length > 0) {
         const leastObserved = [...affordable].sort(
@@ -250,6 +265,87 @@ export class ModelRouter {
     };
     if (!preview) this.persistDecision(decision);
     return decision;
+  }
+
+  /** Validate the final request immediately before dispatch; historical costs are never a cap. */
+  boundCompletion(
+    model: Model,
+    request: ChatRequest,
+    route: RouteRequest,
+    sessionId?: string,
+    remainingTokens?: number,
+    remainingCostUsd?: number,
+    roleConstraints: readonly string[] = [],
+  ): ChatRequest {
+    const fail = (reason: string): never => {
+      throw noEligibleModel('constraints', [reason]);
+    };
+    const pools = this.filterByPools(route, roleConstraints);
+    if (pools.modelIds !== null && !pools.modelIds.has(model.modelId)) {
+      throw noEligibleModel('pools', pools.removedBy);
+    }
+    if (!model.enabled || model.availability === 'unavailable')
+      fail('model unavailable or unselected');
+    for (const capability of route.requiredCapabilities ?? []) {
+      if (!isChatRequestCapability(capability) || model.capabilities[capability] !== true)
+        fail(`capability:${capability}`);
+    }
+    if (model.capabilities.chat !== true) fail('capability:chat');
+    if (request.tools?.length && model.capabilities.tools !== true) fail('capability:tools');
+    if (
+      request.responseFormat?.type === 'json_schema' &&
+      model.capabilities.structuredOutput !== true
+    )
+      fail('capability:structuredOutput');
+    const outputLimit = positiveLimit(model.capabilities.maxOutputTokens);
+    const maxTokens = request.maxTokens ?? outputLimit;
+    if (maxTokens !== null && (!Number.isSafeInteger(maxTokens) || maxTokens < 1))
+      fail('invalid maxTokens');
+    if (outputLimit !== null && maxTokens !== null && maxTokens > outputLimit)
+      fail('maxOutputTokens');
+    const contextWindow = positiveLimit(model.capabilities.contextWindow);
+    const maxInput = positiveLimit(model.capabilities.maxInputTokens);
+    const inputLimit =
+      contextWindow === null
+        ? maxInput
+        : Math.min(maxInput ?? contextWindow, contextWindow - (maxTokens ?? 0));
+    const inputBound =
+      contextWindow === null ? maxInput : Math.min(maxInput ?? contextWindow, contextWindow);
+    // Conservative request-size guard, including structured schemas and message framing.
+    // Monetary safety below reserves the entire advertised input capacity instead of
+    // treating this tokenizer-independent estimate as a verified billable token count.
+    const inputEstimate =
+      Buffer.byteLength(JSON.stringify(request), 'utf8') +
+      request.messages.length * 256 +
+      (request.tools?.length ?? 0) * 256;
+    if (inputLimit !== null && inputEstimate > inputLimit) fail('maxInputTokens/contextWindow');
+    if (
+      remainingTokens !== undefined &&
+      (inputBound === null || maxTokens === null || inputBound + maxTokens > remainingTokens)
+    )
+      fail('remaining task token budget');
+    const routeMaxCost = this.resolveConstraints(route, sessionId).maxCostUsd;
+    const maxCostUsd =
+      remainingCostUsd === undefined
+        ? routeMaxCost
+        : Math.min(routeMaxCost ?? Infinity, remainingCostUsd);
+    if (maxCostUsd !== null) {
+      if (!hasFreshPricing(model, this.now())) fail('unknown or stale pricing');
+      if (inputBound === null || maxTokens === null) fail('unknown input/output token bound');
+      for (const key of ['contextWindow', 'maxInputTokens', 'maxOutputTokens'] as const) {
+        if (
+          positiveLimit(model.capabilities[key]) !== null &&
+          !hasFreshField(model, `capabilities.${key}`, this.now())
+        )
+          fail('stale input/output token bound');
+      }
+      const costBound =
+        (inputBound! * model.pricing.inputPerMTokUsd! +
+          maxTokens! * model.pricing.outputPerMTokUsd!) /
+        1_000_000;
+      if (!Number.isFinite(costBound) || costBound > maxCostUsd) fail(`maxCostUsd:${maxCostUsd}`);
+    }
+    return { ...request, ...(maxTokens === null ? {} : { maxTokens }) };
   }
 
   reportOutcome(outcome: RouteOutcome): void {
@@ -508,7 +604,24 @@ export class ModelRouter {
       .sort((left, right) => left.modelId.localeCompare(right.modelId));
   }
 
-  private filterByPools(request: RouteRequest): {
+  assertRolePools(
+    modelId: string,
+    roleConstraints: readonly string[],
+    projectId?: string,
+    taskType = 'completion',
+  ): void {
+    for (const agentRole of new Set(roleConstraints)) {
+      const pools = this.filterByPools({ projectId, taskType, agentRole });
+      if (pools.modelIds !== null && !pools.modelIds.has(modelId)) {
+        throw noEligibleModel('pools', pools.removedBy);
+      }
+    }
+  }
+
+  private filterByPools(
+    request: RouteRequest,
+    roleConstraints: readonly string[] = [],
+  ): {
     modelIds: Set<string> | null;
     removedBy: string[];
     noPoolsConfigured: boolean;
@@ -543,6 +656,34 @@ export class ModelRouter {
     } else if (globalPools.length > 0) {
       allowed = unionPoolModelIds(globalPools);
       removedBy = globalPools.map((pool) => `pool:${pool.poolId}`);
+    }
+    const role = request.agentRole
+      ? this.roleResolver?.(request.agentRole, request.projectId)
+      : undefined;
+    if (role?.modelPool) {
+      const namedPools = pools.filter(
+        (pool) => pool.poolId === role.modelPool || pool.name === role.modelPool,
+      );
+      // Builtin names are defaults for installations which have not configured
+      // those pools yet. Custom roles must name an existing pool explicitly.
+      if (namedPools.length === 0 && role.scope !== 'builtin') {
+        throw noEligibleModel('pools', [`role-pool-not-found:${role.modelPool}`]);
+      }
+      if (namedPools.length > 0) {
+        const named = unionPoolModelIds(namedPools);
+        allowed = allowed === null ? named : new Set([...allowed].filter((id) => named.has(id)));
+        removedBy.push(...namedPools.map((pool) => `role-pool:${pool.poolId}`));
+      }
+    }
+    for (const agentRole of new Set(roleConstraints)) {
+      if (agentRole === request.agentRole) continue;
+      const caller = this.filterByPools({ ...request, agentRole });
+      if (caller.modelIds !== null) {
+        const permitted = caller.modelIds;
+        allowed =
+          allowed === null ? permitted : new Set([...allowed].filter((id) => permitted.has(id)));
+        removedBy.push(...caller.removedBy);
+      }
     }
     if (allowed === null) {
       return { modelIds: null, removedBy: [], noPoolsConfigured: true };
@@ -893,4 +1034,29 @@ function outcomeFromRow(row: DecisionOutcomeRow): RouteOutcome {
     cacheCreationInputTokens: row.cacheCreationInputTokens ?? 0,
     ...(row.note === null ? {} : { note: row.note }),
   };
+}
+
+function positiveLimit(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
+function hasFreshPricing(model: Model, now: Date): boolean {
+  return (['inputPerMTokUsd', 'outputPerMTokUsd'] as const).every((key) => {
+    const price = model.pricing[key];
+
+    return (
+      price !== null &&
+      Number.isFinite(price) &&
+      price >= 0 &&
+      hasFreshField(model, `pricing.${key}`, now)
+    );
+  });
+}
+
+function hasFreshField(model: Model, key: string, now: Date): boolean {
+  const field = model.metadataFields[key];
+  return (
+    field?.stale !== true &&
+    (field?.expiresAt == null || Date.parse(field.expiresAt) > now.getTime())
+  );
 }

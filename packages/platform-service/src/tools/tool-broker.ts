@@ -71,6 +71,9 @@ export interface ToolCallContext {
   sessionId?: string;
   accessCeiling?: AccessMode;
   agentRole?: string | null;
+  roleConstraints?: string[];
+  /** Trusted connector-only delegation for one selected MCP tool; never accepted from RPC input. */
+  delegatedTool?: { toolId: string; viaToolId: string };
   projectPathOverride?: string;
   signal?: AbortSignal;
 }
@@ -323,13 +326,31 @@ export class ToolBroker {
       );
     }
 
-    const agentRole = context.agentRole ?? task?.assignee?.role ?? task?.role ?? null;
-    if (
-      agentRole &&
-      !tool.definition.source.endsWith('-internal') &&
-      !this.roleAllows(agentRole, request.projectId, request.toolId)
-    ) {
-      const message = `Role ${agentRole} cannot use ${request.toolId}`;
+    const roleConstraints = [
+      ...new Set(
+        [
+          context.agentRole,
+          task?.assignee?.role,
+          task?.role,
+          ...(context.roleConstraints ?? []),
+        ].filter((role): role is string => Boolean(role)),
+      ),
+    ];
+    const delegated = context.delegatedTool;
+    const viaToolId =
+      delegated?.toolId === request.toolId &&
+      tool.definition.source.startsWith('mcp:') &&
+      this.options.registry.get(delegated.viaToolId)?.definition.source === 'builtin' &&
+      delegated.viaToolId.startsWith('engine/')
+        ? delegated.viaToolId
+        : undefined;
+    const deniedRole = !tool.definition.source.endsWith('-internal')
+      ? roleConstraints.find(
+          (role) => !this.roleAllows(role, request.projectId, request.toolId, viaToolId),
+        )
+      : undefined;
+    if (deniedRole) {
+      const message = `Role ${deniedRole} cannot use ${request.toolId}`;
       this.finishRecord(store, {
         ...record,
         decision: 'denied',
@@ -468,6 +489,7 @@ export class ToolBroker {
       request.input,
       context.agentRole ?? task?.assignee?.role ?? null,
       context.signal,
+      roleConstraints,
     );
   }
 
@@ -479,6 +501,7 @@ export class ToolBroker {
     input: unknown,
     agentRole: string | null,
     callerSignal?: AbortSignal,
+    roleConstraints: string[] = [],
   ): Promise<ToolCallRecord> {
     const controller = new AbortController();
     const abortFromCaller = () => controller.abort(callerSignal?.reason ?? 'cancelled');
@@ -497,6 +520,7 @@ export class ToolBroker {
         accessMode: record.accessMode,
         callId: record.callId,
         signal: controller.signal,
+        roleConstraints,
         ...(record.taskId
           ? {
               reportProgress: (progress: unknown) => {
@@ -584,11 +608,17 @@ export class ToolBroker {
     return { ...storedRecord, input: record.input, output: record.output };
   }
 
-  private roleAllows(roleName: string, projectId: string, toolId: string): boolean {
+  private roleAllows(
+    roleName: string,
+    projectId: string,
+    toolId: string,
+    viaToolId?: string,
+  ): boolean {
     if (roleName.startsWith('plugin:') || !this.options.roles) return true;
     try {
       const role = this.options.roles.get(roleName, projectId);
-      const permissionToolId = toolId === 'board/propose-decision' ? 'board/post' : toolId;
+      const permissionToolId =
+        viaToolId ?? (toolId === 'board/propose-decision' ? 'board/post' : toolId);
       const roleAllowsSkillTools =
         (toolId === 'skills/activate' ||
           toolId === 'skills/search' ||
@@ -601,7 +631,10 @@ export class ToolBroker {
           roleAllowsLockTools ||
           roleAllowsMemory ||
           role.tools.some((pattern) => matchesToolGlob(pattern, permissionToolId))) &&
-        !role.disallowedTools.some((pattern) => matchesToolGlob(pattern, permissionToolId))
+        !role.disallowedTools.some(
+          (pattern) =>
+            matchesToolGlob(pattern, permissionToolId) || matchesToolGlob(pattern, toolId),
+        )
       );
     } catch {
       return false;

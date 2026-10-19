@@ -14,6 +14,8 @@ export interface ToolContext {
   taskId: string | null;
   agentId: string | null;
   agentRole?: string | null;
+  /** Originating roles remain authorization constraints across trusted tool facades. */
+  roleConstraints?: string[];
   accessMode: AccessMode;
   callId: string;
   signal: AbortSignal;

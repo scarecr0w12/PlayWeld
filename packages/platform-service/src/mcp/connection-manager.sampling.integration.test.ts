@@ -42,7 +42,13 @@ async function startFakeProvider(): Promise<{ baseUrl: string; models: string[] 
               {
                 id: 'fake-sampling-model',
                 display_name: 'Fake sampling model',
-                capabilities: { chat: true, tools: false, streaming: false },
+                capabilities: {
+                  chat: true,
+                  tools: false,
+                  streaming: false,
+                  contextWindow: 64_000,
+                  maxOutputTokens: 4096,
+                },
                 pricing: { inputPerMTokUsd: 1, outputPerMTokUsd: 1 },
               },
             ],
@@ -119,7 +125,10 @@ describe('MCP sampling through model routing', () => {
       apiKey: 'test-api-key',
       isLocal: true,
     });
-    const discovered = await client.call('model/discover', { accountId: account.accountId });
+    const discovered = await client.call('model/discover', {
+      accountId: account.accountId,
+      providerModelIds: ['fake-sampling-model'],
+    });
     expect(discovered.models.map((model) => model.providerModelId)).toContain(
       'fake-sampling-model',
     );

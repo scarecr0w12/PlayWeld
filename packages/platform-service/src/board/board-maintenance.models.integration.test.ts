@@ -29,7 +29,13 @@ async function createFakeProvider(): Promise<string> {
               {
                 id: 'board-maintainer-model',
                 display_name: 'Board Maintainer Model',
-                capabilities: { chat: true, tools: false, streaming: false },
+                capabilities: {
+                  chat: true,
+                  tools: false,
+                  streaming: false,
+                  contextWindow: 64_000,
+                  maxOutputTokens: 4096,
+                },
                 pricing: { inputPerMTokUsd: 1, outputPerMTokUsd: 1 },
               },
             ],
@@ -117,7 +123,10 @@ describe('board maintenance model integration', () => {
       apiKey: 'fake-board-key',
       isLocal: true,
     });
-    const discovered = await client.call('model/discover', { accountId: account.accountId });
+    const discovered = await client.call('model/discover', {
+      accountId: account.accountId,
+      providerModelIds: ['board-maintainer-model'],
+    });
     const modelId = discovered.models[0]!.modelId;
     await client.call('pool/create', {
       name: 'Board maintainer role',

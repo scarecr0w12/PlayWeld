@@ -183,6 +183,20 @@ export class TaskStore {
     );
   }
 
+  /** Internal graph propagation must visit every matching dependency, without UI list limits. */
+  dependents(taskId: string, states: TaskState[]): TaskRecord[] {
+    if (states.length === 0) return [];
+    return this.database
+      .prepare(
+        `SELECT ${taskColumns} FROM tasks
+         WHERE state IN (${states.map(() => '?').join(', ')})
+           AND EXISTS (SELECT 1 FROM json_each(tasks.depends_on) WHERE value = ?)
+         ORDER BY created_at, task_id`,
+      )
+      .all<TaskRow>(...states, taskId)
+      .map(taskFromRow);
+  }
+
   update(taskId: string, patch: TaskRecordPatch): TaskRecord {
     const current = this.get(taskId);
     if (!current) throw taskNotFound(taskId);
@@ -257,6 +271,17 @@ export class TaskStore {
       this.database
         .prepare('SELECT COALESCE(MAX(seq), 0) AS seq FROM events')
         .get<{ seq: number }>()?.seq ?? 0
+    );
+  }
+
+  /** A subtree cancellation revokes future followups even when its root already succeeded. */
+  cancellationRequested(taskId: string): boolean {
+    return (
+      this.database
+        .prepare(
+          "SELECT 1 AS found FROM events WHERE task_id = ? AND kind = 'task.cancel_requested' LIMIT 1",
+        )
+        .get<{ found: number }>(taskId) !== undefined
     );
   }
 

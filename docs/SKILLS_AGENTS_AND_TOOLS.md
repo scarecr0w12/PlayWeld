@@ -1,7 +1,7 @@
 # Skills, Agent Roles, and Tool Connections: Design
 
 **Status:** Engineering-default design built on the 2026-09-27 research pass. User-confirmed requirements are cited from `PLATFORM_DESIGN.md`; everything else here is a selected engineering default under the delegated best-practice judgment, not an implementation claim.  
-**Last updated:** 2026-10-04
+**Last updated:** 2026-10-18
 **Research basis:** [agent-skills-and-agent-ecosystem.md](research/agent-skills-and-agent-ecosystem.md), [engine-connectors.md](research/engine-connectors.md), [dcc-and-asset-tools.md](research/dcc-and-asset-tools.md), [process-isolation.md](research/process-isolation.md), [local-model-and-routing-sources.md](research/local-model-and-routing-sources.md).
 
 This document resolves the skill, agent-role, and tool-connection contracts that `OPEN_DECISIONS.md` left open (A03, S04 skill portion, S06, S07, S08, C01, and parts of A02/S01/S02). It is organized by contract, not by milestone.
@@ -121,6 +121,10 @@ Rules:
 - Marketplace/plugin-provided roles cannot set `mcp-servers` inline, hooks, or a `max-access` of `full`; those fields are honored only for roles authored in the Project or profile (same asymmetry Claude Code applies to plugin subagents).
 - `isolation: worktree` maps to the confirmed Git-worktree rule for independent code/docs work; roles that operate live engine or DCC sessions declare `locks:` on the resources they need.
 - `memory: project` gives a role a reviewable Markdown memory directory inside the Project; it is indexed like other Project records and is never the sole location of canon.
+- `requires-modules` is an agent-task prerequisite against the Project manifest's enabled modules. A missing module rejects task creation; a skill or role name does not enable a module implicitly.
+- A configured named `model-pool` intersects role/task-type pool constraints, including manual and prepared selections. Unconfigured builtin pool names are defaults and retain ordinary routing; an unresolved custom-role pool fails closed. A plugin facade retains its own model attribution and pool while intersecting its originating role constraints.
+- `board-subscriptions` owns the persisted agent-role subscriber filter. Starting an agent task reconciles that filter; `*` means all topics, and an empty list removes the role's previous subscription. User and task subscriptions remain independently owned. Subscription records do not authorize autonomous agent creation.
+- For skill eligibility, an agent's primary role work type describes its semantic work; `agent.run` describes only its execution handler. Connector grants name the permitted wrapper operations. A trusted engine wrapper may delegate to its selected MCP implementation while explicit downstream deny patterns, access policy, approvals, and locks remain binding.
 
 ### 3.2 Built-in roles (engineering default set)
 
@@ -128,7 +132,9 @@ Coordinator, Explorer (read-only research; cheap model pool), Planner, Game Desi
 
 ### 3.3 Delegation and swarm limits (defaults for A02)
 
-Defaults exposed in Settings: max spawn depth 4, max concurrent agents per Project 8, per-task token/cost budget inherited and subdivided by the parent, duplicate-task detection by normalized goal hash + touched-artifact overlap. Explorer-style read-only agents run in the background by default and return summaries, keeping the parent context small.
+Defaults exposed in Settings: max spawn depth 4, max concurrent agents per Project 8, duplicate-task detection by normalized goal hash + touched-artifact overlap. Token ceilings are optional user constraints, independent of model context capacity; delegation inherits an explicit parent ceiling without allowing models to invent one. Child cost/time allowances cannot exceed their parent's. Model completion spend is also constrained by each ancestor's remaining subtree envelope, using durable spend and provider-dispatch reservations. Unknown monetary charges retain a hold only when a monetary ceiling applies; known token usage can settle a token-only reservation. Optional unpriced decision assessment is unavailable under a finite envelope. Asset-provider credits and external actions retain their own approval/accounting contracts and are not silently treated as dollar-denominated model spend. A task duration is measured from its own start; expiration cancels its entire subtree, including later-started descendants.
+
+Waiting for child tasks yields execution capacity while retaining supervision and checkpoints. The coordinator reacquires a normal slot before continuing, including after timeout or an error. Cancellation durably fences the complete subtree before waiting for process shutdown, including future followups beneath a previously successful root. Failed/cancelled ancestors reject new descendants. Successful ancestors without a cancellation request permit service-created reconciliation and feedback within the same request tree and budget; agent delegation requires its own parent to be running. Explorer-style read-only agents run in the background by default and return summaries, keeping the parent context small.
 
 ## 4. Tool connections
 
@@ -140,6 +146,7 @@ Defaults exposed in Settings: max spawn depth 4, max concurrent agents per Proje
 - Deprecated features (Roots, Sampling, Logging): never required. Servers that request Sampling are refused unless the user enables "allow server-initiated model calls" for that connection, in which case sampling is routed through the platform router with the connection's own model pool and cost accounting.
 - Elicitation/MRTR `input_required` results are surfaced as board questions or UI prompts depending on access mode.
 - Tool lists are cached per `ttlMs`/`cacheScope`; tools are presented to agents through the broker with the connection name as a namespace prefix.
+- Running agents refresh the role/access-filtered tool and schema snapshot between model turns, before context-size accounting. Removed tools do not remain advertised on subsequent turns. Session access restrictions apply equally to ordinary tool calls and engine/DCC RPC wrappers; trusted plugin-mediated calls also retain the originating agent role constraints.
 
 ### 4.2 Capability metadata and per-operation execution mode
 

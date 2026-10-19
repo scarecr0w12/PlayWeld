@@ -17,6 +17,7 @@ import type { SettingsService } from '../settings/settings-service';
 import { ModelRegistry } from './model-registry';
 import { ModelRouter } from './router';
 import { ModelProviderRegistry, type ModelProvider } from './providers';
+import { loadRoleDir } from '../roles/role-loader';
 
 const defaultSettings: Record<string, unknown> = {
   'models.autoRouting.quality': 'quality-first',
@@ -27,6 +28,201 @@ const defaultSettings: Record<string, unknown> = {
 };
 
 describe('ModelRouter', () => {
+  it('intersects facade routing with caller pools while preserving direct plugin routing', async () => {
+    const fixture = await createFixture();
+    try {
+      const role = loadRoleDir(path.resolve(__dirname, '../../roles/engine-engineer'), 'builtin');
+      fixture.router.setRoleResolver((name) => (name === 'engine-engineer' ? role : undefined));
+      for (const modelId of Object.values(fixture.modelIds)) {
+        fixture.registry.updateModel(modelId, { workTypes: [], roles: [] });
+      }
+      fixture.registry.createPool({
+        name: 'engineering',
+        scope: 'platform',
+        target: { kind: 'agent', id: 'engine-engineer' },
+        modelIds: [fixture.modelIds.cheap],
+      });
+      const pluginPool = fixture.registry.createPool({
+        name: 'plugin',
+        scope: 'platform',
+        target: { kind: 'agent', id: 'plugin:example' },
+        modelIds: [fixture.modelIds.good],
+      });
+      const request = { taskType: 'plugin', agentRole: 'plugin:example' };
+      expect(fixture.router.route(request).modelId).toBe(fixture.modelIds.good);
+      expect(() =>
+        fixture.router.route(request, undefined, undefined, false, ['engine-engineer']),
+      ).toThrowError(
+        expect.objectContaining({ data: expect.objectContaining({ stage: 'pools' }) }),
+      );
+      fixture.registry.updatePool(pluginPool.poolId, { modelIds: Object.values(fixture.modelIds) });
+      expect(
+        fixture.router.route(request, undefined, undefined, false, ['engine-engineer']).modelId,
+      ).toBe(fixture.modelIds.cheap);
+      expect(() =>
+        fixture.router.assertRolePools(
+          fixture.modelIds.good,
+          ['engine-engineer'],
+          undefined,
+          'plugin',
+        ),
+      ).toThrowError(
+        expect.objectContaining({ data: expect.objectContaining({ stage: 'pools' }) }),
+      );
+      expect(() =>
+        fixture.router.assertRolePools(
+          fixture.modelIds.cheap,
+          ['engine-engineer'],
+          undefined,
+          'plugin',
+        ),
+      ).not.toThrow();
+      expect(() =>
+        fixture.router.boundCompletion(
+          fixture.registry.getModel(fixture.modelIds.good)!,
+          { messages: [] },
+          request,
+          undefined,
+          undefined,
+          undefined,
+          ['engine-engineer'],
+        ),
+      ).toThrowError(
+        expect.objectContaining({ data: expect.objectContaining({ stage: 'pools' }) }),
+      );
+    } finally {
+      fixture.close();
+    }
+  });
+  it('intersects a role named pool with targeted pools and rejects manual escape', async () => {
+    const fixture = await createFixture();
+    try {
+      const role = loadRoleDir(path.resolve(__dirname, '../../roles/engine-engineer'), 'builtin');
+      fixture.router.setRoleResolver(() => role);
+      fixture.registry.createPool({
+        name: 'engineering',
+        scope: 'platform',
+        target: null,
+        modelIds: [fixture.modelIds.cheap],
+      });
+      fixture.registry.createPool({
+        name: 'code',
+        scope: 'platform',
+        target: { kind: 'task-type', id: 'code' },
+        modelIds: [fixture.modelIds.good],
+      });
+      expect(() =>
+        fixture.router.route({ taskType: 'code', agentRole: 'programmer' }),
+      ).toThrowError(
+        expect.objectContaining({ data: expect.objectContaining({ stage: 'pools' }) }),
+      );
+      expect(() =>
+        fixture.router.route({
+          taskType: 'code',
+          agentRole: 'programmer',
+          manualModelId: fixture.modelIds.good,
+        }),
+      ).toThrow();
+    } finally {
+      fixture.close();
+    }
+  });
+
+  it('preserves unconfigured builtin pool defaults but fails closed for missing custom pools', async () => {
+    const fixture = await createFixture();
+    try {
+      const directory = path.resolve(__dirname, '../../roles/engine-engineer');
+      fixture.router.setRoleResolver(() => loadRoleDir(directory, 'builtin'));
+      expect(
+        fixture.router.route({ taskType: 'code', agentRole: 'programmer' }).candidates,
+      ).toHaveLength(2);
+      fixture.router.setRoleResolver(() => loadRoleDir(directory, 'project'));
+      expect(() => fixture.router.route({ taskType: 'code', agentRole: 'programmer' })).toThrow();
+    } finally {
+      fixture.close();
+    }
+  });
+  it('rejects unknown pricing under a strict budget even with a cheap historical outcome', async () => {
+    const fixture = await createFixture();
+    try {
+      await recordOutcome(fixture.router, fixture.modelIds.cheap, 'code', true, 1);
+      fixture.registry.updateModel(fixture.modelIds.cheap, {
+        pricing: { inputPerMTokUsd: null, outputPerMTokUsd: null },
+      });
+      expect(() =>
+        fixture.router.route({
+          taskType: 'code',
+          agentRole: 'programmer',
+          manualModelId: fixture.modelIds.cheap,
+          constraints: { maxCostUsd: 1 },
+        }),
+      ).toThrow();
+    } finally {
+      fixture.close();
+    }
+  });
+
+  it.each(['stale', 'expired'] as const)(
+    'rejects %s pricing under a strict budget',
+    async (freshness) => {
+      const fixture = await createFixture();
+      try {
+        const model = fixture.registry.getModel(fixture.modelIds.cheap)!;
+        const pricing = {
+          ...model.metadataFields['pricing.inputPerMTokUsd']!,
+          ...(freshness === 'stale' ? { stale: true } : { expiresAt: '2000-01-01T00:00:00.000Z' }),
+        };
+        const listModels = fixture.registry.listModels.bind(fixture.registry);
+        fixture.registry.listModels = (...args) =>
+          listModels(...args).map((entry) =>
+            entry.modelId === model.modelId
+              ? {
+                  ...entry,
+                  metadataFields: {
+                    ...entry.metadataFields,
+                    'pricing.inputPerMTokUsd': pricing,
+                  },
+                }
+              : entry,
+          );
+        expect(() =>
+          fixture.router.route({
+            taskType: 'code',
+            agentRole: 'programmer',
+            manualModelId: model.modelId,
+            constraints: { maxCostUsd: 1 },
+          }),
+        ).toThrow();
+      } finally {
+        fixture.close();
+      }
+    },
+  );
+
+  it('excludes unavailable selected models while allowing unknown availability', async () => {
+    const fixture = await createFixture();
+    try {
+      const listModels = fixture.registry.listModels.bind(fixture.registry);
+      fixture.registry.listModels = (...args) =>
+        listModels(...args).map((model) => ({
+          ...model,
+          availability: model.modelId === fixture.modelIds.cheap ? 'unavailable' : 'unknown',
+        }));
+      expect(fixture.router.route({ taskType: 'code', agentRole: 'programmer' }).modelId).toBe(
+        fixture.modelIds.good,
+      );
+      expect(() =>
+        fixture.router.route({
+          taskType: 'code',
+          agentRole: 'programmer',
+          manualModelId: fixture.modelIds.cheap,
+        }),
+      ).toThrow();
+    } finally {
+      fixture.close();
+    }
+  });
+
   it('previews eligible candidates without persisting a selection or exploring', async () => {
     const fixture = await createFixture();
     try {
@@ -303,6 +499,7 @@ describe('ModelRouter', () => {
 
   it('falls back to baseline routing instead of exploring an unknown-cost model', async () => {
     const fixture = await createFixture();
+    fixture.setSetting('models.budget.maxCostPerTaskUsd', Infinity);
     try {
       fixture.registry.updateModel(fixture.modelIds.cheap, {
         pricing: { inputPerMTokUsd: null, outputPerMTokUsd: null },
@@ -435,8 +632,16 @@ async function createFixture() {
     cheap: discovered.models.find((model) => model.providerModelId === 'cheap')!.modelId,
     good: discovered.models.find((model) => model.providerModelId === 'good')!.modelId,
   };
-  registry.updateModel(modelIds.cheap, { workTypes: ['code'], roles: ['programmer'] });
-  registry.updateModel(modelIds.good, { workTypes: ['code'], roles: ['programmer'] });
+  registry.updateModel(modelIds.cheap, {
+    enabled: true,
+    workTypes: ['code'],
+    roles: ['programmer'],
+  });
+  registry.updateModel(modelIds.good, {
+    enabled: true,
+    workTypes: ['code'],
+    roles: ['programmer'],
+  });
   const settingValues = new Map(Object.entries(defaultSettings));
   const settings: Pick<SettingsService, 'resolve'> = {
     resolve(key: string): EffectiveSetting {
