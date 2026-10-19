@@ -61,6 +61,7 @@
       ],
       "implementation": "packages/platform-service/src/tools",
       "tests": [
+        "packages/platform-service/src/tools/connector-session-policy.integration.test.ts",
         "packages/platform-service/src/tools/tool-broker.integration.test.ts",
         "packages/platform-service/src/tools/tool-registry.test.ts"
       ],
@@ -146,6 +147,7 @@
       ],
       "implementation": "packages/platform-service/src/tools",
       "tests": [
+        "packages/platform-service/src/tools/connector-session-policy.integration.test.ts",
         "packages/platform-service/src/tools/tool-broker.integration.test.ts",
         "packages/platform-service/src/tools/tool-registry.test.ts"
       ],
@@ -224,6 +226,7 @@
       "implementation": "packages/platform-service/src/models",
       "tests": [
         "packages/platform-service/src/models/completion-service.test.ts",
+        "packages/platform-service/src/models/completion-task-budget.test.ts",
         "packages/platform-service/src/models/decision-provider.test.ts",
         "packages/platform-service/src/models/decision-service.test.ts",
         "packages/platform-service/src/models/endpoint-metadata.test.ts",
@@ -345,6 +348,7 @@
       "implementation": "packages/platform-service/src/models",
       "tests": [
         "packages/platform-service/src/models/completion-service.test.ts",
+        "packages/platform-service/src/models/completion-task-budget.test.ts",
         "packages/platform-service/src/models/decision-provider.test.ts",
         "packages/platform-service/src/models/decision-service.test.ts",
         "packages/platform-service/src/models/endpoint-metadata.test.ts",
@@ -402,6 +406,7 @@
       "implementation": "packages/platform-service/src/models",
       "tests": [
         "packages/platform-service/src/models/completion-service.test.ts",
+        "packages/platform-service/src/models/completion-task-budget.test.ts",
         "packages/platform-service/src/models/decision-provider.test.ts",
         "packages/platform-service/src/models/decision-service.test.ts",
         "packages/platform-service/src/models/endpoint-metadata.test.ts",
@@ -449,6 +454,7 @@
       "implementation": "packages/platform-service/src/models",
       "tests": [
         "packages/platform-service/src/models/completion-service.test.ts",
+        "packages/platform-service/src/models/completion-task-budget.test.ts",
         "packages/platform-service/src/models/decision-provider.test.ts",
         "packages/platform-service/src/models/decision-service.test.ts",
         "packages/platform-service/src/models/endpoint-metadata.test.ts",
@@ -476,7 +482,8 @@
       "implementation": "packages/platform-service/src/roles",
       "tests": [
         "packages/platform-service/src/roles/role-loader.test.ts",
-        "packages/platform-service/src/roles/role-registry.test.ts"
+        "packages/platform-service/src/roles/role-registry.test.ts",
+        "packages/platform-service/src/roles/role-tools.integration.test.ts"
       ],
       "evidence": "Source/schema inventory; test paths are discoverability, not a claim that these tests passed. See DOCUMENTATION_COVERAGE.md for live results and gaps."
     },
@@ -492,6 +499,7 @@
       "implementation": "packages/platform-service/src/models",
       "tests": [
         "packages/platform-service/src/models/completion-service.test.ts",
+        "packages/platform-service/src/models/completion-task-budget.test.ts",
         "packages/platform-service/src/models/decision-provider.test.ts",
         "packages/platform-service/src/models/decision-service.test.ts",
         "packages/platform-service/src/models/endpoint-metadata.test.ts",
@@ -599,6 +607,8 @@
       ],
       "implementation": "packages/platform-service/src/tasks",
       "tests": [
+        "packages/platform-service/src/tasks/task-graph.test.ts",
+        "packages/platform-service/src/tasks/task-role-policy.test.ts",
         "packages/platform-service/src/tasks/task-service.integration.test.ts",
         "packages/platform-service/src/tasks/task-store.test.ts"
       ],
@@ -614,6 +624,7 @@
       ],
       "implementation": "packages/platform-service/src/tools",
       "tests": [
+        "packages/platform-service/src/tools/connector-session-policy.integration.test.ts",
         "packages/platform-service/src/tools/tool-broker.integration.test.ts",
         "packages/platform-service/src/tools/tool-registry.test.ts"
       ],
@@ -892,7 +903,8 @@
       "tests": [
         "packages/platform-service/src/agents/agent-approval.integration.test.ts",
         "packages/platform-service/src/agents/agent-runtime.test.ts",
-        "packages/platform-service/src/agents/agent-tools.test.ts"
+        "packages/platform-service/src/agents/agent-tools.test.ts",
+        "packages/platform-service/src/agents/shared-task-budget.test.ts"
       ],
       "guide": "TECHNICAL_ARCHITECTURE.md"
     },
@@ -1050,6 +1062,7 @@
       "implementation": "packages/platform-service/src/models",
       "tests": [
         "packages/platform-service/src/models/completion-service.test.ts",
+        "packages/platform-service/src/models/completion-task-budget.test.ts",
         "packages/platform-service/src/models/decision-provider.test.ts",
         "packages/platform-service/src/models/decision-service.test.ts",
         "packages/platform-service/src/models/endpoint-metadata.test.ts",
@@ -1108,7 +1121,8 @@
       "implementation": "packages/platform-service/src/roles",
       "tests": [
         "packages/platform-service/src/roles/role-loader.test.ts",
-        "packages/platform-service/src/roles/role-registry.test.ts"
+        "packages/platform-service/src/roles/role-registry.test.ts",
+        "packages/platform-service/src/roles/role-tools.integration.test.ts"
       ],
       "guide": "EXTENSION_COOKBOOK.md"
     },
@@ -1140,6 +1154,8 @@
       "name": "tasks",
       "implementation": "packages/platform-service/src/tasks",
       "tests": [
+        "packages/platform-service/src/tasks/task-graph.test.ts",
+        "packages/platform-service/src/tasks/task-role-policy.test.ts",
         "packages/platform-service/src/tasks/task-service.integration.test.ts",
         "packages/platform-service/src/tasks/task-store.test.ts"
       ],
@@ -1149,6 +1165,7 @@
       "name": "tools",
       "implementation": "packages/platform-service/src/tools",
       "tests": [
+        "packages/platform-service/src/tools/connector-session-policy.integration.test.ts",
         "packages/platform-service/src/tools/tool-broker.integration.test.ts",
         "packages/platform-service/src/tools/tool-registry.test.ts"
       ],
@@ -1170,6 +1187,7 @@
       "implementation": "packages/platform-service/src/workers",
       "tests": [
         "packages/platform-service/src/workers/checkpoint-answers.test.ts",
+        "packages/platform-service/src/workers/supervisor-await.test.ts",
         "packages/platform-service/src/workers/supervisor.test.ts"
       ],
       "guide": "TECHNICAL_ARCHITECTURE.md"

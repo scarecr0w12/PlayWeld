@@ -63,7 +63,7 @@ Request methods: **198**; notifications: **28**; settings: **85**; setting group
 | Area | Explanation | Source | Test files |
 | --- | --- | --- | --- |
 | a2a | [Guide](../USER_GUIDE.md) | [Source](../../packages/platform-service/src/a2a/) | 2 |
-| agents | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/agents/) | 3 |
+| agents | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/agents/) | 4 |
 | assets | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/assets/) | 5 |
 | backup | [Guide](../OPERATIONS_GUIDE.md) | [Source](../../packages/platform-service/src/backup/) | 9 |
 | board | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/board/) | 4 |
@@ -76,15 +76,15 @@ Request methods: **198**; notifications: **28**; settings: **85**; setting group
 | ipc | [Guide](../SERVICE_RECIPES.md) | [Source](../../packages/platform-service/src/ipc/) | 3 |
 | knowledge | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/knowledge/) | 11 |
 | mcp | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/mcp/) | 14 |
-| models | [Guide](../USER_GUIDE.md) | [Source](../../packages/platform-service/src/models/) | 15 |
+| models | [Guide](../USER_GUIDE.md) | [Source](../../packages/platform-service/src/models/) | 16 |
 | plugins | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/plugins/) | 4 |
 | processes | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/processes/) | 1 |
 | profile | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/profile/) | 2 |
 | projects | [Guide](../WORKED_TUTORIAL.md) | [Source](../../packages/platform-service/src/projects/) | 1 |
-| roles | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/roles/) | 2 |
+| roles | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/roles/) | 3 |
 | settings | [Guide](../SETTINGS_REFERENCE.md) | [Source](../../packages/platform-service/src/settings/) | 2 |
 | skills | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/skills/) | 8 |
-| tasks | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/tasks/) | 2 |
-| tools | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/tools/) | 2 |
+| tasks | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/tasks/) | 4 |
+| tools | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/tools/) | 3 |
 | updates | [Guide](../RELEASE_GUIDE.md) | [Source](../../packages/platform-service/src/updates/) | 4 |
-| workers | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/workers/) | 2 |
+| workers | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/workers/) | 3 |
