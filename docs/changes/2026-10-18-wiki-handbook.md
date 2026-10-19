@@ -1,6 +1,6 @@
 # Expand the wiki into a practical user and technical handbook
 
-**Release:** Unreleased
+**Release:** 0.22.0
 
 **Impact:** none
 

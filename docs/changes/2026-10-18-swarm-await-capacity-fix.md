@@ -1,6 +1,6 @@
 # Yield and reacquire swarm capacity around child waits (F05)
 
-**Release:** Unreleased
+**Release:** 0.22.0
 
 **Impact:** patch
 

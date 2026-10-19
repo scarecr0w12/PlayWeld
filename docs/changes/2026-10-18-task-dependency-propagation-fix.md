@@ -1,6 +1,6 @@
 # Propagate dependency outcomes beyond public page limits (F08)
 
-**Release:** Unreleased
+**Release:** 0.22.0
 
 **Impact:** patch
 

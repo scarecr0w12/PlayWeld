@@ -1,6 +1,6 @@
 # Preserve session policy through engine and DCC RPCs (F01)
 
-**Release:** Unreleased
+**Release:** 0.22.0
 
 **Impact:** patch
 

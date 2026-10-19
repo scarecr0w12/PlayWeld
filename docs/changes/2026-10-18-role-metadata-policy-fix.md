@@ -1,6 +1,6 @@
 # Apply role module, pool and board-subscription metadata (F10)
 
-**Release:** Unreleased
+**Release:** 0.22.0
 
 **Impact:** patch
 

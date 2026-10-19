@@ -1,6 +1,6 @@
 # Enforce model budgets across delegated task trees (F03)
 
-**Release:** Unreleased
+**Release:** 0.22.0
 
 **Impact:** patch
 

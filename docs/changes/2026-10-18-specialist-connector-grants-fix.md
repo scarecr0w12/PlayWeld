@@ -1,6 +1,6 @@
 # Give builtin specialists scoped integrated tool grants (F07)
 
-**Release:** Unreleased
+**Release:** 0.22.0
 
 **Impact:** patch
 

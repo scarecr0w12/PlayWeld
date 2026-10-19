@@ -1,6 +1,6 @@
 # Use semantic work types for agent skill eligibility (F06)
 
-**Release:** Unreleased
+**Release:** 0.22.0
 
 **Impact:** patch
 

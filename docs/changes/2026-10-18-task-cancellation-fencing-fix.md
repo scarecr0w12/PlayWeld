@@ -1,6 +1,6 @@
 # Fence task trees before cancellation waits (F04)
 
-**Release:** Unreleased
+**Release:** 0.22.0
 
 **Impact:** patch
 

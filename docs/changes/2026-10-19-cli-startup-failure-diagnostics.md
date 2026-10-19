@@ -1,6 +1,6 @@
 # Preserve CLI lifecycle failure diagnostics
 
-**Release:** Unreleased
+**Release:** 0.22.0
 
 **Impact:** none
 

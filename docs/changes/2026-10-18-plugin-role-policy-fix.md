@@ -1,6 +1,6 @@
 # Retain caller role restrictions across plugin facades (F02)
 
-**Release:** Unreleased
+**Release:** 0.22.0
 
 **Impact:** patch
 

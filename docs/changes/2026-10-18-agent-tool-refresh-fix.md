@@ -1,6 +1,6 @@
 # Refresh authorized tools between running agent turns (F09)
 
-**Release:** Unreleased
+**Release:** 0.22.0
 
 **Impact:** patch
 

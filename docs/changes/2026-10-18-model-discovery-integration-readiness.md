@@ -1,6 +1,6 @@
 # Refresh integrated model discovery and agent fix documentation inventory
 
-**Release:** Unreleased
+**Release:** 0.22.0
 
 **Impact:** none
 

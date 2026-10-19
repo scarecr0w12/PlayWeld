@@ -1,6 +1,6 @@
 # Agent, swarm, and integration consistency review
 
-**Release:** Unreleased
+**Release:** 0.22.0
 
 **Impact:** none
 

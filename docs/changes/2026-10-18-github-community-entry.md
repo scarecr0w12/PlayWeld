@@ -1,6 +1,6 @@
 # Improve GitHub entry points and contribution guidance
 
-**Release:** Unreleased
+**Release:** 0.22.0
 
 **Impact:** none
 

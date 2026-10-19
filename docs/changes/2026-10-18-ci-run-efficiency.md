@@ -1,6 +1,6 @@
 # Avoid duplicate and superseded CI runs
 
-**Release:** Unreleased
+**Release:** 0.22.0
 
 **Impact:** none
 
