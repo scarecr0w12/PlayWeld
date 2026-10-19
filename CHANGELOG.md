@@ -385,6 +385,103 @@ Plugin host callbacks previously replaced the calling agent role with a plugin i
 - `packages/platform-service/src/service.ts`
 - `docs/changes/2026-10-18-plugin-role-policy-fix.md`
 
+### Documentation
+
+#### Improve GitHub entry points and contribution guidance
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-18-github-community-entry.md).
+
+##### Summary
+
+Make PlayWeld easier to try and contribute to, publish accurate About metadata, and prepare compact wiki navigation.
+
+##### Details
+
+- Verify the clean main checkout and origin scarecr0w12/PlayWeld at e4824b0 match remote main. Use a separate docs/github-community-refresh worktree, preserving the app checkout and independent Kilo worktrees. Marketing and application builds are untouched.
+- README previously led with guide links and a full source quality gate. Add demo/download/contribution links, a three-step download/tutorial path, and version-specific 0.21.0 evidence with unsigned/uninstall/rollback limits. Source setup builds packages before the app; contribution checks remain in the developer guide. Preserve GameCrafter compatibility identifiers and historical evidence. Include no Star-to-follow request.
+- Add CONTRIBUTING.md covering scoped first contributions, duplicate checks, work records, proportional validation and existing-label triage. Add bug/feature forms with required reproduction/environment or problem/acceptance fields, sanitized evidence guidance, canonical help links and continued blank issues. Add a PR template for behavior, validation, compatibility and records. No new process framework or triage commitment.
+- Live inventory found empty About description/website/topics, an enabled but uninitialized wiki, zero issues and one open dependency PR. Publish the requested desktop/local-service About description, https://playweld.com and desktop-app, eclipse-theia, electron, game-development, open-source and typescript topics. Confirm administrator permission; existing security settings remain unchanged.
+- Publish issue #3 for disposable-host Windows uninstall/rollback acceptance after checking all-state issues for duplicates. Acceptance derives from the public release's existing gap. No destructive lifecycle test runs on ordinary installations.
+- Prepare wiki Home.md and _Sidebar.md with canonical guide/demo/download/status/issue links, avoiding copied version-specific procedures. Git wiki remote returns Repository not found despite has_wiki=true; first-page UI initialization remains blocked without an authenticated browser/wiki API. docs/wiki/README.md explains publication and preservation of intervening edits. Wiki publication is not claimed.
+- Compatibility: docs, issue entry and metadata only; no runtime, storage, RPC, version or migration changes. Impact none matches this scope. Docs/templates await PR review; metadata and issue #3 are already published.
+
+##### Validation
+
+- Remote/status/worktree and remote-main identity inspection passed; original app checkout remains clean on main. Live 0.21.0 release notes/assets support README claims. Website returned HTTP 200 with demo anchor and download links.
+- GitHub Markdown API rendered README; inspected HTML headings, tables and demo/release links. This is rendered HTML inspection, not screenshot or live desktop/engine acceptance.
+- Existing installed YAML parser accepted forms/config with duplicate-key validation. Required fields/unique IDs and contribution relative paths/anchors passed. Contribution links are checked separately because the existing script does not scan this new root guide.
+- Existing-checkout Prettier --check . passed in this worktree. npm run format:check initially lacked worktree node_modules; equivalent installed Prettier avoids installation or mutation of the app dependency tree. Git Bash link scan initially hit sandbox shared-memory denial and was rerun with escalation.
+- Changed Markdown local links/anchors, git diff --check, npm run changelog:update and npm run changelog:check -- --base HEAD passed. Full repository Bash link scan was stopped after prolonged execution without a result; no success claimed for that scan. Changed-file link validation passed separately. Draft PR #4 is open; hosted Windows/Linux quality and browser checks were in progress at handoff. Full source/build/test gate intentionally skipped for docs/workflow-only changes to avoid competing app builds. No new engine/provider/installer acceptance is claimed.
+
+##### Files
+
+- `README.md`
+- `CONTRIBUTING.md`
+- `.github/ISSUE_TEMPLATE/bug_report.yml`
+- `.github/ISSUE_TEMPLATE/feature_request.yml`
+- `.github/ISSUE_TEMPLATE/config.yml`
+- `.github/pull_request_template.md`
+- `docs/wiki/Home.md`
+- `docs/wiki/_Sidebar.md`
+- `docs/wiki/README.md`
+- `docs/changes/2026-10-18-github-community-entry.md`
+
+#### Expand the wiki into a practical user and technical handbook
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-18-wiki-handbook.md).
+
+##### Summary
+
+Prepare a substantive 16-page wiki handbook with shared navigation, source-verified controls and canonical documentation links, on a separate review branch after PR #4.
+
+##### Details
+
+- Start from merged main aa2366c in isolated docs/wiki-user-handbook; preserve the original app checkout, other worktrees, existing wiki initialization ownership and paused Marketing project. No application feature, dependency, credential, engine, provider or paid-operation changes.
+- Replace link-only Home/sidebar with a task-oriented handbook map and shared footer. Installation explains Windows/Linux packages versus source prerequisites, checksum meaning, unsigned testing prereleases and separate engine/model setup. First Project explains the six-step wizard, immutable engine choice, workspace identity/layout and native-game distinction. Lantern Workshop gives isolated profile setup, fixture copying boundaries and observable discussion/lexical-search checks without submitting paid or agent work.
+- Navigation maps exact PlayWeld menu labels to tab names and explains sections/Project selectors. Notes/discussions explains Markdown authority, thread lifecycle and explicit binding/synchronization. Tasks/impact explains Agent handoff, graph seed limits, questions versus approvals, cancellation, evidence and integration. Knowledge explains lexical-first use, indexing, embedding/storage prerequisites, remote data and stale-index recovery.
+- Models/privacy/cost explains account discovery versus registration, eligibility, local-runtime requirements, active-file disclosure, access settings, profile-key limits, partial estimates and optional decision assistance. Engine/tools explains capability layers, identity, managed bridges and version-scoped evidence; MCP transport readiness and restricted A2A support remain distinct. Assets/skills/plugins explains review-before-import, collision/provenance, paid-generation boundaries, skill authority and plugin types.
+- Settings/backups/updates explains supported scope precedence, preview/redacted export, empty-destination restore drills and testing/rollback limits. Troubleshooting supplies symptom triage, profile-specific service diagnosis and sanitized reports. Architecture/API explains service-owned durable state, authenticated framed transport, database seam and exact reference contracts. Development supplies source/build/check/contribution commands and work records. Verification separates implementation, scripted UI demonstrations, live named-operation evidence and installer lifecycle acceptance.
+- Crosslink detailed canonical guides instead of reproducing volatile catalogs or test counts. Source inspection resolves menu labels and settings that differ from informal guide wording. Avoid propagating older guide claims that native IDE/MCP adapters are unimplemented; this suite makes no blanket execution-support claim. No standalone Notes/generic Tasks view is invented.
+- Update internal wiki README with publication ownership/status, file-selection rules, preservation of intervening pages, content contract and inspected source matrix. Initially the enabled wiki remote returned Repository not found. After the user initialized it and the parent handed off ownership, inspect initial commit d6c8f5ab4e2df851b8b2763fe854a58e82083769: only Home.md existed with the welcome text. Preserve that text/history and publish the reviewed 16 pages/sidebar/footer as wiki commit dc280c9382334a7dc6d86c5bc30399285ee85af6. Internal README is excluded; source PR #5 remains draft and unmerged.
+- Bounded editorial review followed the source first-run sequence from package/source setup through connected Project Home, wizard creation, fixture copying and lexical indexing. Add the missing package-install/launch-to-connection step. Replace drive-specific tutorial sample paths with an explicitly disposable TEMP-based PowerShell example; no credential values or personal profile locations are supplied. Canonical repository links target existing main files rather than this draft branch.
+- Compatibility/migration: documentation only, no product/schema/version/storage/API changes or migration. Impact none reflects that scope. Source pages are reviewable in a draft PR; no direct main edits or merge.
+
+##### Validation
+
+- Verified origin and current main identity, clean original checkout, separate branch/worktree and wiki enabled state. Initial read-only wiki lookup returned Repository not found; after authorized handoff, clone/inspect/publish normally and verify the remote master ref matches dc280c9382334a7dc6d86c5bc30399285ee85af6. No competing initialization or overwritten user additions.
+- Focused checker passed 18 public page/navigation files and 93 links, resolving all wiki destinations and canonical local repository paths/heading anchors. Asserted current menu labels, five configuration keys and referenced npm script names against implementation. Commands are documented, not executed app/provider/engine operations.
+- Bounded editorial review and heuristic privacy scan passed: no credential-value patterns or personal host/profile paths found in public pages. First-run sequence is checked against source, not executed. All 41 canonical references exist in the remote main tree at aa2366c; no draft-branch-dependent canonical link is required after wiki publication.
+- Live public HTML checks passed all 16 page URLs with HTTP 200, expected titles/content and wiki sidebar. Home additionally renders the preserved welcome and footer. All 18 committed public wiki blobs match the final source after newline normalization; internal README is absent from the wiki. This verifies public rendering/navigation in HTML, not graphical layout or game/runtime acceptance.
+- Formatted every wiki Markdown file with installed Prettier and checked repository formatting. Git diff whitespace check passed. No tool installation or shared dependency mutation.
+- GitHub Markdown API rendered representative Home, installation, task/impact and architecture pages; HTML heading/table/code/navigation checks passed. npm run changelog:update, npm run changelog:check -- --base aa2366c and git diff --check passed. Full application build/test and full-tree Bash scan intentionally skipped for this documentation-only task; source inspection and Markdown rendering do not establish new live engine/provider/installer or graphical-browser acceptance.
+
+##### Files
+
+- `docs/wiki/Home.md`
+- `docs/wiki/Installation-and-Requirements.md`
+- `docs/wiki/First-Project.md`
+- `docs/wiki/Lantern-Workshop.md`
+- `docs/wiki/Workspace-and-Navigation.md`
+- `docs/wiki/Notes-and-Discussions.md`
+- `docs/wiki/Tasks-and-Impact.md`
+- `docs/wiki/Knowledge-and-Search.md`
+- `docs/wiki/Models-Privacy-and-Cost.md`
+- `docs/wiki/Engine-and-Tool-Integrations.md`
+- `docs/wiki/Assets-Skills-and-Plugins.md`
+- `docs/wiki/Settings-Backups-and-Updates.md`
+- `docs/wiki/Troubleshooting.md`
+- `docs/wiki/Architecture-and-API.md`
+- `docs/wiki/Development-and-Contributing.md`
+- `docs/wiki/Verification-and-Limits.md`
+- `docs/wiki/_Sidebar.md`
+- `docs/wiki/_Footer.md`
+- `docs/wiki/README.md`
+- `docs/changes/2026-10-18-wiki-handbook.md`
+
 ### Maintenance
 
 #### Agent, swarm, and integration consistency review
@@ -485,6 +582,35 @@ Investigation only: reviewed the current PlayWeld agent, swarm, skill, plugin, M
 ##### Files
 
 - `docs/changes/2026-10-18-agent-swarm-integration-review.md`
+
+#### Avoid duplicate and superseded CI runs
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-18-ci-run-efficiency.md).
+
+##### Summary
+
+Limit push CI to main, retain PR checks, cancel superseded runs and cache npm downloads in the manual native probe.
+
+##### Details
+
+- Every branch push and PR update previously could duplicate full quality/browser runs. Restrict push to main, while PR opened/synchronize/reopened/ready_for_review validates feature work including forks. Branches without PRs no longer automatically run CI. Tags retain the separate release workflow.
+- Add workflow/PR-or-ref concurrency cancellation, keeping independent PRs separate. Preserve the complete Windows/Linux quality checks, browser build/smoke, evidence upload and existing npm cache. No path filters skip documentation PR validation.
+- Add ref-scoped cancellation and setup-node npm download caching to the manual Windows native integration probe. Preserve protected-key and ordinary Node/Electron isolation checks. Native build output is not shared across hosts.
+- Desktop Release remains unchanged. No new publication, deployment, secret, token permission, paid service or matrix expansion. No application/data/RPC change or migration; impact none reflects CI maintenance.
+
+##### Validation
+
+- Existing installed YAML parser accepted both workflows with duplicate-key checks. Assertions confirmed main-only push, PR synchronize, cancellation, two CI jobs, probe npm cache and absence of new permissions/pull_request_target.
+- Diff review confirmed retained checks and unchanged release workflow. Existing-checkout Prettier --check . passed in the isolated worktree.
+- Application build/tests intentionally skipped because source is unchanged and focused validation avoids competing builds. Hosted execution remains subject to the draft PR run, not inferred from static checks. npm run changelog:update, npm run changelog:check -- --base HEAD and git diff --check passed.
+
+##### Files
+
+- `.github/workflows/ci.yml`
+- `.github/workflows/windows-transport-probe.yml`
+- `docs/changes/2026-10-18-ci-run-efficiency.md`
 
 #### Preserve CLI lifecycle failure diagnostics
 
