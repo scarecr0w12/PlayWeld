@@ -4,7 +4,47 @@ Complete tracked work, grouped by version and category, with full details, valid
 
 ## Unreleased
 
-No pending work records.
+### Maintenance
+
+#### Build and verify the local PlayWeld 0.22.0 upgrade
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-18-local-0.22.0-deployment.md).
+
+##### Summary
+
+Build and install the cumulative model discovery and ten agent/Swarm fixes as a new local Windows testing release. Verify the installed application and preserve ordinary projects, settings, provider configuration and original task state.
+
+##### Details
+
+- Prepare and commit 0.22.0 source at `e4968fdb2032a63d0365b4e96695e7077650bec5`, following the pre-1.0 minor version rule. Preserve prior installers, released records, compatibility package/storage identities and the installed all-users location. No public release or tag is created.
+- Capture an offline ordinary profile copy, start the existing installed 0.21.0 service for authenticated preflight, confirm no active tasks, then checkpoint and stop it. Save a complete profile backup and SQLite snapshots of all five Project databases before upgrading. Baseline: five Projects, 139 models, five pools and 1,077 original tasks. Configuration comparisons use fingerprints and never expose credentials. Also back up ordinary Theia and desktop user data and fingerprint six IDE files and 67 desktop files.
+- Build the production Windows NSIS installer and stage it in the fresh `Windows-Release/0.22.0` directory. The manifest identifies the clean source commit, not an unrelated base or later evidence commit. Installer SHA-256: `6d6ce9fd258ae74160cd91f90f648c3ad967a9e5b911f0c72ebaf9af4da2bc42`. Authenticode status is `NotSigned`; this is a local testing build.
+- Use disposable profiles, desktop storage and Projects for packaged and installed UI checks. A separate installed model discovery acceptance uses a local fake HTTP provider rather than ordinary accounts or paid requests.
+- Complete the elevated NSIS all-users upgrade from 0.21.0 to 0.22.0 with exit code 0. Verify the installed executable and Windows uninstall registration, compare 420 installed runtime files to the clean stage, then repeat native/service/LPAC, desktop UI and targeted model-discovery acceptance against the actual Program Files executable.
+- Compare ordinary data before and after the upgrade and again after reopening the normal desktop. Leave the installed application open on its restored existing workspace and the ordinary 0.22.0 service available. Record the local deployment in the implementation summary and release guide without changing the public 0.21.0 release or work-package status.
+
+##### Validation
+
+- Source quality: all 33 build/typecheck/lint/test tasks passed without cache hits in 7m43.143s, including both application builds; 887 tests passed and seven skipped. Thirteen change-tracking tests, nine cache-maintenance tests, version/lockfile checks, generated references/inventory, documentation evidence, formatting and links passed. Existing pinned dependencies were reused; no fresh `npm ci` ran in this preparation.
+- Windows packaging and staging passed native resources, service startup/shutdown, actual packaged Electron LPAC boundaries, matching 0.22.0 service/application versions and all 30 bundled skills. Staged desktop smoke passed 29 checks with zero renderer errors: `.artifacts/documentation-electron/1792385592642/smoke/report.json`. Installer SHA-256 matches the staged checksum file and clean-source provenance was verified.
+- The initial ordinary-service preflight found no running pipe; an offline backup preceded starting the old installed service, and the subsequent authenticated preflight and checkpointed backup passed. A transient generated-changelog write error cleared on retry, after which freshness, coverage and formatting passed. An early provenance read preceded completed staging; the completed manifest and checksum were subsequently checked successfully.
+- Staged targeted model discovery acceptance passed eight native UI/RPC checks with zero renderer errors against an isolated local HTTP provider: read-only unchecked preview, enabling only one selection, refresh without adding unchecked models, default-disabled new discoveries, rendered availability/limits/unknown fields, absent-model reconciliation and preference retention across recovery/failure. Evidence: `.artifacts/local-deployment/0.22.0/staged-discovery-final/report.json`. Two initial harness attempts exposed harness assumptions (navigation buttons include description text; refresh deliberately does not add unchecked models); corrected the selector and expectations to match the documented contract, retained both failed reports, and reran successfully. No application-source change was needed.
+- Windows administrator consent was granted; NSIS completed with exit code 0. Executable product version is 0.22.0.0 and the all-users uninstall registration reports PlayWeld 0.22.0. All 420 selected installed executable/frontend/service/contracts/extension files match the clean stage. Installed native resources, service startup/shutdown, actual Electron LPAC boundaries, matching versions and all 30 skills passed.
+- Installed desktop smoke passed 29 checks with zero renderer errors: `.artifacts/documentation-electron/1792386149601/smoke/report.json`. Installed targeted model discovery passed the same eight UI/RPC checks with zero renderer errors: `.artifacts/local-deployment/0.22.0/installed-discovery/report.json`. Both use disposable profiles and Projects and the bundled service, not a substituted source service.
+- Manual inspection of the installed Models capture confirms the explicit selection and unknown metadata controls render. The 800-by-600 account table wraps densely; the functional passes do not establish polished narrow-window layout or accessibility acceptance.
+- Ordinary retention passed before and after normal app relaunch: five Projects, 139 model identities/enabled choices, five pools, platform and Project settings, account/credential-key/pricing fingerprints and all 1,077 original task IDs/states retained. No added tasks were detected. Profile/Project SQLite integrity and current migrations passed. All six ordinary IDE files and 67 desktop-data files remained byte-identical before normal relaunch; settings.json and recentworkspace.json also remained byte-identical after relaunch. The normal installed window restored the existing Morrowfen workspace.
+- Hosted CI on the earlier merge commit exposed one ten-second outer timeout in the native Swarm await regression on Windows, while that PR's checks and this release's uncached local suite passed. Complete CI on the clean 0.22.0 source commit passed Windows quality, Linux quality and the browser build/live UI smoke: run `39201481370`. The later green run does not establish that the intermittent test timeout has been repaired; no timeout or runtime code was changed to obtain it.
+- Final receipt/summary formatting, release-version consistency, work-record/changelog coverage, whitespace checks and the full Markdown link scan passed. A final ordinary retention check after all installed smokes and normal relaunch also passed with no added tasks. The receipt is a documentation follow-up to the clean packaged source commit; it does not retroactively change package provenance.
+- No public publication, publisher signing, uninstall, rollback, new paid-provider, live Unreal/Unity/Godot, or production acceptance is claimed. The source suite's real Blender checks are separate from installed desktop evidence.
+- Ignored private evidence and backups: `.artifacts/local-deployment/0.22.0`; staged artifacts: `Windows-Release/0.22.0`. Credentials and database contents are not committed or uploaded.
+
+##### Files
+
+- `docs/changes/2026-10-18-local-0.22.0-deployment.md`
+- `docs/STATUS.md`
+- `docs/RELEASE_GUIDE.md`
 
 ## 0.22.0
 

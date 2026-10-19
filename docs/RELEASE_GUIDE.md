@@ -1,6 +1,6 @@
 # PlayWeld versioning, releases and local Windows testing
 
-**Last updated:** 2026-10-06
+**Last updated:** 2026-10-18
 
 This guide defines the current release tooling and the local testing handoff. The complete release lifecycle remains in progress in [WP19](DEVELOPMENT_PLAN.md#wp19--packaging-and-release); installer upgrade/rollback and signing acceptance are separate from producing a test build.
 
@@ -119,6 +119,8 @@ Use the version actually being prepared; preparation rejects an existing version
 Inspect the packaged service over authenticated RPC as well: check `service/info`, create a disposable Project, list the thirty builtin skills, activate an appropriate guide and read its reference. This confirms the shipped runtime can use the library, rather than only confirming source files exist.
 
 ## Release evidence and limitations
+
+**Current local testing deployment: PlayWeld 0.22.0.** The [local upgrade receipt](changes/2026-10-18-local-0.22.0-deployment.md) records the installed 0.21.0-to-0.22.0 all-users upgrade, five-Project configuration and 1,077-task preservation, 420 matched runtime files, installed native/service/LPAC checks, 29 staged and 29 installed desktop checks, and eight targeted model-discovery checks on each executable. The installer is unsigned; no new public release or tag was created. Private backups and verification reports remain local.
 
 **Current published testing release: [PlayWeld 0.21.0](https://github.com/scarecr0w12/PlayWeld/releases/tag/v0.21.0).** The [deployment/publication receipt](changes/2026-10-06-local-0.21.0-publication.md) records the successful tagged Windows/Linux/browser CI and Desktop Release, downloaded asset checksums/formats/source provenance, all-users installed upgrade from 0.20.0, four-Project configuration and 1066-task retention, 417 matched runtime files, actual installed Electron LPAC and 29 staged plus 29 installed desktop checks. The approximately 92 KB public body preserves detailed task/validation notes and links the full source changelog. The executable and metadata are unsigned; this manual testing release is excluded from stable automatic updates. Full uninstall/rollback, publisher signing and broader installed/provider/engine/human acceptance remain separate.
 
