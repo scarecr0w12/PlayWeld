@@ -411,11 +411,13 @@
 }
 
 .gamecrafter-models {
+  box-sizing: border-box;
   color: var(--theia-foreground);
   display: flex;
   flex-direction: column;
   gap: 18px;
   height: 100%;
+  min-width: 0;
   overflow: auto;
   padding: 18px;
 }
@@ -451,20 +453,62 @@
 }
 
 .gamecrafter-models-table-scroll {
+  max-width: 100%;
+  min-width: 0;
   overflow: auto;
+}
+
+.gamecrafter-models-table-scroll:focus-visible {
+  outline: 1px solid var(--theia-focusBorder);
+  outline-offset: 2px;
 }
 
 .gamecrafter-models-table {
   border-collapse: collapse;
-  min-width: 100%;
+  min-width: 64rem;
   text-align: left;
+  width: 100%;
 }
 
 .gamecrafter-models-table th,
 .gamecrafter-models-table td {
   border-bottom: 1px solid var(--theia-widget-border);
+  min-width: 8rem;
+  overflow-wrap: normal;
   padding: 8px;
   vertical-align: top;
+}
+
+.gamecrafter-models-accounts-table :is(th, td):first-child {
+  min-width: 10rem;
+}
+
+.gamecrafter-models-accounts-table :is(th, td):nth-child(2) {
+  min-width: 12rem;
+}
+
+.gamecrafter-models-accounts-table :is(th, td):nth-child(3) {
+  min-width: 16rem;
+  overflow-wrap: anywhere;
+}
+
+.gamecrafter-models-accounts-table :is(th, td):last-child {
+  min-width: 26rem;
+}
+
+.gamecrafter-models-account-actions > button {
+  margin: 0 6px 6px 0;
+}
+
+.gamecrafter-models-account-actions > [role='status'] {
+  display: block;
+  margin: 6px 0;
+}
+
+.gamecrafter-model-selection fieldset {
+  max-height: 22rem;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .gamecrafter-models-table input[type='text'] {

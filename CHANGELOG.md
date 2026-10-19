@@ -4,6 +4,43 @@ Complete tracked work, grouped by version and category, with full details, valid
 
 ## Unreleased
 
+### Fixed
+
+#### Keep Models tables and discovery controls readable in narrow views
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-18-models-narrow-layout-fix.md).
+
+##### Summary
+
+Preserve readable Models table columns in narrow desktop views, contain scrolling within accessible table regions, and bound long model-discovery lists.
+
+##### Details
+
+- Previously the provider table compressed descriptive columns around the discovery actions. A real native Electron reproduction at a 360-pixel viewport measured the provider-kind column at 27 pixels and a 24-model chooser at approximately 38,000 pixels tall. Long labels wrapped into fragments, making account details and actions difficult to read.
+- Give Models tables a readable minimum width and provider columns dedicated minimum widths. Keep horizontal overflow inside labelled, focusable scroll regions for the provider and model tables, with a visible keyboard-focus outline. Constrain the Models root to its actual width, preserve normal word wrapping in cells, and allow long provider URLs to wrap. Keep the table structure and native form controls intact.
+- Bound the discovery fieldset to 22rem with its own scrolling and contained overscroll. Space account action buttons and display their status on a separate line so long discovery results no longer create an unbounded table row. Model enabling, pricing, capability and routing behavior are unchanged. No storage or RPC migration, dependency change, or version bump is required while these fixes remain pending.
+- Add a shared real-renderer layout regression to the existing browser/Electron smoke test. It creates an isolated local fake provider with 24 long model IDs, checks account tables at 360/640/800/1280 pixels and model rows at 360/800/1280 pixels, verifies readable column width, contained overflow, bounded discovery height, labelled keyboard scrolling, native selection, and expanded editors. It restores the viewport, removes its owned provider and closes the fixture server.
+- The longer smoke run exposed an existing hierarchy-rendering fixture race: a model-backed root could fail before its child was attached. Gate the owned disposable Project's capacity with a cancellable noop task while creating and inspecting the hierarchy. Cancel the request tree and gate task and remove the temporary concurrency override afterward. Production task policy is preserved.
+
+##### Validation
+
+- The new layout check failed against the original source-built Electron application with the measured 27-pixel column and unbounded chooser. After the CSS/markup correction, all narrow layout assertions passed in the real native renderer.
+- The first otherwise-green layout run then exposed the hierarchy fixture race. After adding the owned gate, an initial setup retry detected a missing required goal in that fixture; adding it completed a full native smoke with 30 checks and zero renderer errors. The final checker additionally enabled a model through the chooser at 360 pixels and expanded the capability/pricing editors; the complete native smoke again passed 30 checks with zero renderer errors: `.artifacts/documentation-electron/1792387685039/smoke/report.json`. Manual inspection confirmed readable discovery controls and bounded scrolling in the captured native view.
+- Full repository quality passed all 33 tasks (21 cache hits) in 7m38.842s, including both app builds: 888 tests passed and seven skipped. Formatting, changelog coverage, version consistency, generated references/inventory, documentation evidence, whitespace and Markdown links passed.
+- The final shared checker also passed in the source-built development browser: 33 full smoke checks and zero renderer errors, including the viewport, selection and expanded-editor assertions. Evidence: `.artifacts/windows-swarm-models-fixes/browser/smoke/report.json` and `browser-smoke.log` in its parent evidence directory. Both native and browser runners cleaned up their owned processes and isolated service. Hosted CI results will be recorded after completion.
+- Initial red evidence: `.artifacts/windows-swarm-models-fixes/models-layout-red.log`. Subsequent failures/retries remain in that directory. Successful initial complete native run: `.artifacts/documentation-electron/1792387609482/smoke/report.json`, including account/model screenshots at the tested widths.
+- Acceptance uses source-built applications, disposable profiles/Projects and a fake local provider. Ordinary projects, settings, installed 0.22.0 files and paid provider accounts are not modified. Installer, installed-upgrade, paid-provider, engine and complete accessibility acceptance are outside this change.
+
+##### Files
+
+- `packages/theia-control-room/src/browser/models-widget.tsx`
+- `packages/theia-control-room/src/browser/style/index.css`
+- `scripts/models-layout-check.cjs`
+- `scripts/live-ui-smoke.cjs`
+- `docs/changes/2026-10-18-models-narrow-layout-fix.md`
+
 ### Maintenance
 
 #### Build and verify the local PlayWeld 0.22.0 upgrade
@@ -45,6 +82,35 @@ Build and install the cumulative model discovery and ten agent/Swarm fixes as a 
 - `docs/changes/2026-10-18-local-0.22.0-deployment.md`
 - `docs/STATUS.md`
 - `docs/RELEASE_GUIDE.md`
+
+#### Separate Swarm await progress and native cleanup test budgets
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-18-windows-swarm-await-test-stability.md).
+
+##### Summary
+
+Repair the Windows Swarm await regression fixture's competing deadlines without changing production scheduling or suppressing deadlock assertions.
+
+##### Details
+
+- The successful-await scenarios previously gave children two seconds to finish, including serialized work and native process startup. The outer ten-second test deadline also overlapped the supervisor's existing ten-second shutdown grace period, so a slow or failed scenario could surface as an outer timeout instead of its original task failure.
+- Add a native IPC regression with two 1.5-second children at concurrency one. This deliberately exceeds the old two-second await allowance and reproduced a failed coordinator with `Child starved` before the correction.
+- Give successful fixture awaits fifteen seconds, keep the explicit timeout case at one millisecond, and independently bound normal scheduling progress at six seconds. The deliberately slow-child scenario has a separate ten-second progress deadline. Use a thirty-second outer deadline to accommodate setup and bounded supervisor cleanup. Assertions still verify successful parent completion, tool refresh, concurrency limits, cancellation, zero double-counted usage and error propagation; a real scheduler deadlock still fails the independent progress assertion.
+- Include the existing refresh-error scenario in the helper's TypeScript mode union and parameterize child duration/progress limits. No application runtime, storage, RPC, dependencies or product version changes; no migration is required.
+
+##### Validation
+
+- Baseline five-scenario Windows run passed. The new slow-child regression failed against the old fixture with `Child starved` (one failed, five deselected), proving the short success allowance is a reproducible failure mechanism rather than merely increasing a global timeout.
+- After separating the budgets, five consecutive focused Windows runs passed all six cases (30 test executions). After reserving a ten-second progress deadline for the deliberately slower children, another five consecutive runs of the final configuration passed all six cases (30 more test executions). Original progress, explicit-timeout, concurrency, cancellation, refresh and usage assertions remain intact.
+- `npx --no-install turbo run build typecheck lint test --concurrency=1` passed all 33 tasks (21 cache hits) in 7m38.842s, including Electron and browser builds. Platform service: 128 files, 679 passed and six skipped. Theia: 28 files and 133 passed. Workspace total: 888 passed and seven skipped. Formatting, version consistency, generated references/inventory, documentation evidence integrity, changelog coverage, whitespace and Markdown links passed. Hosted verification will be recorded after completion.
+- Ignored logs: `.artifacts/windows-swarm-models-fixes/swarm-baseline.log`, `swarm-slow-red.log`, `swarm-repeat-1.log` through `swarm-repeat-5.log`, and `full-quality.log` in the same directory. An earlier hosted failure remains preserved in the 0.22.0 deployment evidence; this record does not rewrite its result.
+
+##### Files
+
+- `packages/platform-service/src/workers/supervisor-await.test.ts`
+- `docs/changes/2026-10-18-windows-swarm-await-test-stability.md`
 
 ## 0.22.0
 

@@ -19,29 +19,44 @@ import { registerAgentTools, type AgentToolOptions } from '../agents/agent-tools
 import { HandlerRegistry } from './handler-registry';
 import { WorkerSupervisor } from './supervisor';
 
+// The outer deadline includes native worker startup and the supervisor's 10s
+// shutdown grace period. Progress is independently bounded below (6s normally,
+// 10s for the deliberately slow serialized-child regression).
+const scenarioTimeoutMs = 30000;
+
 it.each([1, 2])(
   'yields and safely reacquires slots for awaiting coordinators at concurrency %s, and refreshes authorized tools over IPC',
   async (concurrency) => runScenario(concurrency, 'complete'),
-  10000,
+  scenarioTimeoutMs,
+);
+it(
+  'awaits children whose serialized work exceeds the short timeout scenario budget',
+  async () => runScenario(1, 'complete', 1500, 10000),
+  scenarioTimeoutMs,
 );
 it(
   'reacquires capacity after tasks/await times out before returning control to the coordinator',
   async () => runScenario(1, 'timeout'),
-  10000,
+  scenarioTimeoutMs,
 );
 it(
   'cancels a yielded coordinator and its descendants without resuming model execution',
   async () => runScenario(1, 'cancel'),
-  10000,
+  scenarioTimeoutMs,
 );
 
 it(
   'reports an authorized tool refresh failure to its worker without an unhandled supervisor rejection',
   async () => runScenario(1, 'refresh-error'),
-  10000,
+  scenarioTimeoutMs,
 );
 
-async function runScenario(concurrency: number, scenario: 'complete' | 'timeout' | 'cancel') {
+async function runScenario(
+  concurrency: number,
+  scenario: 'complete' | 'timeout' | 'cancel' | 'refresh-error',
+  childDelayMs = 100,
+  progressDeadlineMs = 6000,
+) {
   const directory = mkdtempSync(path.join(tmpdir(), 'gc-await-regression-'));
   const projectId = uuidv7();
   const projectPath = path.join(directory, 'project');
@@ -137,12 +152,14 @@ async function runScenario(concurrency: number, scenario: 'complete' | 'timeout'
         goal: `Do child ${i}`,
         parentTaskId: parent.taskId,
         priority: 1,
-        input: { delayMs: scenario === 'cancel' ? 2000 : 100 },
+        input: { delayMs: scenario === 'cancel' ? 2000 : childDelayMs },
       }).task;
       tasks.runtime(projectId).graph.update(parent.taskId, {
         input: {
           childIds: [child.taskId],
-          timeoutMs: scenario === 'timeout' ? 1 : 2000,
+          // Successful awaits must outlive the independently checked progress
+          // deadline, including serialized child work and cold Windows forks.
+          timeoutMs: scenario === 'timeout' ? 1 : 15000,
           expectTimeout: scenario === 'timeout',
         },
       });
@@ -177,7 +194,7 @@ async function runScenario(concurrency: number, scenario: 'complete' | 'timeout'
       ).toBe(true);
       return;
     }
-    const deadline = Date.now() + 6000;
+    const deadline = Date.now() + progressDeadlineMs;
     while (
       Date.now() < deadline &&
       coordinators.some((parent) => tasks.get(projectId, parent.taskId).state !== 'succeeded')

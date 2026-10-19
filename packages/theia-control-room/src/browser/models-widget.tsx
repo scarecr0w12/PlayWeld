@@ -399,8 +399,13 @@ export class ModelsWidget extends ControlRoomReactWidget {
               No provider accounts yet. Add one here, then test it and discover available models.
             </p>
           ) : (
-            <div className="gamecrafter-models-table-scroll">
-              <table className="gamecrafter-models-table">
+            <div
+              className="gamecrafter-models-table-scroll"
+              role="region"
+              aria-label="Provider accounts table"
+              tabIndex={0}
+            >
+              <table className="gamecrafter-models-table gamecrafter-models-accounts-table">
                 <thead>
                   <tr>
                     <th>Kind</th>
@@ -455,7 +460,7 @@ export class ModelsWidget extends ControlRoomReactWidget {
                           }
                         />
                       </td>
-                      <td>
+                      <td className="gamecrafter-models-account-actions">
                         <button type="button" onClick={() => this.beginEditAccount(account)}>
                           {this.editingAccountId === account.accountId ? 'Editing' : 'Edit'}
                         </button>
@@ -518,7 +523,12 @@ export class ModelsWidget extends ControlRoomReactWidget {
               list.
             </p>
           ) : (
-            <div className="gamecrafter-models-table-scroll">
+            <div
+              className="gamecrafter-models-table-scroll"
+              role="region"
+              aria-label="Models table"
+              tabIndex={0}
+            >
               <table className="gamecrafter-models-table">
                 <thead>
                   <tr>

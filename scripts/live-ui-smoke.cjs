@@ -230,6 +230,8 @@ async function main() {
             const setting = await client.call('settings/get', { projectId, key: `models.decisions.${name}` });
             assert.equal(setting.value, expected, `Safe initial decision setting: ${name}`);
           }
+          await require('./models-layout-check.cjs')(page, client, directory, clickText);
+          checks.push('Models tables remain readable, contained and keyboard-scrollable at narrow widths with bounded discovery lists');
         } finally { client.close(); }
         checks.push('Packaged decision history and versioned RPC load with inactive-until-configured shadow defaults');
       }
@@ -278,11 +280,23 @@ async function main() {
       if (suffix === 'swarm') {
         const paths = resolvePaths();
         const client = await connect({ socketPath: paths.socketPath, token: fs.readFileSync(paths.tokenPath, 'utf8').trim(), clientName: 'packaged-goal-smoke', clientVersion: require('../packages/platform-service/package.json').version });
+        let blockedProject, blockerId, requestRootId;
         try {
           const project = (await client.call('project/list', {})).projects.find(item => item.name === projectName);
           if (!project) throw new Error('Owned smoke Project is missing.');
+          // Keep the rendering fixture pending without racing an unconfigured
+          // model-backed coordinator or depending on its startup speed.
+          blockedProject = project.projectId;
+          await client.call('settings/set', { projectId: blockedProject, scope: 'project', key: 'agents.maxConcurrentPerProject', value: 1 });
+          blockerId = (await client.call('task/create', { projectId: blockedProject, kind: 'noop.sleep', title: 'Owned hierarchy fixture gate', goal: 'Hold capacity while the hierarchy rendering fixture is inspected.', input: { ms: 60000 } })).task.taskId;
+          const started = Date.now() + 15000;
+          while ((await client.call('task/get', { projectId: blockedProject, taskId: blockerId })).state !== 'running') {
+            assert(Date.now() < started, 'Owned hierarchy fixture gate must start');
+            await delay(50);
+          }
           const goal = '## Package acceptance\n\n- **Retain configuration**\n- Inspect `player.gd`\n\n```gdscript\nvar ready = true\n```';
           const request = await client.call('change/request', { projectId: project.projectId, text: goal });
+          requestRootId = request.rootTaskId;
           await client.call('task/create', { projectId: project.projectId, parentTaskId: request.rootTaskId, kind: 'noop.echo', title: 'Packaged formatted goal', role: 'validator', goal });
           await page.select('.gamecrafter-swarm select[aria-label="Swarm Project"]', project.projectId);
           await waitForUi(page, () => [...document.querySelectorAll('.gamecrafter-swarm-node')].some(node => node.textContent.includes('Packaged formatted goal')));
@@ -290,7 +304,13 @@ async function main() {
           await waitForUi(page, () => document.querySelector('[aria-label="Task goal"] h2')?.textContent === 'Package acceptance');
           if (!(await page.$('[aria-label="Task goal"] li strong')) || !(await page.$('[aria-label="Task goal"] pre code'))) throw new Error('Packaged task Markdown was not structured.');
           checks.push('Packaged hierarchy formats real task headings, lists and code without flattening the goal');
-        } finally { client.close(); }
+        } finally {
+          try {
+            if (requestRootId) await client.call('task/cancel', { projectId: blockedProject, taskId: requestRootId });
+            if (blockerId) await client.call('task/cancel', { projectId: blockedProject, taskId: blockerId });
+            if (blockedProject) await client.call('settings/set', { projectId: blockedProject, scope: 'project', key: 'agents.maxConcurrentPerProject', value: null });
+          } finally { client.close(); }
+        }
       }
       if (suffix === 'assets') {
         const paths = resolvePaths();
