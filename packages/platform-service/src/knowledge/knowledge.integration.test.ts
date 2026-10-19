@@ -46,6 +46,7 @@ describe('knowledge service integration', () => {
     });
     const models = await client!.call('model/discover', { accountId: account.accountId });
     const model = models.models.find((candidate) => candidate.capabilities.embeddings)!;
+    await client!.call('model/update', { modelId: model.modelId, patch: { enabled: true } });
     const project = await client!.call('project/create', {
       name: 'Embedded vectors',
       engine: { family: 'godot' },
@@ -498,6 +499,7 @@ describe('knowledge service integration', () => {
     const discovery = await client!.call('model/discover', { accountId: account.accountId });
     const model = discovery.models.find((entry) => entry.capabilities.embeddings);
     expect(model).toBeDefined();
+    await client!.call('model/update', { modelId: model!.modelId, patch: { enabled: true } });
 
     const parentDirectory = path.join(temporaryDirectories[0]!, 'semantic-projects');
     const projects = [];

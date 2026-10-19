@@ -14,7 +14,8 @@ import {
 } from '@gamecrafter/contracts';
 import type { Database } from '../db/database';
 import { CredentialStore } from '../profile/credential-store';
-import { enrichDiscoveredModel, MODEL_METADATA_CATALOG } from './model-catalog';
+import { catalogOriginMatches } from './providers';
+import { enrichDiscoveredModel } from './model-catalog';
 import type {
   DiscoveredModel,
   ModelProvider,
@@ -100,6 +101,8 @@ interface ModelRow {
   workTypesJson: string;
   rolesJson: string;
   metadataFieldsJson: string;
+  availability: NonNullable<Model['availability']>;
+  lastSeenAt: string | null;
 }
 
 interface ModelPoolRow {
@@ -128,7 +131,7 @@ const modelColumns = `model_id AS modelId, account_id AS accountId,
   display_name AS displayName,
   capabilities AS capabilitiesJson, pricing AS pricingJson,
   metadata_source AS metadataSource, metadata_updated_at AS metadataUpdatedAt,
-  metadata_fields AS metadataFieldsJson,
+  metadata_fields AS metadataFieldsJson, availability, last_seen_at AS lastSeenAt,
   enabled, tags AS tagsJson, work_types AS workTypesJson, roles AS rolesJson`;
 const poolColumns = `pool_id AS poolId, name, scope, project_id AS projectId,
   target AS targetJson, model_ids AS modelIdsJson,
@@ -236,25 +239,61 @@ export class ModelRegistry {
     else this.credentials.delete(credentialRef);
     const isLocal = patch.isLocal ?? current.isLocal;
     const updatedAt = this.now().toISOString();
-    this.database
-      .prepare(
-        `UPDATE provider_accounts SET display_name = ?, base_url = ?, provider_options = ?,
-          credential_ref = ?, has_credential = ?, headers = ?, is_local = ?, privacy = ?, enabled = ?, updated_at = ?
-         WHERE account_id = ?`,
-      )
-      .run(
-        patch.displayName ?? current.displayName,
-        patch.baseUrl ?? current.baseUrl,
-        JSON.stringify(patch.providerOptions ?? current.providerOptions),
-        hasCredential ? credentialRef : null,
-        Number(hasCredential),
-        JSON.stringify(publicHeaders),
-        Number(isLocal),
-        isLocal ? 'local' : 'cloud',
-        Number(patch.enabled ?? current.enabled),
-        updatedAt,
-        accountId,
-      );
+    this.database.transaction(() => {
+      this.database
+        .prepare(
+          `UPDATE provider_accounts SET display_name = ?, base_url = ?, provider_options = ?,
+            credential_ref = ?, has_credential = ?, headers = ?, is_local = ?, privacy = ?, enabled = ?, updated_at = ?
+           WHERE account_id = ?`,
+        )
+        .run(
+          patch.displayName ?? current.displayName,
+          patch.baseUrl ?? current.baseUrl,
+          JSON.stringify(patch.providerOptions ?? current.providerOptions),
+          hasCredential ? credentialRef : null,
+          Number(hasCredential),
+          JSON.stringify(publicHeaders),
+          Number(isLocal),
+          isLocal ? 'local' : 'cloud',
+          Number(patch.enabled ?? current.enabled),
+          updatedAt,
+          accountId,
+        );
+
+      if (patch.baseUrl !== undefined && patch.baseUrl !== current.baseUrl) {
+        // Discovery facts belong to the endpoint that supplied them. Keep explicit
+        // user overrides and identity/history, but never reuse an old origin's facts.
+        for (const model of this.listModels({ accountId })) {
+          const manual = (field: string) => model.metadataFields[field]?.source === 'manual';
+          const metadataFields = Object.fromEntries(
+            Object.entries(model.metadataFields).filter(([, field]) => field.source === 'manual'),
+          );
+          const capabilities = { ...model.capabilities };
+          for (const key of Object.keys(capabilities) as (keyof ModelCapabilities)[]) {
+            if (!manual(`capabilities.${key}`)) capabilities[key] = null;
+          }
+          const pricing = { ...model.pricing };
+          for (const key of Object.keys(pricing) as (keyof ModelPricing)[]) {
+            if (!manual(`pricing.${key}`)) pricing[key] = null;
+          }
+          this.writeModel({
+            ...model,
+            capabilities,
+            pricing,
+            metadataFields,
+            catalogModelId: manual('catalogModelId') ? model.catalogModelId : null,
+            displayName: manual('displayName') ? model.displayName : model.providerModelId,
+            tags: manual('tags') ? model.tags : [],
+            workTypes: manual('workTypes') ? model.workTypes : [],
+            roles: manual('roles') ? model.roles : [],
+            availability: 'unknown',
+            lastSeenAt: null,
+            metadataUpdatedAt: updatedAt,
+            metadataSource: Object.keys(metadataFields).length > 0 ? 'manual' : 'provider',
+          });
+        }
+      }
+    });
     return this.getAccount(accountId)!;
   }
 
@@ -288,7 +327,7 @@ export class ModelRegistry {
       .filter((model) => {
         if (!options.enabledOnly) return true;
         const account = accounts.get(model.accountId);
-        return model.enabled && account?.enabled === true;
+        return model.enabled && model.availability !== 'unavailable' && account?.enabled === true;
       });
   }
 
@@ -302,7 +341,14 @@ export class ModelRegistry {
   async discover(
     accountId: string,
     options: { preview?: boolean; providerModelIds?: string[] } = {},
-  ): Promise<{ added: number; updated: number; models: Model[] }> {
+  ): Promise<{
+    added: number;
+    updated: number;
+    models: Model[];
+    warnings?: string[];
+    unavailable?: number;
+    refreshedAt?: string;
+  }> {
     const account = this.getRuntimeAccount(accountId);
     if (!account) {
       throw new RpcError(`Provider account not found: ${accountId}`, RpcErrorCode.AccountNotFound);
@@ -315,26 +361,17 @@ export class ModelRegistry {
       );
     }
     const listed = await provider.listModels(account);
-    // Offer catalogued embedding candidates after successful first-party discovery.
-    // Listing is not an access probe: setting a Knowledge profile verifies the
-    // selected model through the embeddings API before persisting the profile.
-    if (account.providerKind === 'openai' && isFirstPartyOpenAiUrl(account.baseUrl)) {
-      const listedIds = new Set(listed.map((model) => model.providerModelId));
-      for (const entry of MODEL_METADATA_CATALOG) {
-        if (
-          entry.providerKind === 'openai' &&
-          entry.capabilities?.embeddings === true &&
-          !listedIds.has(entry.providerModelId)
-        ) {
-          listed.push({
-            providerModelId: entry.providerModelId,
-            metadataSource: 'provider-catalog',
-            sourceUrl: entry.fieldMetadata['capabilities.embeddings']?.sourceUrl,
-          });
-        }
-      }
+    if (this.getAccount(accountId)?.baseUrl !== account.baseUrl) {
+      throw new RpcError(
+        'Provider endpoint changed during discovery; refresh models again.',
+        RpcErrorCode.InvalidParams,
+      );
     }
-    const discovered = listed.map((model) => enrichDiscoveredModel(account.providerKind, model));
+    const discovered = listed.map((model) =>
+      catalogOriginMatches(account.providerKind, account.baseUrl)
+        ? enrichDiscoveredModel(account.providerKind, model)
+        : model,
+    );
     const selected = options.providerModelIds && new Set(options.providerModelIds);
     if (selected) {
       const available = new Set(discovered.map((item) => item.providerModelId));
@@ -352,15 +389,22 @@ export class ModelRegistry {
     let updated = 0;
     const metadataUpdatedAt = this.now().toISOString();
     for (const item of discovered) {
-      if (selected && !selected.has(item.providerModelId)) continue;
       const modelId = `${accountId}/${item.providerModelId}`;
       const existing = this.getModel(modelId);
+      if (!options.preview && selected && !selected.has(item.providerModelId) && !existing)
+        continue;
       const discoveredFields = discoveredFieldMetadata(item, metadataUpdatedAt);
       const metadataFields = mergeFieldMetadata(existing?.metadataFields ?? {}, discoveredFields);
-      const canReplace = (field: string): boolean =>
-        discoveredFields[field] !== undefined &&
-        metadataPriority(discoveredFields[field]!.source) >=
-          metadataPriority(existing?.metadataFields[field]?.source ?? 'legacy');
+      const canReplace = (field: string): boolean => {
+        const incoming = discoveredFields[field];
+        const prior = existing?.metadataFields[field];
+        if (!incoming) return false;
+        const priority =
+          metadataPriority(incoming.source) - metadataPriority(prior?.source ?? 'legacy');
+        return (
+          priority > 0 || (priority === 0 && (!prior || incoming.updatedAt >= prior.updatedAt))
+        );
+      };
       const capabilities = mergeDiscoveredObject(
         existing?.capabilities ?? emptyCapabilities(),
         item.capabilities,
@@ -373,6 +417,9 @@ export class ModelRegistry {
         'pricing',
         canReplace,
       );
+      for (const key of item.unsupportedPricingFields ?? []) {
+        if (canReplace(`pricing.${key}`)) pricing[key] = null;
+      }
       const model: Model = {
         modelId,
         accountId,
@@ -392,7 +439,9 @@ export class ModelRegistry {
           : 'provider',
         metadataUpdatedAt,
         metadataFields,
-        enabled: existing?.enabled ?? true,
+        enabled: selected?.has(item.providerModelId) ? true : (existing?.enabled ?? false),
+        availability: 'available',
+        lastSeenAt: metadataUpdatedAt,
         tags: mergeDiscoveredArray(existing?.tags ?? [], item.tags, 'tags', canReplace),
         workTypes: mergeDiscoveredArray(
           existing?.workTypes ?? [],
@@ -404,11 +453,38 @@ export class ModelRegistry {
       };
       models.push(model);
       if (options.preview) continue;
-      this.writeModel(model);
       if (existing) updated += 1;
       else added += 1;
     }
-    return { added, updated, models };
+    const availableIds = new Set(discovered.map((item) => item.providerModelId));
+    const absent = this.listModels({ accountId }).filter(
+      (model) => !availableIds.has(model.providerModelId),
+    );
+    if (!options.preview) {
+      this.database.transaction(() => {
+        for (const model of models) this.writeModel(model);
+        for (const model of absent) this.writeModel({ ...model, availability: 'unavailable' });
+      });
+    }
+    const warnings = [...new Set(listed.flatMap((item) => item.metadataWarnings ?? []))];
+    if (
+      models.some((model) =>
+        Object.values(model.metadataFields).some(
+          (field) => field.stale || (field.expiresAt && field.expiresAt <= metadataUpdatedAt),
+        ),
+      )
+    )
+      warnings.push(
+        'Some model metadata is stale; inspect field sources and refresh dates before relying on pricing or limits.',
+      );
+    return {
+      added,
+      updated,
+      models,
+      warnings,
+      unavailable: absent.length,
+      refreshedAt: metadataUpdatedAt,
+    };
   }
 
   updateModel(modelId: string, patch: ModelUpdatePatch): Model {
@@ -609,8 +685,8 @@ export class ModelRegistry {
         `INSERT INTO models (
           model_id, account_id, provider_model_id, catalog_model_id, display_name,
           capabilities, pricing, metadata_source, metadata_updated_at, metadata_fields,
-          enabled, tags, work_types, roles
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          enabled, tags, work_types, roles, availability, last_seen_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(model_id) DO UPDATE SET
           catalog_model_id = excluded.catalog_model_id,
           display_name = excluded.display_name,
@@ -622,7 +698,9 @@ export class ModelRegistry {
           enabled = excluded.enabled,
           tags = excluded.tags,
           work_types = excluded.work_types,
-          roles = excluded.roles`,
+          roles = excluded.roles,
+          availability = excluded.availability,
+          last_seen_at = excluded.last_seen_at`,
       )
       .run(
         model.modelId,
@@ -639,6 +717,8 @@ export class ModelRegistry {
         JSON.stringify(model.tags),
         JSON.stringify(model.workTypes),
         JSON.stringify(model.roles),
+        model.availability ?? 'unknown',
+        model.lastSeenAt ?? null,
       );
   }
 
@@ -666,15 +746,6 @@ export class ModelRegistry {
         pool.createdAt,
         pool.updatedAt,
       );
-  }
-}
-
-function isFirstPartyOpenAiUrl(baseUrl: string): boolean {
-  try {
-    const url = new URL(baseUrl);
-    return url.origin === 'https://api.openai.com' && url.pathname.replace(/\/$/, '') === '/v1';
-  } catch {
-    return false;
   }
 }
 
@@ -710,6 +781,8 @@ function modelFromRow(row: ModelRow): Model {
       : rawCapabilities;
   return {
     modelId: row.modelId,
+    availability: row.availability,
+    lastSeenAt: row.lastSeenAt,
     accountId: row.accountId,
     providerModelId: row.providerModelId,
     catalogModelId: row.catalogModelId,
@@ -794,6 +867,7 @@ function discoveredFieldMetadata(
   for (const [key, value] of Object.entries(model.pricing ?? {})) {
     if (value !== undefined && value !== null) add(`pricing.${key}`);
   }
+  for (const key of model.unsupportedPricingFields ?? []) add(`pricing.${key}`);
   if (model.tags !== undefined) add('tags');
   if (model.workTypes !== undefined) add('workTypes');
   if (model.roles !== undefined) add('roles');
@@ -807,7 +881,10 @@ function mergeFieldMetadata(
   const result = { ...existing };
   for (const [field, metadata] of Object.entries(incoming)) {
     if (
-      metadataPriority(metadata.source) >= metadataPriority(existing[field]?.source ?? 'legacy')
+      metadataPriority(metadata.source) > metadataPriority(existing[field]?.source ?? 'legacy') ||
+      (metadataPriority(metadata.source) ===
+        metadataPriority(existing[field]?.source ?? 'legacy') &&
+        (!existing[field] || metadata.updatedAt >= existing[field]!.updatedAt))
     ) {
       result[field] = metadata;
     }

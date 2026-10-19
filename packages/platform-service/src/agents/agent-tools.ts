@@ -245,7 +245,22 @@ export function registerAgentTools(registry: ToolRegistry, options: AgentToolOpt
             },
             request: asRecord(args.request) as never,
           },
-          { signal: context.signal },
+          {
+            signal: context.signal,
+            ...(task.budget.maxCostUsd === undefined
+              ? {}
+              : {
+                  remainingCostUsd: Math.max(
+                    0,
+                    task.budget.maxCostUsd - (task.spent?.costUsd ?? 0),
+                  ),
+                }),
+            ...(task.budget.maxTokens === undefined
+              ? {}
+              : {
+                  remainingTokens: Math.max(0, task.budget.maxTokens - (task.spent?.tokens ?? 0)),
+                }),
+          },
           prepared,
         );
         return {

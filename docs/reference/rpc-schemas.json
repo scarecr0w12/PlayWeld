@@ -22817,6 +22817,7 @@
                     "inputPerMTokUsd": {
                       "anyOf": [
                         {
+                          "minimum": 0,
                           "type": "number"
                         },
                         {
@@ -22827,6 +22828,7 @@
                     "outputPerMTokUsd": {
                       "anyOf": [
                         {
+                          "minimum": 0,
                           "type": "number"
                         },
                         {
@@ -22918,10 +22920,51 @@
                               "type": "string"
                             }
                           ]
+                        },
+                        "expiresAt": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stale": {
+                          "type": "boolean"
                         }
                       }
                     }
                   }
+                },
+                "availability": {
+                  "anyOf": [
+                    {
+                      "const": "available",
+                      "type": "string"
+                    },
+                    {
+                      "const": "unavailable",
+                      "type": "string"
+                    },
+                    {
+                      "const": "unknown",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "lastSeenAt": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "enabled": {
                   "type": "boolean"
@@ -23151,6 +23194,7 @@
                     "inputPerMTokUsd": {
                       "anyOf": [
                         {
+                          "minimum": 0,
                           "type": "number"
                         },
                         {
@@ -23161,6 +23205,7 @@
                     "outputPerMTokUsd": {
                       "anyOf": [
                         {
+                          "minimum": 0,
                           "type": "number"
                         },
                         {
@@ -23252,10 +23297,51 @@
                               "type": "string"
                             }
                           ]
+                        },
+                        "expiresAt": {
+                          "anyOf": [
+                            {
+                              "format": "date-time",
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "stale": {
+                          "type": "boolean"
                         }
                       }
                     }
                   }
+                },
+                "availability": {
+                  "anyOf": [
+                    {
+                      "const": "available",
+                      "type": "string"
+                    },
+                    {
+                      "const": "unavailable",
+                      "type": "string"
+                    },
+                    {
+                      "const": "unknown",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "lastSeenAt": {
+                  "anyOf": [
+                    {
+                      "format": "date-time",
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
                 },
                 "enabled": {
                   "type": "boolean"
@@ -23280,6 +23366,20 @@
                 }
               }
             }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "unavailable": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "refreshedAt": {
+            "format": "date-time",
+            "type": "string"
           }
         }
       }
@@ -23624,6 +23724,7 @@
               "inputPerMTokUsd": {
                 "anyOf": [
                   {
+                    "minimum": 0,
                     "type": "number"
                   },
                   {
@@ -23634,6 +23735,7 @@
               "outputPerMTokUsd": {
                 "anyOf": [
                   {
+                    "minimum": 0,
                     "type": "number"
                   },
                   {
@@ -23725,10 +23827,51 @@
                         "type": "string"
                       }
                     ]
+                  },
+                  "expiresAt": {
+                    "anyOf": [
+                      {
+                        "format": "date-time",
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "stale": {
+                    "type": "boolean"
                   }
                 }
               }
             }
+          },
+          "availability": {
+            "anyOf": [
+              {
+                "const": "available",
+                "type": "string"
+              },
+              {
+                "const": "unavailable",
+                "type": "string"
+              },
+              {
+                "const": "unknown",
+                "type": "string"
+              }
+            ]
+          },
+          "lastSeenAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "enabled": {
             "type": "boolean"

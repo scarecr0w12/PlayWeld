@@ -46,7 +46,19 @@ export class GoogleGeminiProvider implements ModelProvider {
         endpoint(baseUrl, `models?${query.toString()}`),
         { method: 'GET', headers: this.headers(account) },
       );
-      if (Array.isArray(response.models)) models.push(...response.models);
+      if (
+        (response.nextPageToken !== undefined && typeof response.nextPageToken !== 'string') ||
+        !Array.isArray(response.models) ||
+        response.models.some(
+          (entry) => typeof entry !== 'object' || entry === null || typeof entry.name !== 'string',
+        )
+      ) {
+        throw new RpcError(
+          'Invalid Gemini model list response',
+          RpcErrorCode.ProviderRequestFailed,
+        );
+      }
+      models.push(...response.models);
       pageToken = typeof response.nextPageToken === 'string' ? response.nextPageToken : undefined;
       if (pageToken && seenPages.has(pageToken)) {
         throw new RpcError(
@@ -68,9 +80,8 @@ export class GoogleGeminiProvider implements ModelProvider {
           capabilities.embeddings =
             methods.includes('embedContent') || methods.includes('batchEmbedContents');
         }
-        if (typeof entry.inputTokenLimit === 'number')
-          capabilities.maxInputTokens = entry.inputTokenLimit;
-        if (typeof entry.outputTokenLimit === 'number')
+        if (validLimit(entry.inputTokenLimit)) capabilities.maxInputTokens = entry.inputTokenLimit;
+        if (validLimit(entry.outputTokenLimit))
           capabilities.maxOutputTokens = entry.outputTokenLimit;
         return {
           providerModelId: String(entry.name).replace(/^models\//, ''),
@@ -379,4 +390,8 @@ function stringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string')
     : [];
+}
+
+function validLimit(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 }

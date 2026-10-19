@@ -22,10 +22,12 @@ import {
 } from './http-utils';
 import { providerToolNames } from './tool-names';
 import { OpenAIResponses } from './openai-responses';
+import { rejectPricing, rejectedPricingFields } from './pricing-metadata';
 
 interface OpenAIModelList {
   data?: Record<string, unknown>[];
   models?: Record<string, unknown>[];
+  has_more?: boolean;
 }
 
 interface OpenAIChatResponse {
@@ -79,6 +81,23 @@ export class OpenAICompatibleProvider implements ModelProvider {
       : Array.isArray(response.models)
         ? response.models
         : [];
+    if (
+      response.has_more === true ||
+      (response.has_more !== undefined && typeof response.has_more !== 'boolean') ||
+      (!Array.isArray(response.data) && !Array.isArray(response.models)) ||
+      entries.some(
+        (entry) =>
+          !objectValue(entry) ||
+          !(this.options.parseModels
+            ? validIdentifier(entry.id ?? entry.name ?? entry.model_id)
+            : validIdentifier(entry.id)),
+      )
+    ) {
+      throw new RpcError(
+        'Invalid provider model list response',
+        RpcErrorCode.ProviderRequestFailed,
+      );
+    }
     return (
       this.options.parseModels?.(entries, account) ??
       entries
@@ -92,11 +111,9 @@ export class OpenAICompatibleProvider implements ModelProvider {
               : {}),
           capabilities: {
             ...pickCapabilities(objectValue(entry.capabilities) ? entry.capabilities : {}),
-            ...(typeof entry.context_length === 'number'
-              ? { contextWindow: entry.context_length }
-              : {}),
+            ...(validLimit(entry.context_length) ? { contextWindow: entry.context_length } : {}),
             ...(objectValue(entry.top_provider) &&
-            typeof entry.top_provider.max_completion_tokens === 'number'
+            validLimit(entry.top_provider.max_completion_tokens)
               ? { maxOutputTokens: entry.top_provider.max_completion_tokens }
               : {}),
           },
@@ -104,7 +121,12 @@ export class OpenAICompatibleProvider implements ModelProvider {
             ? { pricing: pickPricing(entry.pricing as Record<string, unknown>) }
             : {}),
         }))
-    );
+    ).map((model) => {
+      const entry = entries.find(
+        (entry) => (entry.id ?? entry.name ?? entry.model_id) === model.providerModelId,
+      );
+      return rejectPricing(model, rejectedPricingFields(entry?.pricing));
+    });
   }
 
   async complete(
@@ -548,11 +570,16 @@ function pickCapabilities(value: Record<string, unknown>): Partial<Model['capabi
   const result: Partial<Model['capabilities']> = {};
   for (const key of keys) {
     const capability = value[key];
-    if (typeof capability === 'boolean') {
+    if (
+      typeof capability === 'boolean' &&
+      key !== 'contextWindow' &&
+      key !== 'maxInputTokens' &&
+      key !== 'maxOutputTokens'
+    ) {
       (result as Record<string, unknown>)[key] = capability;
     } else if (
       (key === 'contextWindow' || key === 'maxInputTokens' || key === 'maxOutputTokens') &&
-      (typeof capability === 'number' || capability === null)
+      (validLimit(capability) || capability === null)
     ) {
       (result as Record<string, unknown>)[key] = capability;
     }
@@ -562,10 +589,10 @@ function pickCapabilities(value: Record<string, unknown>): Partial<Model['capabi
 
 function pickPricing(value: Record<string, unknown>): Partial<Model['pricing']> {
   return {
-    ...(typeof value.inputPerMTokUsd === 'number' || value.inputPerMTokUsd === null
+    ...(validPrice(value.inputPerMTokUsd) || value.inputPerMTokUsd === null
       ? { inputPerMTokUsd: value.inputPerMTokUsd }
       : {}),
-    ...(typeof value.outputPerMTokUsd === 'number' || value.outputPerMTokUsd === null
+    ...(validPrice(value.outputPerMTokUsd) || value.outputPerMTokUsd === null
       ? { outputPerMTokUsd: value.outputPerMTokUsd }
       : {}),
   };
@@ -577,4 +604,15 @@ function objectValue(value: unknown): value is Record<string, unknown> {
 
 function numericValue(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function validPrice(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+function validLimit(value: unknown): value is number {
+  return validPrice(value) && Number.isSafeInteger(value) && value > 0;
+}
+
+function validIdentifier(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
 }

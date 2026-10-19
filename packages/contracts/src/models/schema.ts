@@ -51,8 +51,8 @@ export type ModelCapabilities = Static<typeof ModelCapabilitiesSchema>;
 
 export const ModelPricingSchema = Type.Object(
   {
-    inputPerMTokUsd: Type.Union([Type.Number(), Type.Null()]),
-    outputPerMTokUsd: Type.Union([Type.Number(), Type.Null()]),
+    inputPerMTokUsd: Type.Union([Type.Number({ minimum: 0 }), Type.Null()]),
+    outputPerMTokUsd: Type.Union([Type.Number({ minimum: 0 }), Type.Null()]),
   },
   { additionalProperties: false },
 );
@@ -71,6 +71,8 @@ export const ModelFieldMetadataSchema = Type.Object(
     updatedAt: Type.String({ format: 'date-time' }),
     sourceUrl: Type.Union([Type.String({ format: 'uri' }), Type.Null()]),
     confidence: Type.Union([Type.Literal('high'), Type.Literal('medium'), Type.Literal('low')]),
+    expiresAt: Type.Optional(Type.Union([Type.String({ format: 'date-time' }), Type.Null()])),
+    stale: Type.Optional(Type.Boolean()),
   },
   { additionalProperties: false },
 );
@@ -88,6 +90,10 @@ export const ModelSchema = Type.Object(
     metadataSource: Type.Union([Type.Literal('provider'), Type.Literal('manual')]),
     metadataUpdatedAt: Type.String({ format: 'date-time' }),
     metadataFields: Type.Record(Type.String(), ModelFieldMetadataSchema),
+    availability: Type.Optional(
+      Type.Union([Type.Literal('available'), Type.Literal('unavailable'), Type.Literal('unknown')]),
+    ),
+    lastSeenAt: Type.Optional(Type.Union([Type.String({ format: 'date-time' }), Type.Null()])),
     enabled: Type.Boolean(),
     tags: Type.Array(Type.String()),
     workTypes: Type.Array(Type.String()),

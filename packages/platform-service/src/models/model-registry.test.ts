@@ -11,8 +11,8 @@ import { ModelRegistry } from './model-registry';
 import { ModelProviderRegistry, type ModelProvider } from './providers';
 
 describe('ModelRegistry', () => {
-  it('offers catalogued OpenAI embedding models when model listing omits them', async () => {
-    const profileDir = mkdtempSync(path.join(tmpdir(), 'gc-openai-embedding-discovery-'));
+  it('lists only provider-available OpenAI IDs rather than injecting catalog suggestions', async () => {
+    const profileDir = mkdtempSync(path.join(tmpdir(), 'gc-openai-availability-'));
     const database = Database.open(':memory:');
     try {
       migrate(database, profileMigrations);
@@ -37,67 +37,17 @@ describe('ModelRegistry', () => {
         providerKind: 'openai',
         displayName: 'OpenAI',
         baseUrl: 'https://api.openai.com/v1',
-        apiKey: 'fixture-api-key',
-      });
-
-      const preview = await registry.discover(account.accountId, { preview: true });
-
-      expect(preview.models.map((model) => model.providerModelId)).toEqual([
-        'gpt-fixture',
-        'text-embedding-3-small',
-        'text-embedding-3-large',
-      ]);
-      expect(preview.models.filter((model) => model.capabilities.embeddings)).toMatchObject([
-        {
-          providerModelId: 'text-embedding-3-small',
-          metadataFields: {
-            'capabilities.embeddings': { source: 'provider-catalog' },
-          },
-        },
-        {
-          providerModelId: 'text-embedding-3-large',
-          metadataFields: {
-            'capabilities.embeddings': { source: 'provider-catalog' },
-          },
-        },
-      ]);
-      expect(registry.listModels()).toEqual([]);
-
-      const selected = await registry.discover(account.accountId, {
-        providerModelIds: ['text-embedding-3-small'],
-      });
-      expect(selected).toMatchObject({ added: 1, updated: 0 });
-      expect(registry.listModels()).toMatchObject([
-        { accountId: account.accountId, providerModelId: 'text-embedding-3-small' },
-      ]);
-      expect(
-        await registry.discover(account.accountId, {
-          providerModelIds: ['text-embedding-3-small'],
-        }),
-      ).toMatchObject({ added: 0, updated: 1 });
-
-      const customAccount = registry.addAccount({
-        providerKind: 'openai',
-        displayName: 'Custom endpoint',
-        baseUrl: 'https://custom.example.com/v1',
       });
       expect(
-        (await registry.discover(customAccount.accountId, { preview: true })).models.map(
+        (await registry.discover(account.accountId, { preview: true })).models.map(
           (model) => model.providerModelId,
         ),
       ).toEqual(['gpt-fixture']);
-
+      expect(registry.listModels()).toEqual([]);
+      await expect(
+        registry.discover(account.accountId, { providerModelIds: ['text-embedding-3-small'] }),
+      ).rejects.toThrow('no longer available');
       const listModels = vi.spyOn(providers.get('openai')!, 'listModels');
-      listModels.mockResolvedValue([
-        { providerModelId: 'text-embedding-3-small', capabilities: { embeddings: false } },
-      ]);
-      const listed = await registry.discover(account.accountId, { preview: true });
-      expect(listed.models.map((model) => model.providerModelId)).toEqual([
-        'text-embedding-3-small',
-        'text-embedding-3-large',
-      ]);
-      expect(listed.models[0]?.capabilities.embeddings).toBe(false);
-
       listModels.mockRejectedValue(new Error('Provider authentication failed'));
       await expect(registry.discover(account.accountId, { preview: true })).rejects.toThrow(
         'Provider authentication failed',
@@ -107,7 +57,6 @@ describe('ModelRegistry', () => {
       rmSync(profileDir, { recursive: true, force: true });
     }
   });
-
   it('previews without writes and imports only selected models for the requested account', async () => {
     const profileDir = mkdtempSync(path.join(tmpdir(), 'gc-model-selection-'));
     const database = Database.open(':memory:');
@@ -156,10 +105,10 @@ describe('ModelRegistry', () => {
       await registry.discover(first.accountId, { preview: true });
       expect(registry.getModel(model.modelId)).toEqual(saved);
       expect(registry.listModels({ accountId: second.accountId })).toEqual([]);
-      expect(await registry.discover(first.accountId, { providerModelIds: [] })).toEqual({
+      expect(await registry.discover(first.accountId, { providerModelIds: [] })).toMatchObject({
         added: 0,
-        updated: 0,
-        models: [],
+        updated: 1,
+        models: [{ enabled: false, availability: 'available' }],
       });
       await expect(
         registry.discover(first.accountId, { providerModelIds: ['one', 'missing'] }),

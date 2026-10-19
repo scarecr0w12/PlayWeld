@@ -164,7 +164,14 @@ export interface ControlRoomService {
   discoverModels(
     accountId: string,
     options?: { preview?: boolean; providerModelIds?: string[] },
-  ): Promise<{ added: number; updated: number; models: Model[] }>;
+  ): Promise<{
+    added: number;
+    updated: number;
+    models: Model[];
+    warnings?: string[];
+    unavailable?: number;
+    refreshedAt?: string;
+  }>;
   updateModel(modelId: string, patch: RpcParams<'model/update'>['patch']): Promise<Model>;
   listModelPools(projectId?: string): Promise<ModelPool[]>;
   createModelPool(input: {

@@ -4,6 +4,9 @@ import {
   formatDecisionAssessmentDetail,
   formatDecisionAssessmentUsage,
   formatPricing,
+  discoverySelection,
+  formatModelAvailability,
+  formatMetadataFreshness,
   summarizeDecision,
   summarizeDecisionAssessmentAdvice,
 } from './models-view-model';
@@ -44,9 +47,46 @@ const assessment: DecisionAssessment = {
 };
 
 describe('models view model helpers', () => {
+  it('keeps discovery opt-in and preserves deliberate pending selections on refresh', () => {
+    const available = [
+      { providerModelId: 'a' },
+      { providerModelId: 'b' },
+      { providerModelId: 'c', availability: 'unavailable' as const },
+    ];
+    const existing = [{ providerModelId: 'a', enabled: true }];
+    expect(discoverySelection(available, existing)).toEqual([]);
+    expect(discoverySelection(available, existing, ['a', 'b', 'c', 'gone', 'b'])).toEqual(['b']);
+    expect(discoverySelection(available, existing, [])).toEqual([]);
+  });
+
+  it('distinguishes unknown availability and missing freshness from fresh or stale facts', () => {
+    expect(formatModelAvailability({})).toBe('Availability unknown');
+    expect(formatModelAvailability({ availability: 'unavailable' })).toContain('Unavailable');
+    expect(
+      formatMetadataFreshness(
+        { updatedAt: '2026-10-01T00:00:00Z' },
+        Date.parse('2026-10-18T00:00:00Z'),
+      ),
+    ).toContain('Freshness unknown');
+    expect(
+      formatMetadataFreshness(
+        { updatedAt: '2026-10-01T00:00:00Z', expiresAt: '2026-10-10T00:00:00Z' },
+        Date.parse('2026-10-18T00:00:00Z'),
+      ),
+    ).toContain('Stale');
+    expect(formatMetadataFreshness({ updatedAt: '2026-10-01T00:00:00Z', stale: true })).toContain(
+      'Stale',
+    );
+    expect(
+      formatMetadataFreshness(
+        { updatedAt: '2026-10-01T00:00:00Z', expiresAt: '2026-11-01T00:00:00Z' },
+        Date.parse('2026-10-18T00:00:00Z'),
+      ),
+    ).toContain('Fresh');
+  });
   it('formats known and unknown token pricing', () => {
     const pricing: ModelPricing = { inputPerMTokUsd: 0.25, outputPerMTokUsd: null };
-    expect(formatPricing(pricing)).toBe('$0.25 in / — out per MTok');
+    expect(formatPricing(pricing)).toBe('$0.25 in / Unknown out per MTok');
   });
 
   it('summarizes route decisions with exploration metadata', () => {

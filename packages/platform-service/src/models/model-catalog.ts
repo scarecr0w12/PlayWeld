@@ -43,6 +43,7 @@ function sourcedFields(sourceUrl: string, fields: string[]): Record<string, Mode
       {
         source: 'provider-catalog',
         updatedAt: researchedAt,
+        expiresAt: new Date(Date.parse(researchedAt) + 7 * 24 * 60 * 60 * 1000).toISOString(),
         sourceUrl,
         confidence: 'high',
       } satisfies ModelFieldMetadata,
@@ -348,6 +349,12 @@ export function enrichDiscoveredModel(
   }
   enriched.capabilities = mergeCatalogObject(entry.capabilities, model.capabilities);
   enriched.pricing = mergeCatalogObject(entry.pricing, model.pricing);
+  for (const key of model.unsupportedPricingFields ?? []) {
+    if (enriched.pricing) delete enriched.pricing[key];
+    const field = `pricing.${key}`;
+    if (model.fieldMetadata?.[field]) fieldMetadata[field] = model.fieldMetadata[field];
+    else delete fieldMetadata[field];
+  }
   if (model.tags === undefined && entry.tags !== undefined) enriched.tags = entry.tags;
   if (model.workTypes === undefined && entry.workTypes !== undefined) {
     enriched.workTypes = entry.workTypes;

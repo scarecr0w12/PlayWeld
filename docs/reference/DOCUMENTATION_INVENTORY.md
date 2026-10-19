@@ -76,7 +76,7 @@ Request methods: **198**; notifications: **28**; settings: **85**; setting group
 | ipc | [Guide](../SERVICE_RECIPES.md) | [Source](../../packages/platform-service/src/ipc/) | 3 |
 | knowledge | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/knowledge/) | 11 |
 | mcp | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/mcp/) | 14 |
-| models | [Guide](../USER_GUIDE.md) | [Source](../../packages/platform-service/src/models/) | 10 |
+| models | [Guide](../USER_GUIDE.md) | [Source](../../packages/platform-service/src/models/) | 15 |
 | plugins | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/plugins/) | 4 |
 | processes | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/processes/) | 1 |
 | profile | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/profile/) | 2 |

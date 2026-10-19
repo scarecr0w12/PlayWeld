@@ -1,7 +1,53 @@
 import type { DecisionAssessment, ModelPricing, RouteDecision } from '@gamecrafter/contracts';
 
+/** A preview never selects new models, and refreshing keeps only explicit pending choices. */
+export function discoverySelection(
+  available: { providerModelId: string; availability?: string }[],
+  existing: { providerModelId: string; enabled: boolean }[],
+  previous: string[] = [],
+): string[] {
+  const enabled = new Set(
+    existing.filter((model) => model.enabled).map((model) => model.providerModelId),
+  );
+  const selectable = new Set(
+    available
+      .filter(
+        (model) => model.availability !== 'unavailable' && !enabled.has(model.providerModelId),
+      )
+      .map((model) => model.providerModelId),
+  );
+  return [...new Set(previous)].filter((id) => selectable.has(id));
+}
+
+export function formatModelAvailability(model: {
+  availability?: string;
+  lastSeenAt?: string | null;
+}): string {
+  const label =
+    model.availability === 'available'
+      ? 'Available'
+      : model.availability === 'unavailable'
+        ? 'Unavailable (excluded from routing)'
+        : 'Availability unknown';
+  return `${label}${model.lastSeenAt ? ` · last seen ${new Date(model.lastSeenAt).toLocaleString()}` : ''}`;
+}
+
+export function formatMetadataFreshness(
+  metadata: { updatedAt: string; expiresAt?: string | null; stale?: boolean },
+  now = Date.now(),
+): string {
+  const expiry = metadata.expiresAt ? Date.parse(metadata.expiresAt) : NaN;
+  const status =
+    metadata.stale || (Number.isFinite(expiry) && expiry <= now)
+      ? 'Stale (retained data)'
+      : Number.isFinite(expiry)
+        ? 'Fresh'
+        : 'Freshness unknown';
+  return `${status} · fetched ${new Date(metadata.updatedAt).toLocaleString()}${Number.isFinite(expiry) ? ` · expires ${new Date(expiry).toLocaleString()}` : ''}`;
+}
+
 export function formatPricing(pricing: ModelPricing): string {
-  const format = (value: number | null) => (value === null ? '—' : `$${value.toFixed(2)}`);
+  const format = (value: number | null) => (value === null ? 'Unknown' : `$${value.toFixed(2)}`);
   return `${format(pricing.inputPerMTokUsd)} in / ${format(pricing.outputPerMTokUsd)} out per MTok`;
 }
 

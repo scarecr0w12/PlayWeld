@@ -14,6 +14,8 @@ export interface ProviderRuntimeAccount extends ProviderAccount {
 
 export interface DiscoveredModel {
   providerModelId: string;
+  metadataWarnings?: string[];
+  unsupportedPricingFields?: (keyof ModelPricing)[];
   catalogModelId?: string;
   displayName?: string;
   capabilities?: Partial<ModelCapabilities>;

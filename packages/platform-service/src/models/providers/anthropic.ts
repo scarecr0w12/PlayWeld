@@ -6,6 +6,7 @@ import {
   type ChatResponse,
   type Model,
 } from '@gamecrafter/contracts';
+import { rejectPricing, rejectedPricingFields } from './pricing-metadata';
 import type {
   DiscoveredModel,
   ModelProvider,
@@ -23,6 +24,8 @@ import {
 
 interface AnthropicModelList {
   data?: Record<string, unknown>[];
+  has_more?: boolean;
+  last_id?: string;
 }
 
 interface AnthropicMessage {
@@ -38,13 +41,37 @@ interface AnthropicMessage {
 
 export class AnthropicProvider implements ModelProvider {
   async listModels(account: ProviderRuntimeAccount): Promise<DiscoveredModel[]> {
-    const response = await providerJson<AnthropicModelList>(
-      account,
-      anthropicEndpoint(account, 'v1/models'),
-      { method: 'GET', headers: this.headers(account) },
-    );
-    if (!Array.isArray(response.data)) return [];
-    return response.data
+    const entries: Record<string, unknown>[] = [];
+    const cursors = new Set<string>();
+    let cursor: string | undefined;
+    do {
+      const path = cursor ? `v1/models?after_id=${encodeURIComponent(cursor)}` : 'v1/models';
+      const response = await providerJson<AnthropicModelList>(
+        account,
+        anthropicEndpoint(account, path),
+        { method: 'GET', headers: this.headers(account) },
+      );
+      if (
+        (response.has_more !== undefined && typeof response.has_more !== 'boolean') ||
+        !Array.isArray(response.data) ||
+        response.data.some((entry) => !objectValue(entry) || typeof entry.id !== 'string')
+      ) {
+        throw new RpcError(
+          'Invalid Anthropic model list response',
+          RpcErrorCode.ProviderRequestFailed,
+        );
+      }
+      entries.push(...response.data);
+      cursor = response.has_more === true ? response.last_id : undefined;
+      if (response.has_more === true && (!cursor || cursors.has(cursor))) {
+        throw new RpcError(
+          'Invalid Anthropic model list pagination cursor',
+          RpcErrorCode.ProviderRequestFailed,
+        );
+      }
+      if (cursor) cursors.add(cursor);
+    } while (cursor);
+    return entries
       .filter((entry) => typeof entry.id === 'string')
       .map((entry) => ({
         providerModelId: String(entry.id),
@@ -54,15 +81,14 @@ export class AnthropicProvider implements ModelProvider {
           streaming: true,
           embeddings: false,
           ...pickCapabilities(objectValue(entry.capabilities) ? entry.capabilities : {}),
-          ...(typeof entry.max_input_tokens === 'number'
-            ? { maxInputTokens: entry.max_input_tokens }
-            : {}),
-          ...(typeof entry.max_tokens === 'number' ? { maxOutputTokens: entry.max_tokens } : {}),
+          ...(validLimit(entry.max_input_tokens) ? { maxInputTokens: entry.max_input_tokens } : {}),
+          ...(validLimit(entry.max_tokens) ? { maxOutputTokens: entry.max_tokens } : {}),
         },
         ...(objectValue(entry.pricing)
           ? { pricing: pickPricing(entry.pricing as Record<string, unknown>) }
           : {}),
-      }));
+      }))
+      .map((model, index) => rejectPricing(model, rejectedPricingFields(entries[index].pricing)));
   }
 
   async complete(
@@ -390,8 +416,7 @@ function pickCapabilities(value: Record<string, unknown>): Partial<Model['capabi
     }
   }
   for (const key of ['contextWindow', 'maxInputTokens', 'maxOutputTokens'] as const) {
-    if (typeof value[key] === 'number' || value[key] === null)
-      result[key] = value[key] as number | null;
+    if (validLimit(value[key]) || value[key] === null) result[key] = value[key] as number | null;
   }
   return result;
 }
@@ -403,10 +428,10 @@ function anthropicEndpoint(account: ProviderRuntimeAccount, path: string): strin
 
 function pickPricing(value: Record<string, unknown>): Partial<Model['pricing']> {
   return {
-    ...(typeof value.inputPerMTokUsd === 'number' || value.inputPerMTokUsd === null
+    ...(validPrice(value.inputPerMTokUsd) || value.inputPerMTokUsd === null
       ? { inputPerMTokUsd: value.inputPerMTokUsd }
       : {}),
-    ...(typeof value.outputPerMTokUsd === 'number' || value.outputPerMTokUsd === null
+    ...(validPrice(value.outputPerMTokUsd) || value.outputPerMTokUsd === null
       ? { outputPerMTokUsd: value.outputPerMTokUsd }
       : {}),
   };
@@ -418,4 +443,11 @@ function objectValue(value: unknown): value is Record<string, unknown> {
 
 function numericValue(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function validPrice(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+function validLimit(value: unknown): value is number {
+  return validPrice(value) && Number.isSafeInteger(value) && value > 0;
 }

@@ -3,6 +3,7 @@ import {
   RpcErrorCode,
   uuidv7,
   type Model,
+  type ChatRequest,
   type ModelPool,
   type ModelUsageRecord,
   type DecisionAssessment,
@@ -79,7 +80,9 @@ export class ModelRouter {
     advice?: { modelId: string; assessmentId: string },
     preview = false,
   ): RouteDecision {
-    const enabledModels = this.options.registry.listModels({ enabledOnly: true });
+    const enabledModels = this.options.registry
+      .listModels({ enabledOnly: true })
+      .filter((model) => model.availability !== 'unavailable');
     let eligible = enabledModels;
     if (eligible.length === 0) {
       throw noEligibleModel('enabled-models', ['no enabled models or accounts']);
@@ -139,8 +142,9 @@ export class ModelRouter {
     const constrained = estimates.filter((estimate) => {
       if (
         constraints.maxCostUsd !== null &&
-        estimate.estimatedCostUsd !== null &&
-        estimate.estimatedCostUsd > constraints.maxCostUsd
+        (!hasFreshPricing(estimate.model, this.now()) ||
+          estimate.estimatedCostUsd === null ||
+          estimate.estimatedCostUsd > constraints.maxCostUsd)
       ) {
         return false;
       }
@@ -186,7 +190,9 @@ export class ModelRouter {
       const remainingBudget = this.remainingExplorationBudget(request.projectId, sessionId);
       const affordable = scored.filter(
         (candidate) =>
-          candidate.estimatedCostUsd !== null && candidate.estimatedCostUsd <= remainingBudget,
+          hasFreshPricing(candidate.estimate.model, this.now()) &&
+          candidate.estimatedCostUsd !== null &&
+          candidate.estimatedCostUsd <= remainingBudget,
       );
       if (affordable.length > 0) {
         const leastObserved = [...affordable].sort(
@@ -250,6 +256,82 @@ export class ModelRouter {
     };
     if (!preview) this.persistDecision(decision);
     return decision;
+  }
+
+  /** Validate the final request immediately before dispatch; historical costs are never a cap. */
+  boundCompletion(
+    model: Model,
+    request: ChatRequest,
+    route: RouteRequest,
+    sessionId?: string,
+    remainingTokens?: number,
+    remainingCostUsd?: number,
+  ): ChatRequest {
+    const fail = (reason: string): never => {
+      throw noEligibleModel('constraints', [reason]);
+    };
+    if (!model.enabled || model.availability === 'unavailable')
+      fail('model unavailable or unselected');
+    for (const capability of route.requiredCapabilities ?? []) {
+      if (!isChatRequestCapability(capability) || model.capabilities[capability] !== true)
+        fail(`capability:${capability}`);
+    }
+    if (model.capabilities.chat !== true) fail('capability:chat');
+    if (request.tools?.length && model.capabilities.tools !== true) fail('capability:tools');
+    if (
+      request.responseFormat?.type === 'json_schema' &&
+      model.capabilities.structuredOutput !== true
+    )
+      fail('capability:structuredOutput');
+    const outputLimit = positiveLimit(model.capabilities.maxOutputTokens);
+    const maxTokens = request.maxTokens ?? outputLimit;
+    if (maxTokens !== null && (!Number.isSafeInteger(maxTokens) || maxTokens < 1))
+      fail('invalid maxTokens');
+    if (outputLimit !== null && maxTokens !== null && maxTokens > outputLimit)
+      fail('maxOutputTokens');
+    const contextWindow = positiveLimit(model.capabilities.contextWindow);
+    const maxInput = positiveLimit(model.capabilities.maxInputTokens);
+    const inputLimit =
+      contextWindow === null
+        ? maxInput
+        : Math.min(maxInput ?? contextWindow, contextWindow - (maxTokens ?? 0));
+    const inputBound =
+      contextWindow === null ? maxInput : Math.min(maxInput ?? contextWindow, contextWindow);
+    // Conservative request-size guard, including structured schemas and message framing.
+    // Monetary safety below reserves the entire advertised input capacity instead of
+    // treating this tokenizer-independent estimate as a verified billable token count.
+    const inputEstimate =
+      Buffer.byteLength(JSON.stringify(request), 'utf8') +
+      request.messages.length * 256 +
+      (request.tools?.length ?? 0) * 256;
+    if (inputLimit !== null && inputEstimate > inputLimit) fail('maxInputTokens/contextWindow');
+    if (
+      remainingTokens !== undefined &&
+      (inputBound === null || maxTokens === null || inputBound + maxTokens > remainingTokens)
+    )
+      fail('remaining task token budget');
+    const routeMaxCost = this.resolveConstraints(route, sessionId).maxCostUsd;
+    const maxCostUsd =
+      remainingCostUsd === undefined
+        ? routeMaxCost
+        : Math.min(routeMaxCost ?? Infinity, remainingCostUsd);
+    if (maxCostUsd !== null) {
+      if (!hasFreshPricing(model, this.now())) fail('unknown or stale pricing');
+      if (inputBound === null || maxTokens === null) fail('unknown input/output token bound');
+      for (const key of ['contextWindow', 'maxInputTokens', 'maxOutputTokens'] as const) {
+        if (
+          positiveLimit(model.capabilities[key]) !== null &&
+          !hasFreshField(model, `capabilities.${key}`, this.now())
+        )
+          fail('stale input/output token bound');
+      }
+      const costBound =
+        (inputBound! * model.pricing.inputPerMTokUsd! +
+          maxTokens! * model.pricing.outputPerMTokUsd!) /
+        1_000_000;
+      if (!Number.isFinite(costBound) || costBound > maxCostUsd) fail(`maxCostUsd:${maxCostUsd}`);
+    }
+    return { ...request, ...(maxTokens === null ? {} : { maxTokens }) };
   }
 
   reportOutcome(outcome: RouteOutcome): void {
@@ -893,4 +975,29 @@ function outcomeFromRow(row: DecisionOutcomeRow): RouteOutcome {
     cacheCreationInputTokens: row.cacheCreationInputTokens ?? 0,
     ...(row.note === null ? {} : { note: row.note }),
   };
+}
+
+function positiveLimit(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : null;
+}
+
+function hasFreshPricing(model: Model, now: Date): boolean {
+  return (['inputPerMTokUsd', 'outputPerMTokUsd'] as const).every((key) => {
+    const price = model.pricing[key];
+
+    return (
+      price !== null &&
+      Number.isFinite(price) &&
+      price >= 0 &&
+      hasFreshField(model, `pricing.${key}`, now)
+    );
+  });
+}
+
+function hasFreshField(model: Model, key: string, now: Date): boolean {
+  const field = model.metadataFields[key];
+  return (
+    field?.stale !== true &&
+    (field?.expiresAt == null || Date.parse(field.expiresAt) > now.getTime())
+  );
 }

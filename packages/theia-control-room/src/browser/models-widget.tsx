@@ -19,6 +19,9 @@ import {
   formatDecisionAssessmentDetail,
   formatDecisionAssessmentUsage,
   formatPricing,
+  discoverySelection,
+  formatModelAvailability,
+  formatMetadataFreshness,
   summarizeDecision,
   summarizeDecisionAssessmentAdvice,
 } from '../common/models-view-model';
@@ -245,6 +248,12 @@ export class ModelsWidget extends ControlRoomReactWidget {
           <p className="gamecrafter-page-section-intro">
             Connect a local or cloud provider before discovering its model catalog.
           </p>
+          <p className="gamecrafter-page-hint">
+            Discovery lists models available to this account without enabling them. Provider APIs
+            may report identity only; capabilities, limits and USD prices can come from the
+            maintained models.dev catalog, an offline catalog or your manual overrides. Unknown
+            fields stay unknown.
+          </p>
           <form
             className="gamecrafter-models-account-form"
             onSubmit={(event) => {
@@ -463,6 +472,13 @@ export class ModelsWidget extends ControlRoomReactWidget {
                         <button
                           type="button"
                           disabled={this.busyAccounts.has(account.accountId)}
+                          onClick={() => void this.addDiscoveredModels(account, [])}
+                        >
+                          Refresh model metadata
+                        </button>
+                        <button
+                          type="button"
+                          disabled={this.busyAccounts.has(account.accountId)}
                           onClick={() => void this.removeAccount(account)}
                         >
                           Remove
@@ -490,6 +506,12 @@ export class ModelsWidget extends ControlRoomReactWidget {
             Enable models for routing. Expand a model's details to edit prices, capabilities, and
             routing tags.
           </p>
+          <p className="gamecrafter-page-hint">
+            Work types, agent roles and tags are application routing policy, not provider-detected
+            capabilities. Empty roles or work types mean unrestricted. Strict cost constraints
+            exclude models with unknown token prices. Unavailable models retain your enabled
+            preference but cannot be routed.
+          </p>
           {this.models.length === 0 ? (
             <p className="gamecrafter-page-empty">
               No models discovered. Open Provider accounts, test a provider, and discover its model
@@ -504,6 +526,7 @@ export class ModelsWidget extends ControlRoomReactWidget {
                     <th>Provider model</th>
                     <th>Display name</th>
                     <th>Enabled</th>
+                    <th>Availability</th>
                     <th>Capabilities and limits</th>
                     <th>Pricing and routing metadata</th>
                   </tr>
@@ -566,6 +589,7 @@ export class ModelsWidget extends ControlRoomReactWidget {
                           }
                         />
                       </td>
+                      <td>{formatModelAvailability(model)}</td>
                       <td>
                         <details className="gamecrafter-page-advanced">
                           <summary>{this.capabilitySummary(model)}</summary>
@@ -1023,7 +1047,7 @@ export class ModelsWidget extends ControlRoomReactWidget {
               return (
                 <li key={field}>
                   <strong>{field}</strong> · {metadata.source} · {metadata.confidence} confidence ·{' '}
-                  {new Date(metadata.updatedAt).toLocaleString()}
+                  {formatMetadataFreshness(metadata)}
                   {sourceUrl && (
                     <>
                       {' · '}
@@ -1043,7 +1067,10 @@ export class ModelsWidget extends ControlRoomReactWidget {
 
   private describeMetadataSource(model: Model, field: string): string {
     const metadata = model.metadataFields[field];
-    if (!metadata) return 'unrestricted';
+    if (!metadata)
+      return field === 'roles' || field === 'workTypes'
+        ? 'unrestricted routing policy'
+        : 'unknown source';
     if (metadata.source === 'manual') return 'manual override';
     if (metadata.source === 'account-config') return 'account setting';
     if (metadata.source === 'derived') return `auto-applied · ${metadata.confidence} confidence`;
@@ -1425,10 +1452,17 @@ export class ModelsWidget extends ControlRoomReactWidget {
           preview: true,
         });
         this.availableModels.set(account.accountId, result.models);
-        this.selectedModels.set(account.accountId, []);
+        this.selectedModels.set(
+          account.accountId,
+          discoverySelection(
+            result.models,
+            this.models.filter((model) => model.accountId === account.accountId),
+            this.selectedModels.get(account.accountId),
+          ),
+        );
         this.accountResults.set(
           account.accountId,
-          `Found ${result.models.length} available models. Choose models to add.`,
+          `Found ${result.models.length} available models. Choose models to enable. ${result.warnings?.join(' ') ?? ''}`,
         );
       });
     } finally {
@@ -1442,61 +1476,59 @@ export class ModelsWidget extends ControlRoomReactWidget {
     if (!available) return null;
     const added = new Set(
       this.models
-        .filter((model) => model.accountId === account.accountId)
+        .filter((model) => model.accountId === account.accountId && model.enabled)
         .map((model) => model.providerModelId),
     );
-    const choices = available.filter((model) => !added.has(model.providerModelId));
+    const choices = available.filter((model) => model.availability !== 'unavailable');
     const selected = this.selectedModels.get(account.accountId) ?? [];
     const busy = this.busyAccounts.has(account.accountId);
     return (
       <details className="gamecrafter-model-selection" open>
-        <summary>Choose models ({choices.length} available to add)</summary>
+        <summary>Choose models ({choices.length} available)</summary>
         {choices.length === 0 ? (
-          <p>No new models available.</p>
+          <p>No models available in this preview. Existing preferences are retained.</p>
         ) : (
           <>
-            <label>
-              Models for {account.displayName}
-              <select
-                multiple
-                size={Math.min(8, Math.max(2, choices.length))}
-                aria-label={`Models to add for ${account.displayName}`}
-                value={selected}
-                disabled={busy}
-                onChange={(event) => {
-                  this.selectedModels.set(
-                    account.accountId,
-                    Array.from(event.currentTarget.selectedOptions, (option) => option.value),
-                  );
-                  this.update();
-                }}
-              >
-                {choices.map((model) => (
-                  <option key={model.providerModelId} value={model.providerModelId}>
+            <fieldset>
+              <legend>Models for {account.displayName}</legend>
+              {choices.map((model) => (
+                <div key={model.providerModelId}>
+                  <label className="gamecrafter-models-checkbox-label">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select model ${model.providerModelId} for ${account.displayName}`}
+                      checked={
+                        added.has(model.providerModelId) || selected.includes(model.providerModelId)
+                      }
+                      disabled={busy || added.has(model.providerModelId)}
+                      onChange={(event) => {
+                        this.selectedModels.set(
+                          account.accountId,
+                          event.currentTarget.checked
+                            ? [...selected, model.providerModelId]
+                            : selected.filter((id) => id !== model.providerModelId),
+                        );
+                        this.update();
+                      }}
+                    />
                     {model.displayName} ({model.providerModelId}) · {this.capabilitySummary(model)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <p>Use Ctrl or Command to select multiple models.</p>
+                    {' · '}
+                    {formatPricing(model.pricing)}
+                    {added.has(model.providerModelId)
+                      ? ' · Already enabled (change in Models)'
+                      : ''}
+                  </label>
+                  {this.renderFieldProvenance(model)}
+                </div>
+              ))}
+            </fieldset>
+            <p>Only checked new selections are enabled. Existing selections change in Models.</p>
             <button
               type="button"
               disabled={busy || selected.length === 0}
               onClick={() => void this.addDiscoveredModels(account, selected)}
             >
-              Add selected ({selected.length})
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() =>
-                void this.addDiscoveredModels(
-                  account,
-                  choices.map((model) => model.providerModelId),
-                )
-              }
-            >
-              Add all ({choices.length})
+              Enable selected ({selected.length})
             </button>
           </>
         )}
@@ -1508,7 +1540,7 @@ export class ModelsWidget extends ControlRoomReactWidget {
     account: ProviderAccount,
     providerModelIds: string[],
   ): Promise<void> {
-    if (this.busyAccounts.has(account.accountId) || providerModelIds.length === 0) return;
+    if (this.busyAccounts.has(account.accountId)) return;
     this.busyAccounts.add(account.accountId);
     this.update();
     try {
@@ -1516,11 +1548,28 @@ export class ModelsWidget extends ControlRoomReactWidget {
         const result = await this.controlRoomService.discoverModels(account.accountId, {
           providerModelIds,
         });
-        this.selectedModels.set(account.accountId, []);
         this.accountResults.set(
           account.accountId,
-          `Added ${result.added}, updated ${result.updated}`,
+          `${providerModelIds.length ? `Enabled selected models. Added ${result.added}, updated ${result.updated}.` : `Refreshed ${result.updated} models; enabled preferences preserved.`} ${result.unavailable ?? 0} unavailable. ${result.refreshedAt ? `Refreshed ${new Date(result.refreshedAt).toLocaleString()}.` : ''} ${result.warnings?.join(' ') ?? ''}`,
         );
+        // A failed refresh leaves the old preview and pending choices intact.
+        // A successful enable consumes only the submitted choices.
+        if (providerModelIds.length) {
+          this.selectedModels.set(
+            account.accountId,
+            (this.selectedModels.get(account.accountId) ?? []).filter(
+              (id) => !providerModelIds.includes(id),
+            ),
+          );
+        }
+        const preview = this.availableModels.get(account.accountId);
+        if (preview) {
+          const refreshed = new Map(result.models.map((model) => [model.providerModelId, model]));
+          this.availableModels.set(
+            account.accountId,
+            preview.map((model) => refreshed.get(model.providerModelId) ?? model),
+          );
+        }
       });
     } finally {
       this.busyAccounts.delete(account.accountId);

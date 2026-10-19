@@ -73,6 +73,38 @@ describe('agent delegation locks', () => {
 });
 
 describe('agent model cost reporting', () => {
+  it('passes remaining task money and tokens into the completion dispatch gate', async () => {
+    const complete = vi.fn(async () => ({
+      usage: { costUsd: 0, inputTokens: 1, outputTokens: 1 },
+    }));
+    const registry = new ToolRegistry();
+    registerAgentTools(registry, {
+      tasks: {
+        get: () => ({
+          taskId: 'task',
+          role: 'programmer',
+          budget: { maxCostUsd: 1, maxTokens: 10000 },
+          spent: { costUsd: 0.4, tokens: 2000 },
+        }),
+      },
+      roles: { get: () => ({ workTypes: ['code'] }) },
+      completion: { complete },
+    } as unknown as AgentToolOptions);
+    await registry
+      .get('model/complete')!
+      .handler({ taskId: 'task', projectId: 'project', accessMode: 'restricted' } as ToolContext, {
+        request: { messages: [{ role: 'user', content: 'fixture' }] },
+      });
+    expect(complete).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        remainingCostUsd: 0.6,
+        remainingTokens: 8000,
+      }),
+      undefined,
+    );
+  });
+
   it('preserves unknown model cost on the paid model tool result', async () => {
     const registry = new ToolRegistry();
     registerAgentTools(registry, {

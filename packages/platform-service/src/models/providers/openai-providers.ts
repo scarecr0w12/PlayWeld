@@ -1,5 +1,6 @@
 import { RpcError, RpcErrorCode, type ProviderKind } from '@gamecrafter/contracts';
 import type { DiscoveredModel, ProviderRuntimeAccount } from './provider';
+import { rejectPricing, rejectedPricingFields, TOKEN_PRICE_FIELDS } from './pricing-metadata';
 import {
   OpenAICompatibleProvider,
   type OpenAICompatibleProviderOptions,
@@ -160,7 +161,10 @@ function identified(entry: Record<string, unknown>, provider: string): Discovere
 }
 
 function openRouterModel(entry: Record<string, unknown>): DiscoveredModel {
-  const model = identified(entry, 'openrouter');
+  const model = rejectPricing(
+    identified(entry, 'openrouter'),
+    rejectedPricingFields(entry.pricing, ['prompt', 'completion'], true),
+  );
   const architecture = objectValue(entry.architecture) ? entry.architecture : {};
   const topProvider = objectValue(entry.top_provider) ? entry.top_provider : {};
   const supported = stringArray(entry.supported_parameters);
@@ -168,12 +172,17 @@ function openRouterModel(entry: Record<string, unknown>): DiscoveredModel {
   const outputModalities = stringArray(architecture.output_modalities);
   const modality = stringValue(architecture.modality);
   const pricing = objectValue(entry.pricing) ? entry.pricing : {};
-  const inputPrice = decimalValue(pricing.prompt);
-  const outputPrice = decimalValue(pricing.completion);
+  const inputPrice = model.unsupportedPricingFields?.includes('inputPerMTokUsd')
+    ? undefined
+    : decimalValue(pricing.prompt);
+  const outputPrice = model.unsupportedPricingFields?.includes('outputPerMTokUsd')
+    ? undefined
+    : decimalValue(pricing.completion);
   const capabilities: NonNullable<DiscoveredModel['capabilities']> = {};
-  if (typeof entry.context_length === 'number') capabilities.contextWindow = entry.context_length;
-  if (typeof topProvider.max_completion_tokens === 'number')
-    capabilities.maxOutputTokens = topProvider.max_completion_tokens;
+  if (numberValue(entry.context_length) !== undefined)
+    capabilities.contextWindow = numberValue(entry.context_length)!;
+  if (numberValue(topProvider.max_completion_tokens) !== undefined)
+    capabilities.maxOutputTokens = numberValue(topProvider.max_completion_tokens)!;
   if (inputModalities.length || outputModalities.length || modality)
     capabilities.vision =
       inputModalities.includes('image') || /(^|[^a-z])image([^a-z]|$)/i.test(modality ?? '');
@@ -213,6 +222,11 @@ function xaiModel(entry: Record<string, unknown>): DiscoveredModel {
   const standardOutput = numberValue(entry.completion_text_token_price);
   const cachedInput = numberValue(entry.cached_prompt_text_token_price);
   const hasLongContextTier = (numberValue(entry.long_context_threshold) ?? 0) > 0;
+  const unsupported =
+    modalities.includes('image') ||
+    hasLongContextTier ||
+    (cachedInput !== undefined && cachedInput > 0) ||
+    (entry.currency !== undefined && entry.currency !== 'USD');
   const pricing =
     modalities.includes('image') ||
     hasLongContextTier ||
@@ -229,6 +243,14 @@ function xaiModel(entry: Record<string, unknown>): DiscoveredModel {
     ...(Object.keys(capabilities).length ? { capabilities } : {}),
     ...(pricing ? { pricing } : {}),
     ...(stringValue(entry.name) ? { displayName: stringValue(entry.name) } : {}),
+    ...(unsupported
+      ? {
+          unsupportedPricingFields: [...TOKEN_PRICE_FIELDS],
+          metadataWarnings: [
+            'Provider pricing cannot be represented as flat USD per million token rates.',
+          ],
+        }
+      : {}),
   };
 }
 
@@ -377,14 +399,14 @@ function stringValue(value: unknown): string | undefined {
 }
 
 function numberValue(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
 }
 
 function decimalValue(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) return value;
   if (typeof value !== 'string' || value.trim() === '') return undefined;
   const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
 }
 
 function stringArray(value: unknown): string[] {

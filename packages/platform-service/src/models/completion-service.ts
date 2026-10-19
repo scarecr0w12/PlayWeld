@@ -16,12 +16,15 @@ import type { ModelRouter } from './router';
 export interface CompletionContext {
   sessionId?: string;
   signal?: AbortSignal;
+  remainingCostUsd?: number;
+  remainingTokens?: number;
   notify?: (name: 'model/delta', params: RpcNotificationParams<'model/delta'>) => void;
 }
 
 export interface PreparedCompletion {
   decision: RouteDecision;
   model: Model;
+  routeRequest?: RouteRequest;
 }
 
 export class CompletionService {
@@ -40,7 +43,7 @@ export class CompletionService {
     const model = this.registry.getModel(decision.modelId);
     if (!model || !model.enabled)
       throw new RpcError(`Model not found: ${decision.modelId}`, RpcErrorCode.ModelNotFound);
-    return { decision, model };
+    return { decision, model, routeRequest: route };
   }
 
   async complete(
@@ -76,9 +79,23 @@ export class CompletionService {
         : undefined);
     const modelId = route?.modelId ?? ('modelId' in params ? params.modelId : undefined);
     if (!modelId) throw new RpcError('A modelId or route is required', RpcErrorCode.InvalidParams);
-    const model = prepared?.model ?? this.registry.getModel(modelId);
+    const model = this.registry.getModel(modelId);
     if (!model || !model.enabled)
       throw new RpcError(`Model not found: ${modelId}`, RpcErrorCode.ModelNotFound);
+    const boundedRequest = this.router.boundCompletion(
+      model,
+      params.request,
+      prepared?.routeRequest ??
+        ('route' in params
+          ? { ...params.route, projectId: params.route.projectId ?? params.projectId }
+          : {
+              taskType: route?.context.taskType ?? 'completion',
+              projectId: params.projectId,
+            }),
+      context.sessionId,
+      context.remainingTokens,
+      context.remainingCostUsd,
+    );
     const account = this.registry.getRuntimeAccount(model.accountId);
     if (!account || !account.enabled) {
       throw new RpcError(
@@ -91,7 +108,7 @@ export class CompletionService {
     // the streaming routing capability; otherwise return a complete response for
     // models whose discovery metadata does not advertise streaming support.
     const request = {
-      ...params.request,
+      ...boundedRequest,
       stream: !!params.request.stream && model.capabilities.streaming === true,
     };
     const requestId = request.stream ? (params.requestId ?? uuidv7()) : params.requestId;
@@ -172,6 +189,11 @@ export class CompletionService {
     const model = this.registry.getModel(modelId);
     if (!model || !model.enabled)
       throw new RpcError(`Model not found: ${modelId}`, RpcErrorCode.ModelNotFound);
+    if (model.availability === 'unavailable' || model.capabilities.embeddings !== true)
+      throw new RpcError(
+        'Model is unavailable or does not support embeddings',
+        RpcErrorCode.NoEligibleModel,
+      );
     const account = this.registry.getRuntimeAccount(model.accountId);
     if (!account || !account.enabled) {
       throw new RpcError(

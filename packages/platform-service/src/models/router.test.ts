@@ -27,6 +27,87 @@ const defaultSettings: Record<string, unknown> = {
 };
 
 describe('ModelRouter', () => {
+  it('rejects unknown pricing under a strict budget even with a cheap historical outcome', async () => {
+    const fixture = await createFixture();
+    try {
+      await recordOutcome(fixture.router, fixture.modelIds.cheap, 'code', true, 1);
+      fixture.registry.updateModel(fixture.modelIds.cheap, {
+        pricing: { inputPerMTokUsd: null, outputPerMTokUsd: null },
+      });
+      expect(() =>
+        fixture.router.route({
+          taskType: 'code',
+          agentRole: 'programmer',
+          manualModelId: fixture.modelIds.cheap,
+          constraints: { maxCostUsd: 1 },
+        }),
+      ).toThrow();
+    } finally {
+      fixture.close();
+    }
+  });
+
+  it.each(['stale', 'expired'] as const)(
+    'rejects %s pricing under a strict budget',
+    async (freshness) => {
+      const fixture = await createFixture();
+      try {
+        const model = fixture.registry.getModel(fixture.modelIds.cheap)!;
+        const pricing = {
+          ...model.metadataFields['pricing.inputPerMTokUsd']!,
+          ...(freshness === 'stale' ? { stale: true } : { expiresAt: '2000-01-01T00:00:00.000Z' }),
+        };
+        const listModels = fixture.registry.listModels.bind(fixture.registry);
+        fixture.registry.listModels = (...args) =>
+          listModels(...args).map((entry) =>
+            entry.modelId === model.modelId
+              ? {
+                  ...entry,
+                  metadataFields: {
+                    ...entry.metadataFields,
+                    'pricing.inputPerMTokUsd': pricing,
+                  },
+                }
+              : entry,
+          );
+        expect(() =>
+          fixture.router.route({
+            taskType: 'code',
+            agentRole: 'programmer',
+            manualModelId: model.modelId,
+            constraints: { maxCostUsd: 1 },
+          }),
+        ).toThrow();
+      } finally {
+        fixture.close();
+      }
+    },
+  );
+
+  it('excludes unavailable selected models while allowing unknown availability', async () => {
+    const fixture = await createFixture();
+    try {
+      const listModels = fixture.registry.listModels.bind(fixture.registry);
+      fixture.registry.listModels = (...args) =>
+        listModels(...args).map((model) => ({
+          ...model,
+          availability: model.modelId === fixture.modelIds.cheap ? 'unavailable' : 'unknown',
+        }));
+      expect(fixture.router.route({ taskType: 'code', agentRole: 'programmer' }).modelId).toBe(
+        fixture.modelIds.good,
+      );
+      expect(() =>
+        fixture.router.route({
+          taskType: 'code',
+          agentRole: 'programmer',
+          manualModelId: fixture.modelIds.cheap,
+        }),
+      ).toThrow();
+    } finally {
+      fixture.close();
+    }
+  });
+
   it('previews eligible candidates without persisting a selection or exploring', async () => {
     const fixture = await createFixture();
     try {
@@ -303,6 +384,7 @@ describe('ModelRouter', () => {
 
   it('falls back to baseline routing instead of exploring an unknown-cost model', async () => {
     const fixture = await createFixture();
+    fixture.setSetting('models.budget.maxCostPerTaskUsd', Infinity);
     try {
       fixture.registry.updateModel(fixture.modelIds.cheap, {
         pricing: { inputPerMTokUsd: null, outputPerMTokUsd: null },
@@ -435,8 +517,16 @@ async function createFixture() {
     cheap: discovered.models.find((model) => model.providerModelId === 'cheap')!.modelId,
     good: discovered.models.find((model) => model.providerModelId === 'good')!.modelId,
   };
-  registry.updateModel(modelIds.cheap, { workTypes: ['code'], roles: ['programmer'] });
-  registry.updateModel(modelIds.good, { workTypes: ['code'], roles: ['programmer'] });
+  registry.updateModel(modelIds.cheap, {
+    enabled: true,
+    workTypes: ['code'],
+    roles: ['programmer'],
+  });
+  registry.updateModel(modelIds.good, {
+    enabled: true,
+    workTypes: ['code'],
+    roles: ['programmer'],
+  });
   const settingValues = new Map(Object.entries(defaultSettings));
   const settings: Pick<SettingsService, 'resolve'> = {
     resolve(key: string): EffectiveSetting {

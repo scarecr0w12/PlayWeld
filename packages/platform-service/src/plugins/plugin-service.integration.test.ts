@@ -624,7 +624,13 @@ describe('plugin service integration', () => {
                 {
                   id: 'fixture-model',
                   display_name: 'Fixture model',
-                  capabilities: { chat: true, tools: true },
+                  capabilities: {
+                    chat: true,
+                    tools: true,
+                    contextWindow: 32768,
+                    maxInputTokens: 24576,
+                    maxOutputTokens: 8192,
+                  },
                   pricing: { inputPerMTokUsd: 1, outputPerMTokUsd: 2 },
                 },
               ],
@@ -675,7 +681,10 @@ describe('plugin service integration', () => {
       apiKey: 'fake-plugin-model-key',
       isLocal: true,
     });
-    const discovery = await client.call('model/discover', { accountId: account.accountId });
+    const discovery = await client.call('model/discover', {
+      accountId: account.accountId,
+      providerModelIds: ['fixture-model'],
+    });
     const modelId = discovery.models[0].modelId;
     await client.call('pool/create', {
       name: 'Plugin model route',
