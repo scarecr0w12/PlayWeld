@@ -15,8 +15,17 @@ describe('platform service CLI lifecycle', () => {
     const env = { ...process.env, GAMECRAFTER_PROFILE_DIR: root };
     const daemon = spawn(process.execPath, [cli, 'start', '--foreground'], {
       env,
-      stdio: 'ignore',
+      stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
+    });
+    const startedAt = Date.now();
+    let daemonStdout = '';
+    let daemonStderr = '';
+    daemon.stdout.on('data', (chunk: Buffer) => {
+      daemonStdout = (daemonStdout + chunk.toString()).slice(-8192);
+    });
+    daemon.stderr.on('data', (chunk: Buffer) => {
+      daemonStderr = (daemonStderr + chunk.toString()).slice(-8192);
     });
     const lockPath = path.join(root, 'service.lock');
     try {
@@ -53,6 +62,33 @@ describe('platform service CLI lifecycle', () => {
         .map((line) => JSON.parse(line) as { msg: string });
       expect(logEntries.map((entry) => entry.msg)).toEqual(
         expect.arrayContaining(['service_started', 'service_stopped']),
+      );
+    } catch (error) {
+      const readDiagnosticFile = (file: string): string => {
+        try {
+          return readFileSync(file, 'utf8').slice(-8192);
+        } catch {
+          return '[unavailable]';
+        }
+      };
+      const token = readDiagnosticFile(path.join(root, 'service.token')).trim();
+      const redact = (value: string): string =>
+        token && token !== '[unavailable]' ? value.replaceAll(token, '[redacted token]') : value;
+      const diagnostics = {
+        originalError: redact(
+          error instanceof Error ? (error.stack ?? error.message) : String(error),
+        ).slice(-8192),
+        elapsedMs: Date.now() - startedAt,
+        daemonExitCode: daemon.exitCode,
+        daemonSignalCode: daemon.signalCode,
+        lockExists: existsSync(lockPath),
+        tokenExists: existsSync(path.join(root, 'service.token')),
+        stdout: redact(daemonStdout),
+        stderr: redact(daemonStderr),
+        serviceLog: redact(readDiagnosticFile(path.join(root, 'logs', 'service.jsonl'))),
+      };
+      throw new Error(
+        `CLI lifecycle failed: ${redact(error instanceof Error ? error.message : String(error))}\n${JSON.stringify(diagnostics, null, 2)}`,
       );
     } finally {
       daemon.kill('SIGKILL');
