@@ -99,14 +99,19 @@ vulnerability reporting, and schedule weekly GitHub Actions dependency updates.
   Both initial CodeQL analyses completed successfully with empty analysis error
   and warning fields. CodeQL reported 12 open alerts (nine high and three medium);
   these are untriaged scanner findings and were not fixed or dismissed.
-- `npm run changelog:update`, `npm run changelog:check -- --base
-  7ccb07580d82164d16f63c6ce5404b81a754f1e6`, and `git diff --check` passed.
+- `npm run changelog:update`, `npm run changelog:check -- --base 7ccb07580d82164d16f63c6ce5404b81a754f1e6`, and `git diff --check` passed.
   The existing pinned Prettier installation checked the complete isolated checkout;
   all matched files passed without installing dependencies into the checkout.
-- The repository-wide Markdown link checker was started under Git Bash; it is
-  still running at commit preparation. The PR's existing Linux CI also runs this
-  checker. Neither an uncompleted local check nor pending hosted checks are
-  represented as passed here.
+- The repository-wide Markdown link checker was started under Git Bash and stopped
+  after an extended run without a result. The PR's existing Linux CI also runs
+  this checker; the incomplete local check is not represented as passed.
+- The first PR Linux quality job passed builds, types, lint, tests, work records,
+  cache-maintenance tests, version validation, and documentation validation, then
+  failed formatting on `CHANGELOG.md`. Later validation prose had split a command
+  across lines in this source record after the earlier formatting check. Keep
+  that command on one line and regenerate the changelog to correct this task's
+  formatting regression. Check both generation freshness and formatting together
+  before committing the correction; hosted checks remain pending at that point.
 - Initial repository inspection found 11 open Dependabot alerts (four high and
   seven medium), zero open secret-scanning alerts, and failing existing Dependabot
   pull requests. These are observations, not fixes delivered by this task.
