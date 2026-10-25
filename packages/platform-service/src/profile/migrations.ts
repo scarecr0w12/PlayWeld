@@ -465,4 +465,19 @@ export const profileMigrations: Migration[] = [
       ALTER TABLE models ADD COLUMN last_seen_at TEXT;
     `,
   },
+  {
+    id: 20,
+    name: 'checkpoint versioned plugin settings',
+    up: `
+CREATE TABLE plugin_settings_versions (plugin_id TEXT PRIMARY KEY, version TEXT NOT NULL, schema_version INTEGER NOT NULL DEFAULT 1);
+CREATE TABLE plugin_settings_upgrades (sequence INTEGER PRIMARY KEY AUTOINCREMENT, plugin_id TEXT NOT NULL, from_version TEXT NOT NULL, plan_json TEXT NOT NULL, UNIQUE(plugin_id, from_version));
+`,
+  },
+  {
+    id: 21,
+    name: 'record audit cleanup receipts and retain router learning separately',
+    up: `ALTER TABLE route_outcomes ADD COLUMN audit_retained INTEGER NOT NULL DEFAULT 1;
+      CREATE TABLE audit_cleanup_receipts (cleanup_id TEXT PRIMARY KEY, project_id TEXT NOT NULL, completed_at TEXT NOT NULL, receipt_json TEXT NOT NULL);
+      CREATE INDEX audit_cleanup_project_time_idx ON audit_cleanup_receipts(project_id, completed_at DESC);`,
+  },
 ];

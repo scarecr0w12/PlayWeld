@@ -2384,3 +2384,80 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.gamecrafter-requests {
+  container-type: inline-size;
+}
+.gamecrafter-requests-layout {
+  display: grid;
+  grid-template-columns: minmax(14rem, 22rem) minmax(0, 1fr);
+  gap: 1rem;
+}
+.gamecrafter-requests-list,
+.gamecrafter-requests-layout > section {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.gamecrafter-request-select {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  white-space: normal;
+  margin: 0.4rem 0;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.gamecrafter-request-select[aria-pressed='true'] {
+  outline: 1px solid var(--theia-focusBorder);
+}
+.gamecrafter-requests pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.gamecrafter-requests textarea,
+.gamecrafter-requests select {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.gamecrafter-requests textarea {
+  display: block;
+  width: 100%;
+}
+.gamecrafter-requests .gamecrafter-page-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+}
+@container (max-width: 680px) {
+  .gamecrafter-requests-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.gamecrafter-audit-retention fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  min-width: 0;
+  margin: 1rem 0;
+}
+.gamecrafter-audit-retention label {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.gamecrafter-audit-retention input[type='number'] {
+  width: 8rem;
+}
+.gamecrafter-audit-retention input,
+.gamecrafter-audit-retention select,
+.gamecrafter-audit-retention button {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.gamecrafter-audit-retention button {
+  white-space: normal;
+}

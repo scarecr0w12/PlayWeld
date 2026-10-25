@@ -6,6 +6,7 @@ export * from './assets';
 export * from './backup';
 export * from './change';
 export * from './chat';
+export * from './audit';
 export * from './dcc';
 export * from './models';
 export * from './knowledge';

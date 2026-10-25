@@ -57,6 +57,200 @@ afterEach(async () => {
 });
 
 describe('plugin service integration', () => {
+  it('restarts a running worker with migrated settings and removes retained versions on uninstall', async (context) => {
+    await skipWithoutBwrap(context);
+    const root = mkdtempSync(path.join(tmpdir(), 'gc-plugin-upgrade-worker-'));
+    temporaryDirectories.push(root);
+    const paths = resolvePaths({ GAMECRAFTER_PROFILE_DIR: path.join(root, 'profile') });
+    service = await PlatformService.start({ paths, platformVersion: '0.1.0' });
+    client = await connect({
+      socketPath: service.socketPath,
+      token: readFileSync(paths.tokenPath, 'utf8').trim(),
+      clientName: 'plugin-upgrade-worker',
+      clientVersion: '0.1.0',
+    });
+    const project = await client.call('project/create', {
+      name: 'Upgrade worker',
+      engine: { family: 'godot' },
+      parentDirectory: path.join(root, 'projects'),
+      folderName: 'upgrade-worker',
+    });
+    const source = path.join(root, 'source');
+    cpSync(path.resolve(__dirname, '../../../plugins/sample-hello'), source, { recursive: true });
+    const file = path.join(source, 'gamecrafter-plugin.json');
+    const manifest = JSON.parse(readFileSync(file, 'utf8')) as PluginManifest;
+    manifest.version = '1.0.0';
+    writeFileSync(file, JSON.stringify(manifest));
+    const inspected = await client.call('plugin/inspect', { source });
+    const installed = await client.call('plugin/install', {
+      source,
+      acceptCapabilities: inspected.capabilities,
+    });
+    await client.call('plugin/enable', { pluginId: manifest.id, projectId: project.projectId });
+    await client.call('settings/set', {
+      key: 'plugin.sample-hello.greetingPrefix',
+      scope: 'project',
+      projectId: project.projectId,
+      value: 'Hello',
+    });
+    const before = await client.call('plugin/start', {
+      pluginId: manifest.id,
+      projectId: project.projectId,
+    });
+    manifest.version = '2.0.0';
+    manifest.migrations = [
+      {
+        from: '1.0.0',
+        to: '2.0.0',
+        description: 'Change greeting',
+        operations: [
+          {
+            kind: 'map-values',
+            key: 'plugin.sample-hello.greetingPrefix',
+            scopes: ['project'],
+            values: [{ from: 'Hello', to: 'Welcome' }],
+          },
+        ],
+      },
+    ];
+    writeFileSync(file, JSON.stringify(manifest));
+    const upgraded = await client.call('plugin/install', {
+      source,
+      acceptCapabilities: inspected.capabilities,
+    });
+    const after = await client.call('plugin/status', {
+      pluginId: manifest.id,
+      projectId: project.projectId,
+    });
+    expect(after.status).toBe('running');
+    expect(after.pid).not.toBe(before.pid);
+    const response = await client.call('tool/call', {
+      projectId: project.projectId,
+      toolId: 'sample-hello/greet',
+      input: { name: 'Upgrade' },
+    });
+    expect(response.output).toMatchObject({ greeting: 'Welcome, Upgrade!' });
+    manifest.version = '3.0.0';
+    manifest.migrations = [];
+    manifest.contributes.settings[0]!.schema = { type: 'integer' };
+    manifest.contributes.settings[0]!.default = 1;
+    writeFileSync(file, JSON.stringify(manifest));
+    await expect(
+      client.call('plugin/install', { source, acceptCapabilities: inspected.capabilities }),
+    ).rejects.toMatchObject({ code: RpcErrorCode.InvalidSettingValue });
+    expect(
+      (await client.call('plugin/status', { pluginId: manifest.id, projectId: project.projectId }))
+        .pid,
+    ).toBe(after.pid);
+    await client.call('plugin/uninstall', { pluginId: manifest.id });
+    const { existsSync } = await import('node:fs');
+    expect(existsSync(installed.installPath)).toBe(false);
+    expect(existsSync(upgraded.installPath)).toBe(false);
+  }, 60_000);
+
+  it('upgrades plugin settings across durable and session layers without uninstalling', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'gc-plugin-upgrade-'));
+    temporaryDirectories.push(root);
+    const paths = resolvePaths({ GAMECRAFTER_PROFILE_DIR: path.join(root, 'profile') });
+    service = await PlatformService.start({ paths, platformVersion: '0.1.0' });
+    client = await connect({
+      socketPath: service.socketPath,
+      token: readFileSync(paths.tokenPath, 'utf8').trim(),
+      clientName: 'plugin-upgrade',
+      clientVersion: '0.1.0',
+    });
+    const project = await client.call('project/create', {
+      name: 'Upgrade',
+      engine: { family: 'godot' },
+      parentDirectory: path.join(root, 'projects'),
+      folderName: 'upgrade',
+    });
+    const source = path.join(root, 'source');
+    cpSync(path.resolve(__dirname, '../../../plugins/sample-hello'), source, { recursive: true });
+    const manifestPath = path.join(source, 'gamecrafter-plugin.json');
+    const original = JSON.parse(readFileSync(manifestPath, 'utf8')) as PluginManifest;
+    original.version = '1.0.0';
+    original.contributes.settings[0]!.scopes = ['platform', 'project', 'session'];
+    writeFileSync(manifestPath, JSON.stringify(original));
+    const inspected = await client.call('plugin/inspect', { source });
+    await client.call('plugin/install', { source, acceptCapabilities: inspected.capabilities });
+    const oldKey = 'plugin.sample-hello.greetingPrefix';
+    const newKey = 'plugin.sample-hello.salutation';
+    await client.call('settings/set', { key: oldKey, scope: 'platform', value: 'Welcome' });
+    await client.call('settings/set', {
+      key: oldKey,
+      scope: 'project',
+      projectId: project.projectId,
+      value: 'Hola',
+    });
+    await client.call('settings/set', { key: oldKey, scope: 'session', value: 'Hey' });
+    await client.call('plugin/enable', { pluginId: original.id, projectId: project.projectId });
+    const next = structuredClone(original);
+    next.version = '2.0.0';
+    next.contributes.settings[0]!.key = newKey;
+    next.migrations = [
+      {
+        from: '1.0.0',
+        to: '2.0.0',
+        description: 'Rename prefix',
+        operations: [{ kind: 'rename', from: oldKey, to: newKey }],
+      },
+    ];
+    writeFileSync(manifestPath, JSON.stringify(next));
+    const upgraded = await client.call('plugin/install', {
+      source,
+      acceptCapabilities: inspected.capabilities,
+    });
+    expect(upgraded.version).toBe('2.0.0');
+    expect(
+      (await client.call('plugin/install', { source, acceptCapabilities: inspected.capabilities }))
+        .installedAt,
+    ).toBe(upgraded.installedAt);
+    const effective = await client.call('settings/get', {
+      key: newKey,
+      projectId: project.projectId,
+    });
+    expect(effective).toMatchObject({
+      value: 'Hey',
+      source: 'session',
+      layers: { platform: 'Welcome', project: 'Hola', session: 'Hey' },
+    });
+    const invalid = structuredClone(next);
+    invalid.version = '3.0.0';
+    invalid.contributes.settings[0]!.schema = { type: 'integer' };
+    invalid.contributes.settings[0]!.default = 1;
+    invalid.migrations = [];
+    writeFileSync(manifestPath, JSON.stringify(invalid));
+    await expect(
+      client.call('plugin/install', { source, acceptCapabilities: inspected.capabilities }),
+    ).rejects.toMatchObject({ code: RpcErrorCode.InvalidSettingValue });
+    expect((await client.call('plugin/list', {})).plugins[0]!.installed.version).toBe('2.0.0');
+    expect(
+      await client.call('settings/get', { key: newKey, projectId: project.projectId }),
+    ).toMatchObject({ value: 'Hey' });
+    expect(
+      (await client.call('plugin/list', { projectId: project.projectId })).plugins[0]!
+        .projectEnabled,
+    ).toBe(true);
+    await client.close();
+    client = undefined;
+    await service.stop();
+    service = await PlatformService.start({ paths, platformVersion: '0.1.0' });
+    client = await connect({
+      socketPath: service.socketPath,
+      token: readFileSync(paths.tokenPath, 'utf8').trim(),
+      clientName: 'plugin-upgrade-restart',
+      clientVersion: '0.1.0',
+    });
+    expect(
+      await client.call('settings/get', { key: newKey, projectId: project.projectId }),
+    ).toMatchObject({
+      value: 'Hola',
+      source: 'project',
+      layers: { platform: 'Welcome', project: 'Hola' },
+    });
+  });
+
   it('installs, enables, starts, calls, renders, stops, and uninstalls the sample plugin', async (context) => {
     await skipWithoutBwrap(context);
     const root = mkdtempSync(path.join(tmpdir(), 'gc-plugin-service-'));

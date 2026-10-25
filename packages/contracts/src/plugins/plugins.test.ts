@@ -87,6 +87,50 @@ const sampleManifest = {
 };
 
 describe('plugin contracts', () => {
+  it.each([
+    { kind: 'run-script', path: 'migrate.js' },
+    { kind: 'remove', key: 'plugin.sample-hello.retired', scopes: ['invalid'] },
+    { kind: 'rename', from: 'plugin.sample-hello.old' },
+  ])('rejects unsupported or malformed settings operation %j', (operation) => {
+    expect(
+      compile(PluginManifestSchema).check({
+        ...sampleManifest,
+        migrations: [
+          { from: '1.0.0', to: '2.0.0', description: 'Invalid', operations: [operation] },
+        ],
+      }),
+    ).toBe(false);
+  });
+
+  it('accepts declarative settings migrations without executable migration code', () => {
+    expect(
+      compile(PluginManifestSchema).check({
+        ...sampleManifest,
+        version: '2.0.0',
+        migrations: [
+          {
+            from: '1.0.0',
+            to: '2.0.0',
+            description: 'Rename the prefix',
+            operations: [
+              {
+                kind: 'rename',
+                from: 'plugin.sample-hello.greetingPrefix',
+                to: 'plugin.sample-hello.salutation',
+              },
+              {
+                kind: 'map-values',
+                key: 'plugin.sample-hello.salutation',
+                values: [{ from: 'Hello', to: 'Welcome' }],
+              },
+              { kind: 'remove', key: 'plugin.sample-hello.retired', scopes: ['session'] },
+            ],
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
+
   it('accepts a versioned plugin manifest and host-generated worker states', () => {
     expect(compile(PluginManifestSchema).check(sampleManifest)).toBe(true);
     expect(

@@ -542,4 +542,12 @@ export const projectMigrations: Migration[] = [
       ALTER TABLE tool_calls ADD COLUMN cost_status TEXT;
     `,
   },
+  {
+    id: 14,
+    name: 'checkpoint versioned plugin settings',
+    up: `
+CREATE TABLE plugin_settings_versions (plugin_id TEXT PRIMARY KEY, version TEXT NOT NULL, schema_version INTEGER NOT NULL DEFAULT 1);
+
+`,
+  },
 ];

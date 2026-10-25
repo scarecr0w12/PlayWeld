@@ -8,7 +8,13 @@ import {
 import type { ProviderRuntimeAccount } from './provider';
 
 export function endpoint(baseUrl: string, suffix: string): string {
-  return `${baseUrl.replace(/\/+$/, '')}/${suffix.replace(/^\/+/, '')}`;
+  return `${trimTrailingSlashes(baseUrl)}/${suffix.replace(/^\/+/, '')}`;
+}
+
+export function trimTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) end -= 1;
+  return value.slice(0, end);
 }
 
 export function providerHeaders(

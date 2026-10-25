@@ -17,6 +17,7 @@ import { PLUGINS_OPEN_COMMAND_ID } from './plugins-catalog-view-contribution';
 import { SETTINGS_OPEN_COMMAND_ID } from './settings-view-contribution';
 import { BACKUPS_OPEN_COMMAND_ID } from './backups-view-contribution';
 import { AUDIT_OPEN_COMMAND_ID } from './audit-view-contribution';
+import { REQUESTS_OPEN_COMMAND_ID } from './requests-model';
 import { UPDATES_OPEN_COMMAND_ID } from './updates-view-contribution';
 
 /** A stable route to every platform surface without replacing the IDE's menus. */
@@ -74,6 +75,7 @@ export class WorkspaceMenuContribution implements MenuContribution {
         actions: [
           [BACKUPS_OPEN_COMMAND_ID, 'Backups'],
           [AUDIT_OPEN_COMMAND_ID, 'Audit Log'],
+          [REQUESTS_OPEN_COMMAND_ID, 'Requests'],
           [UPDATES_OPEN_COMMAND_ID, 'Updates'],
         ],
       },

@@ -46,7 +46,7 @@ const sourceAreas = {
   task: 'tasks',
   change: 'change',
   tool: 'tools',
-  audit: 'tools',
+  audit: 'audit',
   broker: 'tools',
   provider: 'models',
   model: 'models',

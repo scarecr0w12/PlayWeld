@@ -115,9 +115,12 @@ Search indexes, backup, and storage behavior.
 
 Logging and audit retention.
 
-| Key                  | Default | Scopes   | Purpose                                |
-| -------------------- | ------- | -------- | -------------------------------------- |
-| `logs.retentionDays` | `30`    | platform | Number of days to retain service logs. |
+| Key                     | Default | Scopes            | Purpose                                                                                                                                                     |
+| ----------------------- | ------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `logs.retentionDays`    | `30`    | platform          | Maximum age of recognized CLI service-log entries; startup, setting changes and each minute prune expired entries. Size rotation can remove history sooner. |
+| `audit.retentionDays`   | `0`     | platform, project | Zero keeps audit history indefinitely; a positive value defines the retention cutoff.                                                                       |
+| `audit.deletionEnabled` | `false` | platform, project | Allow explicit previewed cleanup and, when separately enabled, automatic audit retention.                                                                   |
+| `audit.autoPrune`       | `false` | platform, project | Opt in to periodic cleanup of eligible records; deletion must be allowed and retention days must be positive.                                               |
 
 ## Engine connectors
 

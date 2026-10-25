@@ -14,6 +14,8 @@ import {
   type TaskCreateInput,
 } from '@gamecrafter/contracts';
 import { Database } from './db/database';
+import { AuditExporter, redactAuditUsage } from './audit/audit-export';
+import { AuditRetention } from './audit/audit-retention';
 import { registerAgentTools } from './agents/agent-tools';
 import { ChangeGraph } from './change/change-graph';
 import { ChangeGraphStore } from './change/change-graph-store';
@@ -37,6 +39,7 @@ import { createBuiltinSettings } from './settings/definitions';
 import { SettingsRegistry } from './settings/registry';
 import { SettingsService } from './settings/settings-service';
 import { TaskService } from './tasks/task-service';
+import { pendingInputs } from './tasks/pending-inputs';
 import {
   HandlerRegistry,
   registerAgentHandlers,
@@ -99,6 +102,8 @@ export interface PlatformServiceOptions {
   onWorkerScheduleSnapshot?: (snapshot: WorkerScheduleSnapshot) => void;
   approvalTimeoutOverrideMs?: number;
   backupNow?: () => Date;
+  /** CLI-owned file logger; embedded instances do not enable process-global file logging. */
+  onLogRetentionChanged?: (days: number) => void;
   updateFetch?: typeof fetch;
   pluginLaunchers?: {
     linux?: IsolationLauncher;
@@ -131,6 +136,7 @@ export class PlatformService {
     private readonly backupService: BackupService,
     private readonly changeGraph: ChangeGraph,
     private readonly integrationService: IntegrationService,
+    private readonly auditRetention: AuditRetention,
     paths: ServicePaths,
     startedAt: string,
   ) {
@@ -154,6 +160,10 @@ export class PlatformService {
     const builtins = createBuiltinSettings();
     settingsRegistry.register('builtin', builtins.groups, builtins.definitions);
     const settingsService = new SettingsService(settingsRegistry, database, projectDatabases);
+    options.onLogRetentionChanged?.(
+      Number(settingsService.resolve('logs.retentionDays', {}).value),
+    );
+    const auditRetention = new AuditRetention(profile, database, projectDatabases, settingsService);
     const createUpdateService = () =>
       new UpdateService({
         store: new UpdateStore(database, platformVersion),
@@ -749,14 +759,7 @@ export class PlatformService {
           afterSeq: afterSeq ?? 0,
           limit: pageLimit,
         });
-        const modelUsage = modelRouter.modelUsage(projectId, pageLimit).map((usage) => ({
-          ...usage,
-          requestId: usage.requestId === null ? null : redact(usage.requestId),
-          ...(usage.modelName === undefined ? {} : { modelName: redact(usage.modelName) }),
-          ...(usage.providerModelId === undefined
-            ? {}
-            : { providerModelId: redact(usage.providerModelId) }),
-        }));
+        const modelUsage = modelRouter.modelUsage(projectId, pageLimit).map(redactAuditUsage);
         return {
           ...redact({
             schemaVersion: 1 as const,
@@ -770,12 +773,21 @@ export class PlatformService {
           modelUsage,
         };
       },
+      'audit/export': ({ projectId }) =>
+        new AuditExporter(profile, database, projectDatabases, modelRouter).export(projectId),
+      'audit/retention': ({ projectId }) => auditRetention.state(projectId),
+      'audit/setRetention': ({ projectId, policy }) => auditRetention.setPolicy(projectId, policy),
+      'audit/previewCleanup': ({ projectId, store, before }, context) =>
+        auditRetention.preview(projectId, store, before, context.sessionId),
+      'audit/applyCleanup': ({ projectId, store, previewId, confirm }, context) =>
+        auditRetention.apply(projectId, store, previewId, context.sessionId, confirm),
       'tool/calls': ({ projectId, taskId, toolId, limit }) => ({
         calls: toolBroker.listCalls(projectId, { taskId, toolId, limit: limit ?? 200 }),
       }),
       'broker/approvals': ({ projectId, pendingOnly }) => ({
         approvals: toolBroker.listApprovals(projectId, pendingOnly ?? false),
       }),
+      'broker/pendingInputs': () => pendingInputs(profile, projectDatabases),
       'broker/approve': ({ projectId, approvalId, approve, reason }) =>
         toolBroker.approve(projectId, approvalId, approve, reason),
       'provider/accounts': () => ({ accounts: modelRegistry.listAccounts() }),
@@ -1010,7 +1022,10 @@ export class PlatformService {
       serviceVersion: platformVersion,
       onClientEvent: options.onClientEvent,
       onSessionOpened: (sessionId) => settingsService.openSession(sessionId),
-      onSessionClosed: (sessionId) => settingsService.closeSession(sessionId),
+      onSessionClosed: (sessionId) => {
+        settingsService.closeSession(sessionId);
+        auditRetention.closeSession(sessionId);
+      },
     });
     lockManager.setChangeListener((projectId, lock) =>
       server.broadcast('change/lockChanged', { projectId, lock }),
@@ -1244,6 +1259,10 @@ export class PlatformService {
     });
     registerChangeTools(toolRegistry, changeGraph(), changes(), integrationRef.service);
     settingsService.onChanged((event) => {
+      if (event.key === 'logs.retentionDays' && event.scope === 'platform')
+        options.onLogRetentionChanged?.(
+          Number(settingsService.resolve('logs.retentionDays', {}).value),
+        );
       if (event.key.startsWith('engine.')) void engines().onSettingChanged(event);
       if (event.key.startsWith('dcc.')) void dcc().onSettingChanged(event);
       if (event.key.startsWith('assets.')) assets().onSettingChanged(event);
@@ -1279,6 +1298,7 @@ export class PlatformService {
       backups(),
       changeGraph(),
       integrationRef.service!,
+      auditRetention,
       paths,
       startedAt,
     );
@@ -1344,12 +1364,14 @@ export class PlatformService {
         }),
       );
     }
+    auditRetention.start();
     return platformService;
   }
 
   async stop(checkpoint = true): Promise<void> {
     if (this.stopped) return;
     this.stopped = true;
+    this.auditRetention.stop();
     if (this.updateTimer) clearInterval(this.updateTimer);
     await this.a2aService.stop();
     await this.assetService.stop();

@@ -1,6 +1,6 @@
 # Control Room handbook
 
-**Last updated:** 2026-10-06
+**Last updated:** 2026-10-24
 
 Use this handbook to understand each surface, its inputs, the records it creates, and how to tell whether work succeeded. The [worked tutorial](WORKED_TUTORIAL.md) supplies a repeatable testing Project. The [API reference](API_REFERENCE.md) describes service requests; the [settings reference](SETTINGS_REFERENCE.md) describes configurable defaults and scopes. The [coverage record](DOCUMENTATION_COVERAGE.md) gives the limits of this documentation run.
 
@@ -105,6 +105,16 @@ A task waiting for input needs a response. An approval needs a decision about th
 
 A task reporting success does not by itself prove that its work is integrated or accepted. Review its evidence, files, conflict status, integration record, and applicable tests. Feedback should describe a reproducible problem or observed result. For example: “The reset test leaves the timer running after R; reproduce after collecting one lantern.”
 
+## Requests
+
+Open **Requests** from Project Home, the PlayWeld menu, the command palette, or a **Review requests** notification. The view combines pending broker approvals and task questions across available Projects, grouped by Project and root task. Select a request to inspect its own Project/task context. **All Projects** is the initial scope; the Project filter changes the visible list without moving or answering requests.
+
+For a tool approval, inspect the tool ID, side effect and **Review requested input**, then choose **Approve this request** or **Reject this request**. Each decision applies to that call only. Selecting a group or closing the notification grants no permission. The old per-request approval/choice notification buttons are replaced by one review notification while it is open; existing Swarm response controls remain available.
+
+For a task question, choose a listed answer or enter free text when there are no choices, then **Send answer**. Text is shown literally, and this form submits a string; specialized structured-answer and MCP elicitation flows retain their existing contracts. Answers do not approve tools. Drafts remain local to the open view and are cleared when a request resolves; they are not saved to disk.
+
+Requests reloads service-owned state on opening/reconnecting, relevant events and periodic reconciliation. If a request resolves in another client, the inspector clears until another request is selected. Disconnected or failed refreshes disable responses; use **Refresh requests** after recovery. Unavailable Projects are named explicitly. The service retains its existing timeout/cancellation policy and rejects already-resolved approvals and previously answered questions. A successful task or empty inbox does not establish integration/acceptance. See [the authority and recovery contract](TECHNICAL_ARCHITECTURE.md#grouped-requests-and-approval-authority) and [scoped evidence](changes/2026-10-24-grouped-requests.md).
+
 ## Discussion Board
 
 ![Discussion thread and maintenance controls](images/lantern-workshop/06-discussion.png)
@@ -179,6 +189,8 @@ For an asset task, specify the editable source, units, axes, origin, expected di
 
 ## Assets
 
+**Open in authoring tool** opens the selected existing Project file using the operating system's association unless a platform authoring command is configured. On Windows the default passes the canonical filename to a literal-path opener, preserving spaces, Unicode and shell metacharacters. A configured command must name an application or script, with the asset pathname appended as one argument. Windows `cmd /c` and PowerShell command-string modes are rejected; use an explicit PowerShell `-File` script if needed. Before `-File`, supported options are `-NoProfile`, `-NonInteractive`, `-NoLogo`, `-Sta`, `-Mta`, `-ExecutionPolicy` with its value, and `-WindowStyle` with its value. Abbreviated or other PowerShell modes must be rewritten to this explicit form. A failed or timed-out default helper reports that it could not launch the asset.
+
 ![Asset accounts, requests, and job inspection](images/lantern-workshop/14-assets.png)
 
 The **Library**, **Preview**, **Generate**, and **Jobs** sections separate stored files, inspection, requests, and job lifecycle. Configure a provider account in the expandable account form, choose a supported generation operation, and describe the intended asset, format, scale, references, and use. **Advanced generation options** reveals optional inputs. Job submission, provider completion, downloaded artifact, review, and import are distinct stages. Inspect terminal state and files rather than assuming a submitted request finished.
@@ -219,7 +231,7 @@ A checksum proves agreement with the supplied digest. Signature verification add
 
 ![Model usage, pricing coverage and selected request inspector in pending source](images/audit-detail-2026-10-04/model-cost-desktop.png)
 
-Select the Project, then choose **Model usage**, **Tool calls**, or **Project events**. Search the loaded records and select a card to inspect its details. Structured event context is bounded; full redacted records remain available in disclosures. Use identifiers, timestamps, effect classification, approval result, execution status and errors to connect a visible symptom to the actual operation. Pagination/export shows the loaded page; it is not a complete forensic or billing history.
+Select the Project, then choose **Model usage**, **Tool calls**, or **Project events**. Search the loaded records and select a card to inspect its details. Structured event context is bounded; full redacted records remain available in disclosures. Use identifiers, timestamps, effect classification, approval result, execution status and errors to connect a visible symptom to the actual operation. **Export redacted page** saves the loaded page. **Export full history** prepares and downloads all retained calls, approvals, Project events and model usage for the selected Project, regardless of the current page or search filter. A separate redacted JSON copy remains under `.gamecrafter/cache/audit-exports/`; repeated exports create separate files. The operation preserves source records and does not apply retention or deletion. Large histories can briefly pause service activity while the consistent export is prepared. Review exports before sharing: routine credential redaction is not a guarantee that free text contains no private information. This audit export is not a complete forensic archive or provider invoice; see [the export scope and limits](TECHNICAL_ARCHITECTURE.md#complete-project-audit-export).
 
 Model usage records input/output and cache counters independently of tool charges. Small positive estimates remain visible rather than rounding to `$0.0000`. An explicitly priced zero is distinct from **Pricing unavailable**, **partial** usage and **Legacy cost unverified**. Legacy rows cannot establish missing prices, and older direct completions that were never persisted in the usage ledger may be absent. New routed/direct completion attempts are recorded at the shared boundary; failed attempts with unavailable usage remain unknown, not confirmed free.
 
@@ -228,6 +240,20 @@ The cost summary covers the **loaded, filtered model page**. Its known subtotal 
 Current captures show [compact model-cost cards](images/audit-detail-2026-10-04/model-cost-narrow.png), [separate tool activity](images/audit-detail-2026-10-04/tool-history-desktop.png) and a [focused event timeline](images/audit-detail-2026-10-04/event-history-desktop.png). The fixture explicitly configures tiny, unknown and zero rates on localhost; those numbers are not production provider prices or private-profile screenshots.
 
 Useful failure report: “Project ID/path, task/run/call ID, operation, version, exact error, expected outcome, and sanitized reproduction.” Link logs and artifacts. Never include service tokens, encryption/recovery secrets, provider credentials, or private Project contents without reviewing them.
+
+## Service-log retention
+
+Open **Settings → Logs & audit**, select **Platform** scope and edit **Log retention (days)**. The existing default is 30 days, with a minimum of one. The CLI daemon applies the saved value at startup, immediately on change/reset/import and every minute. This removes eligible old entries from its current/rotated diagnostic files even during quiet periods; the size limit can remove older diagnostics earlier. Copy anything needed before shortening the policy. Unknown/malformed evidence is retained by age cleanup, and no Project/audit records are deleted. See [operations and recovery](OPERATIONS_GUIDE.md#service-log-retention-and-pruning).
+
+## Audit retention and deletion
+
+In **Audit & History**, select the Project and open **Retention & deletion**. Defaults keep history indefinitely: retention days is `0`, deletion is off, and automatic cleanup is off. Save the Project policy before previewing. Global defaults and reset-to-inherit are available in Settings under **Logs & audit**; `logs.retentionDays` is a separate [service-log retention control](#service-log-retention) and does not govern audit cleanup.
+
+Choose **Tool calls, approvals & task events** or **Model usage & decision assessments**. Set a UTC date, or leave it empty to use the saved positive retention period. **Preview audit cleanup** changes no history. Review its counts, cutoff, expiry and whether more batches remain. Allow deletion in the saved policy, then explicitly check the confirmation and choose **Permanently delete previewed records**. A data/policy change, Project/scope change, expiry or failed apply requires another preview and confirmation. The UI refreshes the displayed history after a successful manual cleanup.
+
+Each store commits independently and keeps a receipt. Active/recent task trees, pending approvals and permanent provenance are protected. Task records, questions/answers, results/checkpoints, files, exports, backups and accounting/router-learning data are retained. Legacy usage without task identity can remain protected while the Project has active or recent tasks. Removing legacy usage from audit hides its fallback representation while retaining learning data. This is logical audit cleanup, not secure erasure of every copy.
+
+**Automatically delete eligible history** is a separate opt-in and requires deletion enabled plus positive retention days. The service checks enabled Projects every minute and works in bounded batches, with a receipt per successful store. It performs no automatic deletion under the defaults. Use **Refresh policy and receipts** to see automatic results. Receipts show recent actions; they are retained even when older audit rows are removed. Export or back up before cleanup if you need a retained copy. See [exact scope/protection and failure semantics](TECHNICAL_ARCHITECTURE.md#audit-retention-and-deletion).
 
 ## How the records fit together
 

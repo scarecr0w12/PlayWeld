@@ -94,7 +94,7 @@
     "@theia/cli": "1.75.0",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "electron": "42.10.0",
+    "electron": "42.11.18",
     "electron-builder": "26.16.1"
   },
   "optionalDependencies": {

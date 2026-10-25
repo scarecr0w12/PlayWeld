@@ -31,7 +31,7 @@
   },
   "devDependencies": {
     "@gamecrafter/plugin-sample-hello": "0.22.0",
-    "@modelcontextprotocol/sdk": "1.31.0",
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@types/cross-spawn": "6.0.6",
     "@types/express": "5.0.3",
     "@types/semver": "7.8.0"

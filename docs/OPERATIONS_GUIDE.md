@@ -1,10 +1,30 @@
 # PlayWeld operations and recovery guide
 
-**Last updated:** 2026-10-06
+**Last updated:** 2026-10-24
 
 **Audience:** Local administrators and maintainers. [Documentation index](README.md).
 
+## Service-log retention and pruning
+
+In **Settings → Logs & audit**, choose **Platform** scope and set **Log retention (days)** (`logs.retentionDays`). The default is 30 days; the minimum is one. Saving, importing or resetting the setting applies it immediately to the CLI daemon's two managed files. Startup honors the saved policy, and a 60-second timer also prunes quiet logs. The setting is independent of Audit & History deletion enablement and automatic cleanup. Copy required diagnostics before shortening the period; deleted entries cannot be recovered through this feature.
+
+The managed files are `<profile>/logs/service.jsonl` and `service.1.jsonl`. Size rotation still replaces the previous rotation at roughly 5 MiB, so a retention period does not guarantee that many days of history will be available. Age cleanup removes only recognized entries strictly older than the cutoff. Malformed/truncated records, invalid UTF-8, unknown/noncanonical timestamps and future entries are kept. Fully expired files disappear; mixed files are compacted through private temporary-file replacement. Other logs, SQLite records, Project files, exports and backups are untouched. No audit-deletion receipt is created for diagnostic-file maintenance.
+
+On a generic **could not prune** warning, check available space, permissions and whether files were externally changed. Stop the service before inspecting or repairing managed paths. Symlink/junction log directories and symlink/hard-linked/nonregular files are rejected; use an ordinary profile logs directory. Files above 10 MiB or 100,000 lines are left for operator review rather than loaded without bounds. An interrupted replacement can leave a `.service-prune-*.tmp` file; after confirming the service is stopped, inspect the original and temporary copy before disposing of either. Never delete a temporary copy merely because of its name while a process may still own it. Persistence errors continue on stderr; retained malformed evidence can still be superseded by normal size rotation. Embedded service users retain their stderr behavior.
+
+Cleanup is atomic per file, with no secure-erasure or power-loss recovery guarantee. See [the contract](TECHNICAL_ARCHITECTURE.md#service-log-retention-and-pruning).
+
+## Audit cleanup operations
+
+Use **Audit & History → Retention & deletion** for the selected Project. `audit/retention` reads effective policy and recent receipts; `audit/setRetention` saves the three Project policy fields atomically. `audit/previewCleanup` returns counts and an expiring review token. `audit/applyCleanup` requires that token in the same session/Project/store and literal confirmation. No client-provided SQL, paths or record-ID list is accepted.
+
+Cleanup is disabled by default. Before enabling automatic retention, review the scope and export/back up any history you want to preserve. Manual previews are single-use, expire after five minutes, and are invalidated by changed selected data/policy. Refresh receipts after an interrupted connection rather than replaying a remembered deletion. Project-store deletion and its permanent event receipt commit together; model-store deletion/legacy audit flags and its profile receipt commit together. A failure rolls back that store. Success in one store does not imply success in the other. Profile schema migration 21 preserves existing routing learning; Project schema remains 14. Use compatible backups/releases for rollback rather than running an older app against the newer profile.
+
+The automatic worker runs every minute only for explicitly enabled Project policies with positive retention days. It skips unavailable Projects, keeps successful receipts and logs failures without raw audit payloads. A stopped service does not run retention. Large histories can require multiple batches; production-scale performance and storage-level erasure are not qualified. See [the contract](TECHNICAL_ARCHITECTURE.md#audit-retention-and-deletion).
+
 ## Choose an operation
+
+For pending input, open **Requests** and refresh its service-backed projection. `broker/pendingInputs` returns actionable pending approvals/questions with exact Project/task context and names unavailable Projects. After reconnect, reload this snapshot; do not replay a remembered click or infer a response from dismissing a notification. Existing broker timeouts and task cancellation still apply. See [the recovery/authority contract](TECHNICAL_ARCHITECTURE.md#grouped-requests-and-approval-authority).
 
 | You need to…                            | Go to                                                          |
 | --------------------------------------- | -------------------------------------------------------------- |
@@ -82,7 +102,7 @@ Run the [explicit-profile diagnostic command](RECOVERY_RUNBOOK.md#inspect-an-exp
 
 Confirm the profile and service status, then call `service/info` through the typed client. Compare the intended Project ID/path, engine family and current capability report before executing engine work. Inspect failing task/run/call records rather than relying only on a transient UI toast.
 
-Useful records include task events/questions/checkpoints, tool calls/approval decisions, model usage/route decisions, MCP connection state, engine/DCC run logs, asset job state, backup runs and update verification state. Audit & History exports a selected page of call history. Settings export is redacted.
+Useful records include task events/questions/checkpoints, tool calls/approval decisions, model usage/route decisions, MCP connection state, engine/DCC run logs, asset job state, backup runs and update verification state. Audit & History offers both a selected-page export and **Export full history** for all retained calls, approvals, events and model usage in the selected Project. The authenticated `audit/export` RPC returns a schema-versioned receipt with the local JSON path, byte count, SHA-256 and per-category counts. The file remains in `.gamecrafter/cache/audit-exports/` for inspection or manual removal; downloads use the existing Theia file-download flow. Failures remove the partial file without changing source history. See [snapshot, redaction and scope limits](TECHNICAL_ARCHITECTURE.md#complete-project-audit-export). Settings export is redacted.
 
 Keep diagnostic bundles narrowly scoped and sanitized. Provider errors have redaction coverage, but arbitrary third-party log text can still contain sensitive inputs. Do not publish profile tokens, credential keys, recovery secrets, raw credentials or private game content with a GitHub issue.
 
@@ -207,7 +227,7 @@ Models displays reported context/input and output capacity, or **Unknown — pro
 
 `coordination.maxTranscriptTokens` defaults to **0 (automatic model capacity)**. An explicitly saved positive value remains a lower context ceiling for new tasks; set it to zero to use automatic capacity. Old task snapshots and checkpoint output allowances no longer impose the historical 60,000/4,096 limits. Pinned instructions and tool schemas still must fit; character-based token estimates are approximate. A response that reaches its actual output allowance stops with an explicit error and never executes partial tool calls. See [capacity defaults and compatibility](TECHNICAL_ARCHITECTURE.md#model-capacity-and-task-budgets).
 
-The CLI service writes redacted JSON lines to `<profile>/logs/service.jsonl` even when launched in the background. At approximately 5 MiB it rotates the current file to `service.1.jsonl`, replacing the previous rotation. This bounded pair is separate from SQLite audit/event retention and its settings. Embedded service instances keep the existing stderr behavior. Log persistence failure falls back to stderr. Lock-conflict and release-denial entries identify the requesting task and holder without recording file contents.
+The CLI service writes redacted JSON lines to `<profile>/logs/service.jsonl` even when launched in the background. At approximately 5 MiB it rotates the current file to `service.1.jsonl`, replacing the previous rotation. This bounded pair also follows [age-based retention/pruning](#service-log-retention-and-pruning), separately from SQLite audit/event retention and its settings. Embedded service instances keep the existing stderr behavior. Log persistence failure falls back to stderr. Lock-conflict and release-denial entries identify the requesting task and holder without recording file contents.
 
 Parent and child tasks have independent lock ownership. Before delegating writes to shared Project resources, release the parent's locks on those resources; the delegation tool rejects that conflict without releasing locks automatically. File writes in an isolated worktree are exempt because they target a separate checkout. Use a role with write permission, such as `narrative-designer` for narrative canon. `game-designer` offers file reads and design proposals. For a new folder, `fs/write-file` needs `createDirectories: true`. Failed tool audits preserve native error codes such as `ENOENT`; worker failures also preserve numeric RPC codes as strings.
 

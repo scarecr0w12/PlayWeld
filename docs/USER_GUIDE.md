@@ -1,6 +1,6 @@
 # PlayWeld user guide
 
-**Last updated:** 2026-10-06
+**Last updated:** 2026-10-24
 
 **Audience:** People creating and maintaining games with the current PlayWeld workspace. [Documentation index](README.md).
 
@@ -110,7 +110,9 @@ The builtin access default is `ask-always`. Tool decisions use the most restrict
 
 Restricted mode's builtin allowed side effects are `none`, `internal-write`, and `workspace-write`. It is configurable; the live acceptance's narrower `none`/`internal-write` configuration is why screenshot writes were denied there. Restricted does not inherently mean all workspace writes are forbidden.
 
-Approval prompts describe the tool and effect. Approve or reject the specific requested operation after reviewing its scope. Expired, rejected, cancelled or interrupted calls retain records; they are not completed work. Audit & History exposes call history and export. The [settings reference](SETTINGS_REFERENCE.md) contains the complete catalog.
+Open **Requests** from Project Home or **Review requests** to review pending broker approvals and task questions grouped by Project/task. Review notifications have no direct approval buttons; each request has its own response controls. Approval details describe the tool and effect. Approve or reject the specific requested operation after reviewing its scope. Expired, rejected, cancelled or interrupted calls retain records; they are not completed work. Audit & History exposes call history and export. Its **Retention & deletion** section offers previewed, explicitly confirmed cleanup and a separate automatic-retention opt-in. Defaults keep history; protected operational records and existing copies remain. See [retention instructions](CONTROL_ROOM_HANDBOOK.md#audit-retention-and-deletion). The [settings reference](SETTINGS_REFERENCE.md) contains the complete catalog.
+
+For CLI diagnostics, **Settings → Logs & audit → Platform → Log retention (days)** controls service-log age (30 days by default). Startup, changes and the one-minute timer prune recognized expired entries. Size rotation can remove history sooner. This is separate from Project audit cleanup; see [service-log retention](CONTROL_ROOM_HANDBOOK.md#service-log-retention).
 
 Settings export redacts credential-like values. Import supports validation and dry-run through the service API. Review skipped keys and do not treat a settings export as a transferable credential backup.
 

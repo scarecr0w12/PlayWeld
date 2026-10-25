@@ -1,11 +1,22 @@
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { describe, expect, it } from 'vitest';
 import { connect } from '@gamecrafter/service-client';
 import { execCommand } from './processes/exec-command';
+import { Database } from './db/database';
+import { migrate } from './db/migrator';
+import { profileMigrations } from './profile/migrations';
 
 // Exercise the compiled CLI against a real daemon, including Windows where SIGTERM is not delivered.
 describe('platform service CLI lifecycle', () => {
@@ -13,6 +24,26 @@ describe('platform service CLI lifecycle', () => {
     const root = mkdtempSync(path.join(tmpdir(), 'gc-cli-lifecycle-'));
     const cli = path.resolve(__dirname, '../lib/cli.js');
     const env = { ...process.env, GAMECRAFTER_PROFILE_DIR: root };
+    const logs = path.join(root, 'logs');
+    mkdirSync(logs);
+    const daysAgo = (days: number) => new Date(Date.now() - days * 86400000).toISOString();
+    const line = (days: number, msg: string) =>
+      JSON.stringify({ level: 'info', time: daysAgo(days), msg }) + '\n';
+    writeFileSync(
+      path.join(logs, 'service.jsonl'),
+      line(400, 'expired_at_start') + line(60, 'saved_long_policy'),
+    );
+    writeFileSync(path.join(logs, 'service.1.jsonl'), line(400, 'expired_rotation'));
+    writeFileSync(path.join(logs, 'keep.txt'), 'unrelated');
+    const profile = Database.open(path.join(root, 'profile.sqlite'));
+    try {
+      migrate(profile, profileMigrations);
+      profile
+        .prepare('INSERT INTO settings_values(key,value,updated_at) VALUES (?,?,?)')
+        .run('logs.retentionDays', '365', new Date().toISOString());
+    } finally {
+      profile.close();
+    }
     const daemon = spawn(process.execPath, [cli, 'start', '--foreground'], {
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -34,20 +65,42 @@ describe('platform service CLI lifecycle', () => {
         await delay(50);
       expect(existsSync(lockPath)).toBe(true);
       const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as { socketPath: string };
+      let client: Awaited<ReturnType<typeof connect>>;
       while (true) {
         try {
-          const client = await connect({
+          client = await connect({
             socketPath: lock.socketPath,
             token: readFileSync(path.join(root, 'service.token'), 'utf8').trim(),
             clientName: 'cli-test',
             clientVersion: '0.1.0',
           });
-          client.close();
           break;
         } catch (error) {
           if (Date.now() >= deadline) throw error;
           await delay(50);
         }
+      }
+      try {
+        const current = path.join(logs, 'service.jsonl');
+        expect(readFileSync(current, 'utf8')).not.toContain('expired_at_start');
+        expect(readFileSync(current, 'utf8')).toContain('saved_long_policy');
+        expect(existsSync(path.join(logs, 'service.1.jsonl'))).toBe(false);
+        await client.call('settings/set', {
+          key: 'logs.retentionDays',
+          scope: 'platform',
+          value: 7,
+        });
+        expect(readFileSync(current, 'utf8')).not.toContain('saved_long_policy');
+        writeFileSync(path.join(logs, 'service.1.jsonl'), line(40, 'reset_to_default'));
+        await client.call('settings/set', {
+          key: 'logs.retentionDays',
+          scope: 'platform',
+          value: null,
+        });
+        expect(existsSync(path.join(logs, 'service.1.jsonl'))).toBe(false);
+        expect(readFileSync(path.join(logs, 'keep.txt'), 'utf8')).toBe('unrelated');
+      } finally {
+        client.close();
       }
       expect((await execCommand(process.execPath, [cli, 'status'], { env })).stdout).toContain(
         `running pid=${daemon.pid}`,
@@ -99,4 +152,44 @@ describe('platform service CLI lifecycle', () => {
       rmSync(root, { recursive: true, force: true });
     }
   }, 25000);
+  it('releases its process lock if the log directory is redirected', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'gc-cli-log-path-'));
+    const target = path.join(root, 'outside');
+    mkdirSync(target);
+    symlinkSync(target, path.join(root, 'logs'), 'junction');
+    const cli = path.resolve(__dirname, '../lib/cli.js');
+    try {
+      await expect(
+        execCommand(process.execPath, [cli, 'start', '--foreground'], {
+          env: { ...process.env, GAMECRAFTER_PROFILE_DIR: root },
+          timeout: 10000,
+        }),
+      ).rejects.toThrow();
+      expect(existsSync(path.join(root, 'service.lock'))).toBe(false);
+      expect(existsSync(path.join(target, 'service.jsonl'))).toBe(false);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+  it('persists a startup failure before disposing the logger', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'gc-cli-startup-failure-'));
+    writeFileSync(path.join(root, 'profile.sqlite'), 'not a SQLite database');
+    const cli = path.resolve(__dirname, '../lib/cli.js');
+    try {
+      await expect(
+        execCommand(process.execPath, [cli, 'start', '--foreground'], {
+          env: { ...process.env, GAMECRAFTER_PROFILE_DIR: root },
+          timeout: 10000,
+        }),
+      ).rejects.toThrow();
+      expect(existsSync(path.join(root, 'service.lock'))).toBe(false);
+      const rows = readFileSync(path.join(root, 'logs/service.jsonl'), 'utf8')
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line));
+      expect(rows.some((row) => row.level === 'error' && typeof row.msg === 'string')).toBe(true);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

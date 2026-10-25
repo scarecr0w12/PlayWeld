@@ -419,6 +419,29 @@ export class ControlRoomServiceImpl implements ControlRoomService {
     return (await this.getPlatformClient()).call('audit/read', { projectId, afterSeq, limit: 500 });
   }
 
+  async exportAudit(projectId: string): Promise<RpcResult<'audit/export'>> {
+    return (await this.getPlatformClient()).call('audit/export', { projectId });
+  }
+  async auditRetention(projectId: string): Promise<RpcResult<'audit/retention'>> {
+    return (await this.getPlatformClient()).call('audit/retention', { projectId });
+  }
+  async setAuditRetention(
+    projectId: string,
+    policy: RpcParams<'audit/setRetention'>['policy'],
+  ): Promise<RpcResult<'audit/setRetention'>> {
+    return (await this.getPlatformClient()).call('audit/setRetention', { projectId, policy });
+  }
+  async previewAuditCleanup(
+    params: RpcParams<'audit/previewCleanup'>,
+  ): Promise<RpcResult<'audit/previewCleanup'>> {
+    return (await this.getPlatformClient()).call('audit/previewCleanup', params);
+  }
+  async applyAuditCleanup(
+    params: RpcParams<'audit/applyCleanup'>,
+  ): Promise<RpcResult<'audit/applyCleanup'>> {
+    return (await this.getPlatformClient()).call('audit/applyCleanup', params);
+  }
+
   async listTasks(projectId: string): Promise<TaskRecord[]> {
     const client = await this.getPlatformClient();
     return (await client.call('task/list', { projectId, limit: 200 })).tasks;
@@ -476,6 +499,10 @@ export class ControlRoomServiceImpl implements ControlRoomService {
   async listApprovals(projectId: string, pendingOnly = false): Promise<ApprovalRequest[]> {
     const client = await this.getPlatformClient();
     return (await client.call('broker/approvals', { projectId, pendingOnly })).approvals;
+  }
+
+  async pendingInputs(): Promise<RpcResult<'broker/pendingInputs'>> {
+    return (await this.getPlatformClient()).call('broker/pendingInputs', {});
   }
 
   async approve(

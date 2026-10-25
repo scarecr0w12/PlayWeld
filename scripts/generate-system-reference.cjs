@@ -40,7 +40,7 @@ function shape(s, depth = 0) {
   return (s.type || 'unknown') + (s.format ? ` (${s.format})` : '');
 }
 function safe(s) {
-  return String(s).replace(/\|/g, '\\|').replace(/\n/g, ' ');
+  return String(s).replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\n/g, ' ');
 }
 const out = [
   '# PlayWeld RPC API reference',

@@ -274,6 +274,16 @@ export class TaskStore {
     );
   }
 
+  *exportEvents(): IterableIterator<TaskEvent> {
+    for (const row of this.database
+      .prepare(
+        `SELECT event_id AS eventId, seq, task_id AS taskId, kind,
+        occurred_at AS occurredAt, actor, payload AS payloadJson FROM events ORDER BY seq`,
+      )
+      .iterate<EventRow>())
+      yield eventFromRow(row);
+  }
+
   /** A subtree cancellation revokes future followups even when its root already succeeded. */
   cancellationRequested(taskId: string): boolean {
     return (

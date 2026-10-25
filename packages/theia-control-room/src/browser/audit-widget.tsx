@@ -10,9 +10,13 @@ import {
 import { ControlRoomClientEvents } from './control-room-client';
 import { costStatusLabel, formatCostUsd } from '../common/cost-display';
 import { MarkdownContent } from './markdown-content';
+import { FileUri } from '@theia/core/lib/common/file-uri';
+import { FileDownloadService } from '@theia/filesystem/lib/common/download/file-download';
+import { AuditRetentionPanel } from './audit-retention-panel';
 
 @injectable()
 export class AuditWidget extends ControlRoomReactWidget {
+  @inject(FileDownloadService) private readonly downloads!: FileDownloadService;
   static readonly ID = 'gamecrafter.audit';
   private projects: ProjectSummary[] = [];
   private projectId = '';
@@ -21,8 +25,10 @@ export class AuditWidget extends ControlRoomReactWidget {
   private query = '';
   private error?: string;
   private busy = false;
+  private exporting = false;
+  private exportNotice?: string;
   private version = 0;
-  private activeSection: 'usage' | 'calls' | 'events' = 'usage';
+  private activeSection: 'usage' | 'calls' | 'events' | 'retention' = 'usage';
   private selectedUsageId?: string;
   private selectedCallId?: string;
   private selectedEventId?: string;
@@ -123,7 +129,15 @@ export class AuditWidget extends ControlRoomReactWidget {
           >
             Export redacted page
           </button>
+          <button
+            type="button"
+            disabled={!this.projectId || this.exporting}
+            onClick={() => void this.exportFullHistory()}
+          >
+            {this.exporting ? 'Preparing full history…' : 'Export full history'}
+          </button>
         </div>
+        {this.exportNotice && <p role="status">{this.exportNotice}</p>}
         {this.error && (
           <p role="alert" className="gamecrafter-audit-error">
             {this.error}
@@ -144,7 +158,7 @@ export class AuditWidget extends ControlRoomReactWidget {
                 <p>
                   {!this.snapshot
                     ? 'Load the Project history, then search records or move between event pages.'
-                    : 'Select a model request, tool call or event to inspect its evidence. Exports contain the redacted page currently loaded.'}
+                    : 'Select a model request, tool call or event to inspect its evidence. Export the loaded page, or export all retained history regardless of the page and filter.'}
                 </p>
               </div>
             </section>
@@ -154,6 +168,7 @@ export class AuditWidget extends ControlRoomReactWidget {
                   ['usage', 'Model usage', usage.length],
                   ['calls', 'Tool calls', calls.length],
                   ['events', 'Project events', events.length],
+                  ['retention', 'Retention & deletion', undefined],
                 ] as const
               ).map(([section, label, count]) => (
                 <button
@@ -165,10 +180,22 @@ export class AuditWidget extends ControlRoomReactWidget {
                     this.update();
                   }}
                 >
-                  {label} <span className="gamecrafter-count">{count}</span>
+                  {label}{' '}
+                  {count !== undefined && <span className="gamecrafter-count">{count}</span>}
                 </button>
               ))}
             </nav>
+            {this.activeSection === 'retention' && (
+              <AuditRetentionPanel
+                key={this.projectId}
+                projectId={this.projectId}
+                service={this.service}
+                onCleanup={() => {
+                  this.afterSeq = 0;
+                  void this.refresh();
+                }}
+              />
+            )}
             <section className="gamecrafter-page-panel" hidden={this.activeSection !== 'usage'}>
               <h2>Model usage</h2>
               <p className="gamecrafter-page-section-intro">
@@ -419,8 +446,8 @@ export class AuditWidget extends ControlRoomReactWidget {
             <section className="gamecrafter-page-panel" hidden={this.activeSection !== 'events'}>
               <h2>Project events</h2>
               <p>
-                Events after sequence {this.afterSeq}. Export includes this event page and the
-                recent calls above.
+                Events after sequence {this.afterSeq}. Page export includes this event page and
+                recent calls. Full history export includes all retained audit records.
               </p>
               <dl className="gamecrafter-page-meta">
                 <div className="gamecrafter-page-meta-item">
@@ -582,5 +609,25 @@ export class AuditWidget extends ControlRoomReactWidget {
     link.download = 'gamecrafter-audit.json';
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  private async exportFullHistory(): Promise<void> {
+    if (!this.projectId || this.exporting) return;
+    const projectId = this.projectId;
+    this.exporting = true;
+    this.exportNotice = undefined;
+    this.update();
+    try {
+      const receipt = await this.service.exportAudit(projectId);
+      await this.downloads.download([FileUri.create(receipt.path)]);
+      const count = Object.values(receipt.counts).reduce((sum, value) => sum + value, 0);
+      this.exportNotice = `Full audit export prepared for ${this.projects.find((project) => project.projectId === projectId)?.name ?? projectId}: ${count} records, ${receipt.bytes} bytes. A redacted copy remains in the Project cache.`;
+      this.error = undefined;
+    } catch (error) {
+      this.error = error instanceof Error ? error.message : String(error);
+    } finally {
+      this.exporting = false;
+      this.update();
+    }
   }
 }

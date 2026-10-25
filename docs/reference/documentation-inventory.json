@@ -47,6 +47,7 @@
       "tests": [
         "packages/platform-service/src/assets/asset-service.integration.test.ts",
         "packages/platform-service/src/assets/asset-service.test.ts",
+        "packages/platform-service/src/assets/external-open.test.ts",
         "packages/platform-service/src/assets/preview/gltf-inspector.test.ts",
         "packages/platform-service/src/assets/preview/image-inspector.test.ts",
         "packages/platform-service/src/assets/providers/providers.test.ts"
@@ -57,13 +58,18 @@
       "family": "audit",
       "guide": "OPERATIONS_GUIDE.md",
       "methods": [
-        "audit/read"
+        "audit/read",
+        "audit/export",
+        "audit/retention",
+        "audit/setRetention",
+        "audit/previewCleanup",
+        "audit/applyCleanup"
       ],
-      "implementation": "packages/platform-service/src/tools",
+      "implementation": "packages/platform-service/src/audit",
       "tests": [
-        "packages/platform-service/src/tools/connector-session-policy.integration.test.ts",
-        "packages/platform-service/src/tools/tool-broker.integration.test.ts",
-        "packages/platform-service/src/tools/tool-registry.test.ts"
+        "packages/platform-service/src/audit/audit-export.integration.test.ts",
+        "packages/platform-service/src/audit/audit-retention.integration.test.ts",
+        "packages/platform-service/src/audit/audit-retention.test.ts"
       ],
       "evidence": "Source/schema inventory; test paths are discoverability, not a claim that these tests passed. See DOCUMENTATION_COVERAGE.md for live results and gaps."
     },
@@ -143,6 +149,7 @@
       "guide": "WORKFLOW_COOKBOOK.md",
       "methods": [
         "broker/approvals",
+        "broker/pendingInputs",
         "broker/approve"
       ],
       "implementation": "packages/platform-service/src/tools",
@@ -607,6 +614,7 @@
       ],
       "implementation": "packages/platform-service/src/tasks",
       "tests": [
+        "packages/platform-service/src/tasks/pending-inputs.integration.test.ts",
         "packages/platform-service/src/tasks/task-graph.test.ts",
         "packages/platform-service/src/tasks/task-role-policy.test.ts",
         "packages/platform-service/src/tasks/task-service.integration.test.ts",
@@ -790,6 +798,9 @@
       "title": "Logs & audit",
       "guide": "SETTINGS_REFERENCE.md",
       "keys": [
+        "audit.autoPrune",
+        "audit.deletionEnabled",
+        "audit.retentionDays",
         "logs.retentionDays"
       ]
     },
@@ -914,11 +925,22 @@
       "tests": [
         "packages/platform-service/src/assets/asset-service.integration.test.ts",
         "packages/platform-service/src/assets/asset-service.test.ts",
+        "packages/platform-service/src/assets/external-open.test.ts",
         "packages/platform-service/src/assets/preview/gltf-inspector.test.ts",
         "packages/platform-service/src/assets/preview/image-inspector.test.ts",
         "packages/platform-service/src/assets/providers/providers.test.ts"
       ],
       "guide": "WORKFLOW_COOKBOOK.md"
+    },
+    {
+      "name": "audit",
+      "implementation": "packages/platform-service/src/audit",
+      "tests": [
+        "packages/platform-service/src/audit/audit-export.integration.test.ts",
+        "packages/platform-service/src/audit/audit-retention.integration.test.ts",
+        "packages/platform-service/src/audit/audit-retention.test.ts"
+      ],
+      "guide": "OPERATIONS_GUIDE.md"
     },
     {
       "name": "backup",
@@ -1154,6 +1176,7 @@
       "name": "tasks",
       "implementation": "packages/platform-service/src/tasks",
       "tests": [
+        "packages/platform-service/src/tasks/pending-inputs.integration.test.ts",
         "packages/platform-service/src/tasks/task-graph.test.ts",
         "packages/platform-service/src/tasks/task-role-policy.test.ts",
         "packages/platform-service/src/tasks/task-service.integration.test.ts",

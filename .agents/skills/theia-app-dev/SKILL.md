@@ -14,7 +14,7 @@ Project rule: the Theia app is a **client** of the local platform service. Do no
 
 ## Where things are in this repository
 
-- `apps/control-room` (Electron, the product) and `apps/control-room-browser` (browser, dev-only for Playwright smoke tests) are Theia application packages; `packages/theia-control-room` is the Theia extension. All `@theia/*` packages are pinned to **1.75.0**, `electron` to **42.10.0**, React 19 (a Theia peer dependency since 1.74). Never bump one Theia package alone.
+- `apps/control-room` (Electron, the product) and `apps/control-room-browser` (browser, dev-only for Playwright smoke tests) are Theia application packages; `packages/theia-control-room` is the Theia extension. All `@theia/*` packages are pinned to **1.75.0**, `electron` to **42.11.18**, React 19 (a Theia peer dependency since 1.74). Never bump one Theia package alone.
 - Build: `npm run build -w @gamecrafter/control-room-browser` / `-w @gamecrafter/control-room` (the Electron script runs `theia rebuild:electron` first). Start: `npm run start -w <app>`; the browser target listens on `http://127.0.0.1:3000`. `npm run download:plugins` fetches the VS Code builtin plugins listed under `theiaPlugins` into `/plugins` (shared by both apps). Theia-generated files (`src-gen/`, `lib/`, `gen-esbuild.*.mjs`, `esbuild.mjs`) are git-ignored.
 - Theia builds are excluded from the default `turbo run build`; use `npm run build:apps`.
 - `@theia/git` is no longer published. Git, merge-conflict, themes, and language basics come from the `vscode.*` builtin plugins (`eclipse-theia/vscode-builtin-extensions` releases). `@theia/getting-started` is deliberately not included: Project Home is the landing view.

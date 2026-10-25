@@ -37,6 +37,25 @@ describe('vector backend registry', () => {
     );
   });
 
+  it('separates cached external handles when credentials rotate without exposing the key in identity', () => {
+    const registry = new VectorStoreRegistry('unused');
+    registries.push(registry);
+    const context = {
+      projectId: uuidv7(),
+      projectPath: tmpdir(),
+      config: { kind: 'qdrant', deployment: 'local', url: 'http://127.0.0.1:6333' },
+      apiKey: 'fixture-original-api-key',
+    };
+    const first = registry.resolve(context, false);
+    expect(registry.resolve(context, false)).toEqual(first);
+    const rotated = registry.resolve({ ...context, apiKey: 'fixture-rotated-api-key' }, false);
+    expect(rotated.store).not.toBe(first.store);
+    expect(rotated.identity).not.toBe(first.identity);
+    expect(first.identity).toMatch(/^[a-f0-9]{64}$/);
+    expect(first.identity).not.toContain(context.apiKey);
+    expect(registry.resolve(context, false).store).toBe(first.store);
+  });
+
   it('supports trusted registered adapters and rejects duplicate IDs and deployment mismatches', () => {
     const registry = new VectorStoreRegistry('unused');
     registries.push(registry);

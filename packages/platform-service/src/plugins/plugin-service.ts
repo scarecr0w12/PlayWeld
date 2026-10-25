@@ -35,7 +35,7 @@ export interface PluginServiceOptions {
 }
 
 export class PluginService {
-  private readonly registeredSettingsSources = new Set<string>();
+  private installQueue: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly options: PluginServiceOptions) {
     this.registerInstalledSettings();
@@ -56,26 +56,54 @@ export class PluginService {
     source: string,
     acceptCapabilities: PluginInspection['capabilities'],
   ): Promise<InstalledPlugin> {
-    const installed = await this.options.installer.install(source, acceptCapabilities);
-    const settingsSource = `plugin:${installed.pluginId}`;
-    if (!this.registeredSettingsSources.has(settingsSource)) {
-      try {
-        this.options.settingsRegistry.register(
-          settingsSource,
-          [],
-          installed.manifest.contributes.settings,
+    return this.mutate(() => this.installPrepared(source, acceptCapabilities));
+  }
+
+  private mutate<T>(operation: () => Promise<T> | T): Promise<T> {
+    const result = this.installQueue.then(operation);
+    this.installQueue = result.catch(() => undefined);
+    return result;
+  }
+
+  private async installPrepared(
+    source: string,
+    acceptCapabilities: PluginInspection['capabilities'],
+  ): Promise<InstalledPlugin> {
+    const projectIds = () => this.options.profile.list().map((project) => project.projectId);
+    let restartProjects: string[] = [];
+    const installed = await this.options.installer.install(source, acceptCapabilities, {
+      prepare: async (next, previous) => {
+        this.options.settings.preparePluginUpgrade(previous?.manifest, next.manifest, projectIds());
+        if (previous) {
+          restartProjects = this.options.host
+            .listStates(previous.pluginId)
+            .filter((state) => state.status === 'running' && state.projectId !== null)
+            .map((state) => state.projectId!);
+          await this.options.host.stopPlugin(previous.pluginId);
+        }
+      },
+      commit: (next, previous) => {
+        const plan = this.options.settings.preparePluginUpgrade(
+          previous?.manifest,
+          next.manifest,
+          projectIds(),
         );
-        this.registeredSettingsSources.add(settingsSource);
-      } catch (error) {
-        this.options.installer.uninstall(installed.pluginId);
-        throw error;
-      }
-    }
+        this.options.settings.commitPluginUpgrade(next.manifest, plan);
+      },
+      activated: (next, previous) =>
+        this.options.settings.activatePluginSettings(next.manifest, previous?.version),
+    });
+    for (const projectId of restartProjects)
+      await this.options.host.start(installed.pluginId, projectId).catch(() => undefined);
     this.options.onChanged?.(installed.pluginId);
     return installed;
   }
 
   async uninstall(pluginId: string): Promise<{ removed: true }> {
+    return this.mutate(() => this.uninstallPrepared(pluginId));
+  }
+
+  private async uninstallPrepared(pluginId: string): Promise<{ removed: true }> {
     this.requirePlugin(pluginId);
     await this.options.host.stopPlugin(pluginId);
     const source = `plugin:${pluginId}`;
@@ -83,7 +111,6 @@ export class PluginService {
       source,
       this.options.profile.list().map((project) => project.projectId),
     );
-    this.registeredSettingsSources.delete(source);
     this.options.credentials.deletePrefix(`plugin:${pluginId}:`);
     this.options.installer.uninstall(pluginId);
     this.options.onChanged?.(pluginId);
@@ -91,6 +118,10 @@ export class PluginService {
   }
 
   async enable(pluginId: string, projectId?: string): Promise<{ enabled: true }> {
+    return this.mutate(() => this.enablePrepared(pluginId, projectId));
+  }
+
+  private async enablePrepared(pluginId: string, projectId?: string): Promise<{ enabled: true }> {
     if (projectId) this.options.registry.setProjectEnabled(projectId, pluginId, true);
     else this.options.registry.setPlatformEnabled(pluginId, true);
     this.options.onChanged?.(pluginId);
@@ -98,6 +129,10 @@ export class PluginService {
   }
 
   async disable(pluginId: string, projectId?: string): Promise<{ enabled: false }> {
+    return this.mutate(() => this.disablePrepared(pluginId, projectId));
+  }
+
+  private async disablePrepared(pluginId: string, projectId?: string): Promise<{ enabled: false }> {
     this.requirePlugin(pluginId);
     if (projectId) {
       this.options.registry.setProjectEnabled(projectId, pluginId, false);
@@ -111,13 +146,17 @@ export class PluginService {
   }
 
   start(pluginId: string, projectId: string): Promise<PluginWorkerState> {
-    this.requirePlugin(pluginId);
-    return this.options.host.start(pluginId, projectId);
+    return this.mutate(() => {
+      this.requirePlugin(pluginId);
+      return this.options.host.start(pluginId, projectId);
+    });
   }
 
   stop(pluginId: string, projectId: string): Promise<PluginWorkerState> {
-    this.requirePlugin(pluginId);
-    return this.options.host.stop(pluginId, projectId);
+    return this.mutate(() => {
+      this.requirePlugin(pluginId);
+      return this.options.host.stop(pluginId, projectId);
+    });
   }
 
   status(pluginId: string, projectId?: string): PluginWorkerState {
@@ -189,7 +228,7 @@ export class PluginService {
   async autoStartProject(projectId: string): Promise<void> {
     if (this.options.settings.resolve('plugins.autoStart', { projectId }).value !== true) return;
     for (const plugin of this.options.registry.enabledPlugins(projectId)) {
-      await this.options.host.start(plugin.pluginId, projectId).catch(() => undefined);
+      await this.start(plugin.pluginId, projectId).catch(() => undefined);
     }
   }
 
@@ -201,9 +240,12 @@ export class PluginService {
 
   async settingsChanged(event: RpcNotificationParams<'settings/changed'>): Promise<void> {
     if (event.scope === 'session') return;
-    const plugin = this.options.installer
-      .list()
-      .find((candidate) => event.key.startsWith(`plugin.${candidate.pluginId}.`));
+    const source = this.options.settings
+      .describe()
+      .definitions.find((definition) => definition.key === event.key)?.source;
+    const plugin = source?.startsWith('plugin:')
+      ? this.options.installer.get(source.slice(7))
+      : undefined;
     if (!plugin) return;
     const projectIds = event.projectId
       ? [event.projectId]
@@ -211,13 +253,11 @@ export class PluginService {
           .listStates(plugin.pluginId)
           .map((state) => state.projectId)
           .filter((projectId): projectId is string => projectId !== null);
-    const prefix = `plugin.${plugin.pluginId}.`;
     await Promise.all(
       projectIds.map(async (projectId) => {
         const settings = Object.fromEntries(
           this.options.settings
-            .getAll({ projectId })
-            .filter((setting) => setting.key.startsWith(prefix))
+            .getPluginSettings(plugin.pluginId, { projectId })
             .map((setting) => [setting.key, setting.value]),
         );
         await this.options.host.settingsChanged(plugin.pluginId, projectId, settings);
@@ -227,9 +267,7 @@ export class PluginService {
 
   private registerInstalledSettings(): void {
     for (const plugin of this.options.installer.list()) {
-      const source = `plugin:${plugin.pluginId}`;
-      this.options.settingsRegistry.register(source, [], plugin.manifest.contributes.settings);
-      this.registeredSettingsSources.add(source);
+      this.options.settings.activatePluginSettings(plugin.manifest);
     }
   }
 

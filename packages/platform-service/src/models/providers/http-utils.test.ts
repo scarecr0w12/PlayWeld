@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { safeExcerpt } from './http-utils';
+import { endpoint, safeExcerpt, trimTrailingSlashes } from './http-utils';
+
+describe('provider endpoint normalization', () => {
+  it('handles a long trailing slash run without a backtracking expression', () => {
+    expect(trimTrailingSlashes(`https://fixture.test/v1${'/'.repeat(100_000)}`)).toBe(
+      'https://fixture.test/v1',
+    );
+    expect(endpoint('https://fixture.test/v1///', '/models')).toBe(
+      'https://fixture.test/v1/models',
+    );
+    expect(trimTrailingSlashes('///')).toBe('');
+    expect(trimTrailingSlashes('')).toBe('');
+    expect(trimTrailingSlashes('https://fixture.test')).toBe('https://fixture.test');
+  });
+});
 
 describe('provider error excerpts', () => {
   it('redacts a credential before truncating an error body', () => {

@@ -87,6 +87,16 @@ export class PluginInstaller {
         capabilities: manifest.capabilities,
         warnings: [
           'Plugin signatures are not verified by this build.',
+          ...(this.get(manifest.id) && this.get(manifest.id)!.version !== manifest.version
+            ? [
+                `Installing v${manifest.version} upgrades v${this.get(manifest.id)!.version}; existing settings are validated and migrated without uninstalling. Previously running workers are restarted.`,
+              ]
+            : []),
+          ...(manifest.migrations.some((migration) => migration.operations?.length)
+            ? [
+                'This manifest declares settings transformations. Review its migration descriptions and operations; explicit remove operations delete matching overrides.',
+              ]
+            : []),
           ...(manifest.capabilities.some(
             (capability) => typeof capability === 'object' && capability.hosts.length > 0,
           )
@@ -102,10 +112,16 @@ export class PluginInstaller {
   async install(
     sourceText: string,
     acceptCapabilities: PluginCapability[],
+    hooks?: {
+      prepare(next: InstalledPlugin, previous?: InstalledPlugin): Promise<void>;
+      commit(next: InstalledPlugin, previous?: InstalledPlugin): void;
+      activated(next: InstalledPlugin, previous?: InstalledPlugin): void;
+    },
   ): Promise<InstalledPlugin> {
     const prepared = await this.prepareSource(sourceText);
     let destination: string | undefined;
     let installedNewPath = false;
+    let committed = false;
     try {
       const manifest = this.readAndValidateManifest(prepared.root);
       this.validateCompatibility(manifest);
@@ -120,10 +136,23 @@ export class PluginInstaller {
       if (existing) {
         if (existing.version === manifest.version && existing.sha256 === prepared.sha256)
           return existing;
-        throw new RpcError(
-          `Plugin ${manifest.id} is already installed at version ${existing.version}. Uninstall it before installing another version.`,
-          RpcErrorCode.PluginManifestInvalid,
-        );
+        if (!hooks || !semver.gt(manifest.version, existing.version))
+          throw new RpcError(
+            `Plugin ${manifest.id} requires a forward version upgrade through the plugin service.`,
+            RpcErrorCode.PluginManifestInvalid,
+          );
+        for (const dependent of this.list()) {
+          const range = dependent.manifest.dependencies.plugins[manifest.id];
+          if (
+            dependent.pluginId !== manifest.id &&
+            range &&
+            !semver.satisfies(manifest.version, range)
+          )
+            throw new RpcError(
+              `Installed plugin ${dependent.pluginId} requires ${manifest.id}@${range}.`,
+              RpcErrorCode.PluginDependencyMissing,
+            );
+        }
       }
       const installedAt = this.now().toISOString();
       const trust = { acceptedCapabilities: manifest.capabilities, acceptedAt: installedAt };
@@ -155,14 +184,21 @@ export class PluginInstaller {
         sha256: prepared.sha256,
         signature,
         installedAt,
-        enabled: true,
+        enabled: existing?.enabled ?? true,
         trust,
       };
       compile(InstalledPluginSchema).assert(installed);
-      this.writeRecord(installed);
+      await hooks?.prepare(installed, existing);
+      this.options.database.transaction(() => {
+        this.writeRecord(installed);
+        hooks?.commit(installed, existing);
+      });
+      committed = true;
+      hooks?.activated(installed, existing);
       return installed;
     } catch (error) {
-      if (installedNewPath && destination) rmSync(destination, { recursive: true, force: true });
+      if (!committed && installedNewPath && destination)
+        rmSync(destination, { recursive: true, force: true });
       throw error;
     } finally {
       prepared.cleanup();
@@ -211,7 +247,13 @@ export class PluginInstaller {
         RpcErrorCode.PluginManifestInvalid,
       );
     }
-    if (existsSync(installPath)) rmSync(installPath, { recursive: true, force: true });
+    const pluginDirectory = path.dirname(installPath);
+    if (!isWithin(pluginDirectory, this.pluginsDirectory))
+      throw new RpcError(
+        'Plugin directory escapes the profile.',
+        RpcErrorCode.PluginManifestInvalid,
+      );
+    if (existsSync(pluginDirectory)) rmSync(pluginDirectory, { recursive: true, force: true });
     this.options.database
       .prepare('DELETE FROM installed_plugins WHERE plugin_id = ?')
       .run(pluginId);
@@ -423,12 +465,31 @@ export class PluginInstaller {
         RpcErrorCode.PluginIncompatible,
       );
     }
+    const fromVersions = new Set<string>();
     for (const migration of manifest.migrations) {
       if (!semver.valid(migration.from) || !semver.valid(migration.to)) {
         throw new RpcError(
           'Plugin migration versions must be valid semver.',
           RpcErrorCode.PluginManifestInvalid,
         );
+      }
+      if (
+        !semver.gt(migration.to, migration.from) ||
+        semver.gt(migration.to, manifest.version) ||
+        fromVersions.has(migration.from)
+      )
+        throw new RpcError(
+          'Plugin migrations must be unambiguous forward version transitions.',
+          RpcErrorCode.PluginManifestInvalid,
+        );
+      fromVersions.add(migration.from);
+      for (const operation of migration.operations ?? []) {
+        const keys = operation.kind === 'rename' ? [operation.from, operation.to] : [operation.key];
+        if (keys.some((key) => !key.startsWith(`plugin.${manifest.id}.`)))
+          throw new RpcError(
+            'Plugin migrations may only change their own setting namespace.',
+            RpcErrorCode.PluginManifestInvalid,
+          );
       }
     }
   }
@@ -455,7 +516,11 @@ export class PluginInstaller {
         `INSERT INTO installed_plugins
           (plugin_id, version, manifest, install_path, source_kind, source_ref, sha256,
            signature, installed_at, enabled, trust)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(plugin_id) DO UPDATE SET version=excluded.version, manifest=excluded.manifest,
+           install_path=excluded.install_path, source_kind=excluded.source_kind, source_ref=excluded.source_ref,
+           sha256=excluded.sha256, signature=excluded.signature, installed_at=excluded.installed_at,
+           enabled=excluded.enabled, trust=excluded.trust`,
       )
       .run(
         plugin.pluginId,

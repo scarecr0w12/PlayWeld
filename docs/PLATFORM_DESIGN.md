@@ -1,7 +1,7 @@
 # Game Development Platform: Living Design
 
 **Status:** Working design, not an implementation claim.  
-**Last updated:** 2026-10-04
+**Last updated:** 2026-10-24
 **Purpose:** Preserve decisions and open questions as we design the complete platform.
 
 **Implementation status:** [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) tracks which work packages are implemented; nothing in this document is an implementation claim.
@@ -246,3 +246,8 @@ Use the delegated best-practice judgment for these details, record the choice, a
 | Agent roles are Markdown-plus-frontmatter packages with an access ceiling that delegation cannot exceed | Engineering default | SKILLS_AGENTS_AND_TOOLS.md |
 | Every Project folder carries a generated AGENTS.md and a `.agents/skills/` directory | Engineering default | SKILLS_AGENTS_AND_TOOLS.md |
 | Specific knowledge schema, database, model scoring, adapters, and permission boundaries | Open | Design discussion |
+| Forward plugin setting upgrades use declarative owned-key transforms, profile activation and per-Project checkpoints; no plugin migration code runs in the service | Engineering default | [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md#plugin-settings-upgrades) |
+| Complete retained Project audit exports are service-generated redacted JSON files with validated records, counts and checksums; page export remains available | Engineering default | [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md#complete-project-audit-export) |
+| Service-backed Requests groups approvals and task questions by Project/root task, coalesces review notifications and preserves individual authorization | Engineering default | [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md#grouped-requests-and-approval-authority) |
+| Audit retention keeps history by default, uses explicit previewed per-store deletion and receipts, and permits automatic cleanup only under opt-in Project policy | Engineering default | [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md#audit-retention-and-deletion) |
+| CLI diagnostic logs use the saved platform retention period with conservative timestamp pruning, periodic cleanup and the existing bounded size rotation | Engineering default | [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md#service-log-retention-and-pruning) |

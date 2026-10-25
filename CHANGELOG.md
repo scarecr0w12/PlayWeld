@@ -4,6 +4,332 @@ Complete tracked work, grouped by version and category, with full details, valid
 
 ## Unreleased
 
+### Added
+
+#### Audit retention and deletion controls
+
+**Impact:** minor
+
+[Permanent work record](docs/changes/2026-10-24-audit-retention.md).
+
+##### Summary
+
+Add scoped audit-history retention to Audit & History, with separate preview/confirmation for manual deletion, explicit automatic-retention opt-in, and durable per-store cleanup receipts. This implements the audit-history portion of WP7/S09; other domain stores and service-log pruning remain separate work.
+
+##### Details
+
+- Previously Audit & History exposed reading/export without audit deletion controls. Add four authenticated, typed RPCs for reading policy/receipts, atomically setting Project policy, previewing eligible cleanup and applying a confirmed preview. Generated references now describe 204 request methods and 88 built-in settings. Existing export contracts remain compatible.
+- Add platform defaults and Project overrides for `audit.retentionDays` (0 means keep indefinitely), `audit.deletionEnabled` (false) and `audit.autoPrune` (false). Automatic cleanup requires both explicit enablement and positive days. Policy saving uses the existing settings-import transaction; no new frontend-owned durable state is introduced.
+- Manual cleanup normalizes a UTC cutoff and selects strictly older records. Review tokens are session/Project/store bound, expire after five minutes, are consumed before mutation, and are invalidated by changed policy or selected row content through a recomputed SHA-256 fingerprint under locks. Cache at most 100 metadata/count/fingerprint reviews without retaining audit payload copies. Reject missing Projects, stale/expired/foreign tokens and empty batches. Session close and service stop clear reviews.
+- Project cleanup batches at most 250 finished tool calls and 250 task lifecycle events, plus eligible linked resolved approvals and tool-call events. Pending/recent approval evidence remains. Task-related deletion requires the complete root tree to be terminal, unleased and older than the cutoff. Active, leased, recent or invalid task context protects the tree and its transitive prerequisite trees across dependency links. Preserve other domain/provenance events, task projections, questions, answers, checkpoints, results, artifacts and Project files.
+- Model cleanup independently batches up to 250 completion-usage, 250 completed assessment and 250 legacy self-reported usage records. Apply the same task protection; retain unattributed legacy usage while any Project task history is protected. Remove eligible current usage/assessment rows but retain router decisions/outcomes, quality/cost learning, budgets/spending and other accounting. Suppress eligible legacy audit projections with an `audit_retained` flag, including fallback rows linked to removed completion usage, so audit reads do not resurrect deleted usage from retained learning data.
+- Write each store's deletion and receipt in one transaction. Project receipts are permanent `audit.pruned` events with sequences above the pre-deletion maximum. Model receipts live in the profile. A Project lock holds task context stable during model cleanup; this is per-store atomicity, not a global transaction across both databases. Receipt failure rolls back the affected store. Return the latest 20 receipts per store without removing older receipts, and expose IDs, origin, scope, cutoff and counts without deleted payloads.
+- Run automatic retention every 60 seconds for available, explicitly opted-in Projects. Skip empty batches, isolate failures by store, avoid raw audit payloads in warning logs, and stop the timer on service shutdown. Each successful automatic batch retains its own receipt.
+- Add the Retention & deletion panel with saved-policy controls, separate Project/model store choice, UTC date input, read-only counts and an unchecked confirmation box. Prevent duplicate submissions, invalidate review on policy/date/store/Project changes or expiration, clear review after any apply attempt, ignore late responses after unmount and refresh history after manual success. Receipts can be refreshed after automatic cleanup; controls wrap at narrow widths.
+- Add contract, real SQLite unit, native authenticated RPC, migration and renderer regression coverage. The prerequisite regression first reproduced deletion of completed evidence still needed by active work, then verified recursive protection and release after all dependent work finishes. Receipt-trigger failures exercise transaction rollback; other cases cover pending children/approvals, stale review, session identity, expiry/reuse, policy changes, batching, monotonic sequence, automatic opt-in/shutdown and preservation of router learning.
+- Update WP7/S09 and status consistently as scoped implementation, add architecture/default and authority documentation, operator/recovery instructions and user navigation, and regenerate RPC/settings/documentation references. Correct the architecture's stale page-only export and unimplemented grouping description to match the already implemented full export and Requests view.
+- Compatibility/migration: additive RPC/settings contracts, profile migration 21 adds the retained-audit flag defaulting to 1 for existing router outcomes and the model receipt table; migration regression preserves prior learning values. Project schema remains 14. No dependency/package changes or removals in this task. Existing settings remain compatible; `logs.retentionDays` does not implement log cleanup. Audit deletion is logical deletion and does not remove exported files, backups, cached copies, operational task data or retained learning payloads.
+- Minor impact reflects compatible new user-facing functionality. Product version remains 0.22.0 while work is pending; no release, installer, tag or publication is prepared.
+
+##### Validation
+
+- Regression-first focused tests reproduced the missing cleanup RPC and the transitive prerequisite protection defect before implementation. Focused retention unit and authenticated service integration tests pass after the fixes; migration, contract and renderer suites also passed during iteration.
+- Final `npx turbo run build typecheck lint test --concurrency=1` after the dependency-protection correction passed all 33 tasks (22 cached), with 959 tests passed and 7 skipped across 191 test files: contracts 78, platform service 723 passed / 6 skipped, Theia extension 153, and remaining workspace suites. Both Electron and browser application builds passed. Existing app-shell lint/typecheck/test scripts report skip; the extension/service/shared packages supply actual checks. Evidence: `.turbo/audit-retention-quality-complete.log`; two earlier full runs also passed during implementation.
+- Generated system references/inventory freshness, documentation evidence integrity, release-version agreement, Markdown links, formatting, change-record coverage and whitespace checks passed. Evidence includes `.turbo/audit-retention-links.log` and `.turbo/audit-retention-format.log`. Final artifact checks were repeated after recording browser acceptance.
+- Puppeteer acceptance against the built browser application and authenticated service passed eight checks with zero renderer errors: defaults keep history; preview does not mutate and requires separate confirmation; Project switching clears review; stale selected data rejects deletion; confirmed Project cleanup removes exactly one eligible call, resolved approval and event while preserving active work, pending approval, another Project and files; separately confirmed model cleanup preserves the foreign ledger; the real 60-second service timer performs opted-in cleanup in both stores with independent automatic receipts; and a 480px viewport has no horizontal overflow (audit panel client/scroll width both 383px). Inspected both wide and narrow screenshots. Evidence: `.turbo/audit-retention-ui/report.json`, `review-before-deletion.png`, `retention-narrow.png` and `.turbo/audit-retention-ui-final.log`.
+- Earlier browser harness attempts exposed navigation readiness and stale built extension output, not a completed product validation. Corrected fixture navigation/readiness, rebuilt the extension/application with the owned backend stopped and then completed the final flow. Automatic cleanup was disabled for the disposable Project in teardown and its pending task was cancelled. Stopped the owned backend after verifying the listening PID; port 3131 is free and the isolated service reports `not running`. No ordinary user profile or Project data was deleted.
+- Validation uses disposable profile/Project data and fixtures. No live model/engine/DCC integration, large-history performance qualification, packaged Electron launch, installer, secure erasure or production acceptance is claimed. Broader domain retention and service-log pruning remain unimplemented.
+
+##### Files
+
+- `packages/contracts/src/audit.ts`
+- `packages/contracts/src/audit.test.ts`
+- `packages/contracts/src/rpc/protocol.ts`
+- `packages/platform-service/src/audit/audit-retention.ts`
+- `packages/platform-service/src/audit/audit-retention.test.ts`
+- `packages/platform-service/src/audit/audit-retention.integration.test.ts`
+- `packages/platform-service/src/settings/definitions.ts`
+- `packages/platform-service/src/settings/registry.test.ts`
+- `packages/platform-service/src/service.integration.test.ts`
+- `packages/platform-service/src/profile/migrations.ts`
+- `packages/platform-service/src/profile/migrations.test.ts`
+- `packages/platform-service/src/models/router.ts`
+- `packages/platform-service/src/service.ts`
+- `packages/theia-control-room/src/common/control-room-protocol.ts`
+- `packages/theia-control-room/src/node/control-room-service.ts`
+- `packages/theia-control-room/src/browser/audit-retention-panel.tsx`
+- `packages/theia-control-room/src/browser/audit-retention-panel.test.tsx`
+- `packages/theia-control-room/src/browser/audit-widget.tsx`
+- `packages/theia-control-room/src/browser/style/index.css`
+- `docs/DEVELOPMENT_PLAN.md`
+- `docs/STATUS.md`
+- `docs/OPEN_DECISIONS.md`
+- `docs/TECHNICAL_ARCHITECTURE.md`
+- `docs/SKILLS_AGENTS_AND_TOOLS.md`
+- `docs/PLATFORM_DESIGN.md`
+- `docs/CONTROL_ROOM_HANDBOOK.md`
+- `docs/OPERATIONS_GUIDE.md`
+- `docs/USER_GUIDE.md`
+- `docs/API_REFERENCE.md`
+- `docs/SETTINGS_REFERENCE.md`
+- `docs/reference/rpc-schemas.json`
+- `docs/reference/settings-schemas.json`
+- `docs/reference/DOCUMENTATION_INVENTORY.md`
+- `docs/reference/documentation-inventory.json`
+- `docs/changes/2026-10-24-audit-retention.md`
+
+#### Export complete retained Project audit history
+
+**Impact:** minor
+
+[Permanent work record](docs/changes/2026-10-24-full-audit-export.md).
+
+##### Summary
+
+Complete WP7's deferred full-history audit export. Audit & History previously downloaded only the loaded page and could omit older activity. A separate service-owned export now prepares all retained Project calls, approvals, events and model usage as validated, redacted JSON, with a checksum/count receipt and a Control Room download action.
+
+##### Details
+
+- Add the compatible authenticated `audit/export` request and exported `AuditExportSchema`/receipt/count contracts. The method accepts only Project identity, not an arbitrary output path or user-supplied SQL/filter/cursor. Keep protocol version 1, existing `audit/read` semantics and page download intact. Generated references now describe 199 requests, 28 notifications and the unchanged 85 builtin settings.
+- Serialize history to a unique file under the selected Project's `.gamecrafter/cache/audit-exports/`. Use an exclusively created private partial file, complete-write loops, incremental SHA-256/byte accounting, close and rename before returning the receipt. Validate each redacted record before publication. On a write/serialization/validation failure, remove the partial and preserve source records and previous exports. Check each cache ancestor's resolved containment so a linked export directory cannot redirect output outside the Project.
+- Extend the existing SQLite seam with a lazy row iterator; do not introduce another SQLite interface. ToolStore and TaskStore provide source-owned complete call/approval/event projections; calls and approvals also filter their explicit Project identity. Hold Project and profile transactions during synchronous serialization to keep both stores stable. Memory scales with the largest row/serialized record instead of the complete history, but long exports block service work and other writers; large-dataset performance is not qualified.
+- Refactor model usage projection into a reusable generator. The existing bounded view retains its per-source limit, cross-source chronological sort and final page limit; the exporter consumes all eligible rows. Include current completions, legacy self-reported route outcomes and eligible decision-inference usage; exclude legacy duplicates already represented by current usage and pending assessments without billable evidence. Preserve nullable token counts, unknown/unverified costs and cache counts without inventing prices or zeros.
+- Share model-label redaction between page and full export, preserving internal model identifiers so records continue to join to their registered models. Preserve numeric `*Tokens` fields instead of letting the sensitive-key matcher replace them with strings. Redact credential-like nested fields and whole-value token strings using existing policy, then validate the exported record shape. This is routine redaction, not proof that arbitrary free text contains no private information; operator guidance requires review before sharing.
+- Add the separate **Export full history** action using the backend's typed service bridge and Theia's existing file-download service. It works independently of the loaded page/filter, prevents duplicate preparation while in progress, captures the requested Project identity, and reports preparation counts/bytes and retained-cache behavior. Export errors leave the loaded page, filter and pagination state intact. Keep the existing redacted-page download available, and distinguish page/full export explicitly in the event-section guidance.
+- Reconcile WP7/STATUS and S09 without closing prompt grouping, audit retention/deletion or unrelated export scopes. Record the engineering default in architecture, contracts guidance and the decision log; update the handbook and operations guide with scope, download/cache handling, redaction limitations and service-pause behavior. Map audit RPC inventory evidence to its new owning source directory and regenerate API/schema/inventory projections.
+- Compatibility: additive RPC and export format; no database migration, dependency or package-version change. Product version remains 0.22.0 while pending; impact `minor` reflects a compatible user-visible capability. Export files are separate local cache artifacts, not backup archives or encrypted credential recovery. Repeated exports remain until manually removed or applicable cache cleanup; crashes can leave unpublished partial files. No power-loss durability, archive completeness, installed Electron/Linux or production-scale performance claim is made.
+- Preserve the prior uncommitted security/documentation and plugin-upgrade work. This record owns only complete audit export, its supporting changes and evidence. No ordinary profile/Project, paid external provider, production engine/DCC session, release, installer, GitHub settings or published artifact is changed for this feature. The broader suite executes its existing disposable Blender/Qdrant fixtures where available; those checks do not establish complete live integration acceptance.
+
+##### Validation
+
+- Red integration evidence: after correcting invalid fixture request/decision values, the old service failed with `Method not found: audit/export` while `audit/read` returned only 500 calls. Red UI evidence: the rendered action was absent. Logs: `.turbo/audit-export-red.log`, `.turbo/audit-export-ui-red.log`.
+- Native authenticated RPC integration now exports 1,201 fixture calls/events and 1,201 current model records, plus one eligible legacy usage row and one decision inference. It validates the complete file schema, array counts, UTF-8 content, byte length/SHA-256, nested redaction, preserved numeric token/cache counts, legacy deduplication, pending-assessment exclusion, foreign-Project exclusion, unknown-Project rejection, original history preservation, failure cleanup and external junction/symlink rejection. Disable unrelated board maintenance and identify fixture records explicitly so background events do not become brittle exact-total assertions; restore deliberately corrupted fixture input after the failure probe. Final focused integration passed.
+- Focused service/router/decision/main-RPC checks passed 37 tests across four files; subsequent expanded integration passed. Focused UI passed eight tests, including full export without a page, preserving filters/page state across asynchronous Project selection, and retryable preparation errors. Focused contract/RPC checks passed four tests across two files. No assertions were weakened to mask a product failure; fixture corrections account for actual contract values and independently scheduled activity.
+- The first full gate exposed that applying generic whole-value redaction to long internal model IDs broke an existing model-routing audit assertion. Reproduced the failure in the unchanged model integration suite, removed that extra ID masking, and retained label redaction and numeric token/cache handling. The unchanged model integration and expanded audit integration then passed together (eight tests); final full-gate results follow below.
+- Puppeteer acceptance against the built browser application passed five checks with zero renderer errors: download all 1,201 fixture calls/events/model records from a later event page with a nonmatching filter; verify redaction and numeric token/cache preservation; preserve page/filter selection; match downloaded bytes to the service artifact; renderer health. Final file: 1,155,846 bytes, 1,202 calls (including independent service activity), 1,212 events and 1,201 model-usage records. Corrected the harness to count its fixture records explicitly rather than rejecting legitimate background calls. Evidence: `.turbo/audit-export-ui/report.json`, `full-history-export.png`, `.turbo/audit-export-ui-final.log`. The final build was checked again after clarifying page/full-export guidance. Stopped the owned browser server after validating its port owner; port 3129 is free and the isolated service reports `not running`. This is automated browser/source-fixture evidence, not installed-product or large-dataset acceptance.
+- Generated-reference/inventory freshness (199 requests, 28 notifications, 85 settings, 27 service subsystems), documentation evidence integrity, release-version agreement, Markdown links, formatting and change-record coverage checks passed. Final `npx turbo run build typecheck lint test --concurrency=1` passed all 33 tasks (22 cached), with 930 tests passed / 7 skipped across 184 files: contracts 76, service 712 passed / 6 skipped, Theia extension 137, and the remaining workspace suites. A final frozen-source repeat after the UI guidance correction also passed all 33 tasks (25 cached), including Electron/browser application builds. Logs: `.turbo/audit-export-quality-final.log` and `.turbo/audit-export-quality-frozen.log`. Existing app-shell lint/typecheck/test scripts report `skip`; real application builds and extension/service checks must be distinguished from those placeholders.
+
+##### Files
+
+- `packages/contracts/src/audit.ts`
+- `packages/contracts/src/audit.test.ts`
+- `packages/contracts/src/index.ts`
+- `packages/contracts/src/rpc/protocol.ts`
+- `packages/platform-service/src/audit/audit-export.ts`
+- `packages/platform-service/src/audit/audit-export.integration.test.ts`
+- `packages/platform-service/src/db/database.ts`
+- `packages/platform-service/src/tools/tool-store.ts`
+- `packages/platform-service/src/tasks/task-store.ts`
+- `packages/platform-service/src/models/router.ts`
+- `packages/platform-service/src/service.ts`
+- `packages/theia-control-room/src/browser/audit-widget.tsx`
+- `packages/theia-control-room/src/browser/audit-widget.test.tsx`
+- `packages/theia-control-room/src/common/control-room-protocol.ts`
+- `packages/theia-control-room/src/node/control-room-service.ts`
+- `scripts/generate-documentation-inventory.cjs`
+- `docs/API_REFERENCE.md`
+- `docs/reference/rpc-schemas.json`
+- `docs/reference/DOCUMENTATION_INVENTORY.md`
+- `docs/reference/documentation-inventory.json`
+- `docs/DEVELOPMENT_PLAN.md`
+- `docs/STATUS.md`
+- `docs/OPEN_DECISIONS.md`
+- `docs/TECHNICAL_ARCHITECTURE.md`
+- `docs/PLATFORM_DESIGN.md`
+- `docs/SKILLS_AGENTS_AND_TOOLS.md`
+- `docs/CONTROL_ROOM_HANDBOOK.md`
+- `docs/OPERATIONS_GUIDE.md`
+- `docs/changes/2026-10-24-full-audit-export.md`
+
+#### Group pending approvals and task questions in Requests
+
+**Impact:** minor
+
+[Permanent work record](docs/changes/2026-10-24-grouped-requests.md).
+
+##### Summary
+
+Complete the WP6/WP7 prompt-grouping gap with a service-backed Requests view. Concurrent approvals and task questions previously produced independent notifications, and free-text questions depended on locating a task in Swarm. Users can now review the pending set by Project/root task and respond to each request explicitly, without adding bulk permission or frontend-owned durable state.
+
+##### Details
+
+- Add the compatible authenticated read-only `broker/pendingInputs` RPC and schema-versioned pending-input projection. Read existing approvals/calls/questions/tasks directly, including Project/task/root context; do not depend on a bounded task-history page or add a new persisted queue/table. Include actionable unresolved approvals and unanswered questions on waiting tasks. Exclude terminal task questions, completed/resolved calls and invalid Project ownership. Name missing-manifest Projects as unavailable; other read errors fail the projection instead of silently reporting no work.
+- Preserve mutation authority in existing per-call approval and per-task/question answer RPCs. Fix TaskGraph's stale-question case: a previously answered question cannot be answered again while its task is waiting for a newer question. The regression preserves the original answer and the current question's waiting state. Existing timeout, cancellation, access-mode and ceiling policies remain unchanged; no new broker tool or approval bypass is added.
+- Add the singleton transient Requests model, widget, command and Project Home/PlayWeld-menu destinations. Group by Project/root task, with separate direct-request groups and explicit shown/total counts when filtering; show tool/effect/redacted input or the literal question text and its Project/task context in one selected inspector. Support exact listed string choices, including empty literal choices, and nonblank free text when choices are absent or empty. The view submits strings; specialized structured-answer and MCP elicitation flows remain separate.
+- Replace and remove the independent ToolApprovalHandler/TaskQuestionHandler toast implementations and bindings. One generic summary notification opens Requests and contains no approval/answer action. New request events coalesce; duplicate snapshots do not repeat a notification, and only one summary is open at a time under Theia's normal notification lifecycle. Existing Swarm approval/question controls remain available. Dismissing a notification or selecting a group grants no permission and does not answer anything.
+- Refresh on opening, relevant events, reconnect and ten-second reconciliation. Use a bounded 75ms coalescing window and queue a follow-up read for events during an in-flight read, avoiding both indefinite debounce starvation and overlapping refresh churn. Disconnection invalidates older in-flight results. Failed/disconnected snapshots remain visible but cannot dispatch responses until fresh service data succeeds. Responses capture their own identity, suppress duplicate submissions per request, refresh after errors/success and never automatically retry mutations.
+- Keep the selected request identity after it resolves so the inspector clears until another request is selected. Key detail content by request identity to prevent reusing a previous request's action button. A delayed pointer/keyboard action must not become approval of the next request. Keep unsaved drafts across selection changes and transient failures, including unavailable-Project recovery; remove them on resolution. Background reads keep draft fields editable to preserve typing/focus while response buttons wait for fresh state. Drafts are transient and disappear with the view; durable requests remain in the service.
+- Add a responsive two-column list/inspector layout that stacks below 680px, wraps long content and constrains form controls. Preserve native button/select/textarea keyboard semantics, selected-state labeling, loading/error states and per-request disabled controls. Navigation tests now include the new Requests command/destination rather than retaining the previous destination count.
+- Reconcile WP6/WP7, STATUS and S01/U04 in place, retaining the wider product/creative ownership of U04 and remaining audit-retention/deletion work. Add the selected engineering default in architecture/contracts and the decision log. Update handbook, user guide, operations guide and workflow cookbook for review-only notifications, explicit response controls, recovery and limitations. Regenerate API/schema/inventory projections: 200 requests, unchanged 28 notifications/85 builtin settings/27 service subsystems, and 17 Control Room surfaces including Project Home.
+- Compatibility: additive RPC/contracts; no database migration, dependency, package version or installed-profile change. Current product version remains 0.22.0 while pending. Impact `minor` reflects a compatible user-visible feature and replacement of direct toast response buttons with a persistent review surface. Existing exact-identity RPC clients and Swarm response controls remain compatible. No user-confirmed requirement/decision row is changed or newly confirmed.
+- Preserve all earlier pending security/documentation, plugin-upgrade and audit-export work. Only disposable test profiles/Projects are used for actual responses. No ordinary user request, credentials/private configuration, paid provider, production editor, installer, release, remote settings or public artifact is modified. The broader suite's existing disposable native/Docker fixtures retain their own evidence boundaries.
+
+##### Validation
+
+- Red evidence: the old service rejected `broker/pendingInputs` as an unknown method; the old TaskGraph accepted an old answered question while another was pending. Additional red cases demonstrated sustained-event debounce starvation, inability to answer a valid empty-choice question, and disabled draft fields during background reads. Logs: `.turbo/requests-rpc-red.log`, `.turbo/requests-stale-question-red.log`, `.turbo/requests-event-burst-red.log`, `.turbo/requests-empty-options-red.log`, `.turbo/requests-draft-focus-red.log`.
+- Native RPC integration passed with two Projects, root/child task context, choice/free-text questions, independently approved/rejected calls, redacted credential-shaped fixture input, cancellation, missing-manifest Project reporting, stale approval rejection, service restart and recovery of the exact pending question. Corrected the fixture to assert the broker's existing rejection error rather than expecting a success result for a rejected tool call. The original graph regression also passes without weakening its original-answer/current-question assertions.
+- Model/render/navigation tests pass for burst coalescing, one review notification, no implicit mutations, sustained events, exact per-call response identity, stale resolutions, disconnect/late results, failed reads/actions, lifecycle disposal, listed/empty/free-text answers, literal text escaping, selected-inspector clearing and draft editability during refresh. Typecheck and lint passed while iterating. Home/menu expectations were updated for the new destination; previous routes remain asserted.
+- The first full run passed all package tests but its browser application build hit `EBUSY` copying the loaded Windows `conpty.node` while the owned browser server was running. Stop that server before rebuilding; do not weaken build checks. The first browser attempt also found the summary toast covering the narrow-window answer button; the harness now uses the real **Review requests** action first and asserts that opening the view executes nothing. The final checks below use the corrected harness and a stopped browser server during builds.
+- Final `npx turbo run build typecheck lint test --concurrency=1` passed all 33 tasks (25 cached), including actual Electron/browser application builds. The validated package suites total 943 passed / 7 skipped tests across 188 files: contracts 77; platform service 714 passed / 6 skipped; Theia extension 147; other workspaces retain their checks. The final frozen-source repeat after the shown/total count clarification also passed all 33 tasks (25 cached). Logs: `.turbo/requests-quality-final.log`, `.turbo/requests-quality-handoff.log`. Existing app-shell lint/typecheck/test scripts say `skip`; extension/service tests and application builds provide the actual source/build evidence.
+- The built-browser acceptance passed seven checks with zero renderer errors: one review summary for three questions/three approvals; no authority from opening Requests; held-click resolution in another client cannot approve a replacement; exact selected approval and independent rejection; correct choice/free-text worker answers; remaining-question recovery after browser reload; renderer health. Draft typing focus/value survived periodic refresh. At a 480px viewport the Requests content measured 383px client/scroll width with no horizontal overflow. Evidence: `.turbo/requests-ui/report.json`, `grouped-requests.png`, `requests-narrow.png`, `.turbo/requests-ui-handoff.log`. The final capture is repeated after the count-label clarification.
+- Source/reference and documentation-inventory freshness (200 requests, 28 notifications, 85 settings, 27 service subsystems), documentation evidence integrity, release version 0.22.0, Markdown links, root Prettier, Git whitespace and changed-path/changelog checks passed. Only owned browser/service processes are used; final cleanup verifies port 3130 is free and the isolated service is stopped. No installer, installed Electron/Linux or broad provider/engine acceptance claim is made.
+
+##### Files
+
+- `packages/contracts/src/tasks/pending-inputs.ts`
+- `packages/contracts/src/tasks/pending-inputs.test.ts`
+- `packages/contracts/src/tasks/index.ts`
+- `packages/contracts/src/rpc/protocol.ts`
+- `packages/platform-service/src/tasks/pending-inputs.ts`
+- `packages/platform-service/src/tasks/pending-inputs.integration.test.ts`
+- `packages/platform-service/src/tasks/task-graph.ts`
+- `packages/platform-service/src/tasks/task-graph.test.ts`
+- `packages/platform-service/src/service.ts`
+- `packages/theia-control-room/src/common/control-room-protocol.ts`
+- `packages/theia-control-room/src/node/control-room-service.ts`
+- `packages/theia-control-room/src/browser/requests-model.ts`
+- `packages/theia-control-room/src/browser/requests-model.test.ts`
+- `packages/theia-control-room/src/browser/requests-widget.tsx`
+- `packages/theia-control-room/src/browser/requests-widget.test.tsx`
+- `packages/theia-control-room/src/browser/requests-view-contribution.ts`
+- `packages/theia-control-room/src/browser/control-room-frontend-module.ts`
+- `packages/theia-control-room/src/browser/project-home-widget.tsx`
+- `packages/theia-control-room/src/browser/project-home-widget.test.tsx`
+- `packages/theia-control-room/src/browser/workspace-menu-contribution.ts`
+- `packages/theia-control-room/src/browser/style/index.css`
+- `packages/theia-control-room/src/browser/task-question-handler.ts`
+- `packages/theia-control-room/src/browser/tool-approval-handler.ts`
+- `docs/API_REFERENCE.md`
+- `docs/reference/rpc-schemas.json`
+- `docs/reference/DOCUMENTATION_INVENTORY.md`
+- `docs/reference/documentation-inventory.json`
+- `docs/DEVELOPMENT_PLAN.md`
+- `docs/STATUS.md`
+- `docs/OPEN_DECISIONS.md`
+- `docs/TECHNICAL_ARCHITECTURE.md`
+- `docs/PLATFORM_DESIGN.md`
+- `docs/SKILLS_AGENTS_AND_TOOLS.md`
+- `docs/CONTROL_ROOM_HANDBOOK.md`
+- `docs/USER_GUIDE.md`
+- `docs/OPERATIONS_GUIDE.md`
+- `docs/WORKFLOW_COOKBOOK.md`
+- `docs/changes/2026-10-24-grouped-requests.md`
+
+#### Complete declarative plugin settings upgrades
+
+**Impact:** minor
+
+[Permanent work record](docs/changes/2026-10-24-plugin-settings-upgrades.md).
+
+##### Summary
+
+Complete WP5's deferred plugin-setting migration path using the existing WP12 lifecycle. Users can review and install a higher plugin version without uninstalling and losing settings; service-owned declarative transforms preserve scope precedence, fail closed on invalid data, and checkpoint each durable store independently.
+
+##### Details
+
+- Extend the existing manifest migration entries with optional `rename`, `map-values` and `remove` operations and optional scope selectors. Legacy description-only entries and empty arrays remain valid. Export a schema-versioned persisted upgrade-plan contract; do not add an executable migration hook or a parallel plugin format. Validate forward/unambiguous chains, owned keys, collisions, exact value mappings, resulting schemas and scope eligibility. Unknown or incompatible values are preserved behind an actionable error rather than silently dropped.
+- Add a service-owned migration component integrated with SettingsService resolution, enumeration, set/import and plugin lifecycle. Profile migration 20 adds history/checkpoint persistence; Project migration 14 adds per-plugin checkpoints. Both are additive and retain existing setting rows. Profile activation, its plan, platform overrides and version checkpoint commit together. Project overrides/checkpoints migrate atomically on access; session overrides convert in memory and remain ephemeral. Import previews validate transforms without applying settings/checkpoint changes.
+- Keep import migration work limited to the selected scope and imported setting owners. A targeted regression exposed that a platform import carrying a Project ID could otherwise migrate that Project as a side effect; restrict it and verify the Project's old rows remain untouched. Importing unrelated builtin settings also does not force an unrelated plugin's pending migration.
+- Preserve migration history for Projects that were unavailable or skipped versions. Use a complete package-declared chain when a restored Project arrives in a fresh profile without local history. Missing chains or invalid results fail without discarding original overrides. The mechanism is per-store transactional, not a global crash-atomic transaction over every registered Project. Existing unavailable-Project uninstall cleanup limitations are documented separately.
+- Enforce actual setting ownership when plugin IDs contain dots. Prefix-only matching would let a parent-like ID include a different plugin's namespace. Protect current declarations and other plugins' historical keys, reject cross-owner operations, and delete only the upgrading plugin's owned rows. Add a parent/child-ID regression covering migration and uninstall without touching the child plugin's value.
+- Apply the same owner-based selection to worker initialization and settings-change delivery. A worker receives only definitions registered to its own plugin; accessing one plugin no longer attempts unrelated plugins' pending migrations. This closes the corresponding prefix-based configuration-delivery mismatch instead of only protecting database writes.
+- Extend the service's existing `plugin/install` path to higher versions; retain exact-capability review, compatibility checks, reverse dependent-plugin constraints, enabled state, Project enablement and secret references. Identical bytes/version are idempotent; same-version republishing and downgrades remain rejected. Stage immutable version directories, preflight before stopping workers, revalidate after stopping, activate synchronously after the profile commit, and retain old files until uninstall. Failed preparation/commit cleans only the candidate; a committed active installation is not deleted by a later activation error.
+- Serialize install/uninstall/enable/disable/start/stop and auto-start lifecycle mutations. Stop old workers before activation and attempt restart for previously running Projects; worker failures remain visible. Native worker integration proves a changed PID and tool output using the migrated value; invalid subsequent upgrades leave the running worker, settings and installed version intact. Uninstall removes retained version directories and reachable owned settings/history while preserving usage/audit records.
+- Update the Plugins UI to identify upgrades, expose inspection/migration warnings and an expandable review of version transitions, descriptions and exact declarative operations, and report upgrade completion. Settings subscribes to plugin changes so replaced definitions refresh. Add a rendered component test for the upgrade action and warnings. No new RPC method, protocol version, builtin setting or dependency is introduced; generated RPC schema exports now include the compatible optional manifest field.
+- Reconcile WP5/STATUS and W06/U03/S04 in place, link the engineering default in architecture/contracts and the decision log, and add author guidance with migration examples, scope behavior, failure/recovery limits, platform compatibility and pending-release qualification. Preserve user-confirmed requirements and all unrelated remaining work. Correct the extension cookbook's stale Windows-isolation prerequisite using scoped existing/native evidence.
+- Compatibility and migration: product version stays 0.22.0 while pending. Existing plugins without new operations remain compatible. Existing profile/Project stores acquire additive tables on migration; ordinary user data was not opened or upgraded in this session. Older applications must not be used against newer store schemas; normal backup/restore and release compatibility rules apply. Impact `minor` reflects a compatible feature and optional manifest expansion; release preparation must choose a new version before packaging. Arbitrary executable/data migrations, plugin signatures/egress policy and release/installer acceptance remain open.
+- Preserve all uncommitted security/documentation work from the preceding session steps. This record owns only the plugin upgrade feature and its evidence; prior records remain permanent sources for their separate changes.
+
+##### Validation
+
+- Red contract test failed on the old schema because migration operations were unsupported. After the contract change, the RPC upgrade test passed for renamed platform/Project/session values and durable restart behavior. Added unsupported-operation/schema rejection, skipped-version replay, restored-profile fallback, collision/invalid-value/foreign-key/missing-chain rejection, checkpoint-write rollback, nonmutating preview and explicit scope-removal tests.
+- Focused service/installer/settings/profile checks passed, including real sandboxed worker upgrade/restart/tool output and failed-upgrade preservation. Focused UI test initially exposed incomplete mock fixture data; corrected the fixture and all three catalog layout tests passed. These fixture corrections did not require weakening product assertions. A later rendered regression also demonstrated that a warning alone did not display the migration operations; add the expandable review and verify its description and source/destination keys. All three catalog tests pass. The final outcomes follow.
+- The new scoped-import assertion failed during a full run that began before its correction; the final source then passed build/typecheck/lint and 35 focused service tests (one existing skip). One concurrent broad-build attempt encountered a locked native AppContainerHost executable while worker integration was running. Wait for the owned worker tests to finish and rerun verification without changing product behavior or assertions.
+- Final frozen-source `npx turbo run build typecheck lint test --concurrency=1` passed all 33 tasks (25 cached); the preceding complete run passed all 33 (24 cached), with 925 passed / 7 skipped tests across 182 files. Platform service: 711 passed / 6 skipped across 130 files; contracts: 75 passed; Theia extension: 134 passed. Existing app-shell lint/typecheck/test scripts say `skip`; this gate also built the actual Electron/browser applications and checked the extension/service code. Logs: `.turbo/plugin-settings-upgrade-quality-complete.log` and `.turbo/plugin-settings-upgrade-quality-frozen.log`.
+- Final Puppeteer acceptance against the built browser application passed five checks with zero renderer errors: inspect v2 while v1 remains active; display migration descriptions and exact operations; accept the real upgrade and convert the stored override; refresh an already-open Settings view to the renamed field/value; renderer health. Corrected harness readiness, nested navigation-label selectors and an initially stale built asset before this final run. Report and screenshots: `.turbo/plugin-settings-upgrade-ui/report.json`, `upgrade-review.png`, `upgraded-settings.png`; run log `.turbo/plugin-settings-upgrade-ui-frozen.log`. This is scoped automated browser/native-worker evidence, not installer or personal product acceptance. The screenshot retains existing Settings navigation layout limitations; no broader UI-layout acceptance is claimed.
+- Stopped only the owned browser server after checking port ownership; port 3128 is free, and the disposable service reports `not running`. Retained ignored fixtures/evidence. System-reference and documentation-inventory checks, documentation evidence integrity, release-version check (0.22.0), root Prettier formatting, Markdown links and Git whitespace checks passed. Regenerated the changelog and verified changed-path coverage against HEAD.
+- Existing database seam, migrations and supported authenticated RPC/CLI interfaces are used throughout. Native tests use disposable profiles/Projects; no ordinary profile, credential, provider, engine or paid external service is used for this feature. The broader package suite may execute its existing disposable Blender/Qdrant fixtures; that is not full integration acceptance.
+
+##### Files
+
+- `packages/contracts/src/plugins/schema.ts`
+- `packages/contracts/src/plugins/plugins.test.ts`
+- `packages/platform-service/src/profile/migrations.ts`
+- `packages/platform-service/src/profile/migrations.test.ts`
+- `packages/platform-service/src/projects/migrations.ts`
+- `packages/platform-service/src/settings/plugin-settings-migrations.ts`
+- `packages/platform-service/src/settings/registry.ts`
+- `packages/platform-service/src/settings/settings-service.ts`
+- `packages/platform-service/src/settings/settings-service.test.ts`
+- `packages/platform-service/src/plugins/plugin-installer.ts`
+- `packages/platform-service/src/plugins/plugin-host.ts`
+- `packages/platform-service/src/plugins/plugin-service.ts`
+- `packages/platform-service/src/plugins/plugin-service.integration.test.ts`
+- `packages/theia-control-room/src/browser/plugins-catalog-widget.tsx`
+- `packages/theia-control-room/src/browser/plugins-catalog-widget.test.tsx`
+- `packages/theia-control-room/src/browser/settings-widget.tsx`
+- `docs/TECHNICAL_ARCHITECTURE.md`
+- `docs/SKILLS_AGENTS_AND_TOOLS.md`
+- `docs/PLATFORM_DESIGN.md`
+- `docs/DEVELOPMENT_PLAN.md`
+- `docs/STATUS.md`
+- `docs/OPEN_DECISIONS.md`
+- `docs/EXTENSION_COOKBOOK.md`
+- `docs/reference/rpc-schemas.json`
+- `docs/changes/2026-10-24-plugin-settings-upgrades.md`
+
+#### Service-log retention and pruning
+
+**Impact:** minor
+
+[Permanent work record](docs/changes/2026-10-24-service-log-retention.md).
+
+##### Summary
+
+Make the existing platform `logs.retentionDays` setting effective for CLI diagnostic files. Prune recognized expired entries at startup, immediately after policy changes/reset/import and every minute, while preserving the existing current-file/one-rotation size policy and stderr diagnostics.
+
+##### Details
+
+- Previously the CLI wrote redacted `service.jsonl` diagnostics and replaced `service.1.jsonl` at roughly 5 MiB, but never used the existing retention setting. The owning CLI now applies the saved platform policy after settings load. The default remains 30 days with a minimum of one; no Project/session override, new setting, protocol method or zero/keep-forever meaning is added. Clarify the setting's UI/reference description that this controls maximum age and size rotation can replace records earlier.
+- Add a service-to-owner callback for the initial effective retention value and platform setting changes, including import and reset. Embedded service instances leave process-global logging alone unless their owner explicitly opts into the callback/logger. A CLI-owned unreferenced 60-second timer prunes quiet files without depending on new writes. Signal and authenticated RPC shutdown still write the final diagnostic, dispose the logger/timer and release the process lock. Initialization failure also releases the lock, and logger disposal occurs after the top-level startup-error diagnostic is persisted.
+- Scan only `service.jsonl` and `service.1.jsonl`. Remove complete recognized JSON log entries with literal string levels and canonical logger timestamps strictly older than the configured cutoff; do not coerce array/object level values into recognized levels. Preserve exact-cutoff/future entries and malformed, truncated, undated, noncanonical or invalid-UTF-8 input byte for byte. Blank/unknown records are retained. Fully expired files are unlinked; unrelated files are never selected. Unexpected files above 10 MiB or 100,000 lines are preserved with a generic stderr warning, bounding cleanup reads and line bookkeeping.
+- Compact mixed files through an exclusive mode-0600 temporary file, file sync and atomic replacement after rechecking the original file identity/size/mtime. A failed replacement preserves the original and attempts temporary-file cleanup. Atomicity is per file; neither a two-file transaction nor power-loss recovery is claimed. Interrupted processes may leave a private temporary copy for stopped-service operator review. Do not automatically delete such copies by filename.
+- Reject redirected log directories, symbolic links, nonregular and multiply linked files. Verify the real directory identity and opened-file identity, use no-follow opens where supported, and apply the same file checks to append and size rotation. Retain generic error messages and redacted stderr fallback. These are conservative path/accidental-change guards, not a proof against all concurrent filesystem operations by another same-user process. Normal size rotation can still supersede evidence preserved by age pruning.
+- Add regression-first coverage for age selection, cutoff/future/malformed retention, unknown timestamps, byte preservation, dynamic policy, quiet periodic execution, timer disposal, hard-linked files, redirected directories and atomic replacement failure. Extend the real compiled CLI lifecycle test with a persisted 365-day policy, expired startup/rotation entries, live shortening, reset-to-default, unrelated-file preservation and normal shutdown; isolate connection-readiness retries from assertions/mutations. Add CLI startup-failure tests proving that an unsafe log directory does not leave a stale process lock and a corrupt-profile startup error is persisted before logger disposal.
+- Update WP7 status, S09 in place, architecture/default records, current status and user/operator instructions. Explain configuration, maximum-age versus guaranteed-duration semantics, failure recovery, private temporary-file handling and separation from SQLite audit cleanup. Regenerate the setting reference/schema description; counts remain 204 requests and 88 built-in settings. Existing audit-retention/export work and its permanent records remain intact; broader domain/operational/accounting retention remains open.
+- Compatibility/migration: no new packages, dependencies, RPC/data schemas or migrations. Profile schema remains 21 and Project schema 14. Existing CLI lifecycle/technical identifiers and two-file size rotation remain compatible. The previously unused existing setting now causes automatic logical age deletion, including its saved/default policy on startup; preserve required diagnostics before shortening it. Audit enablement is independent, and no SQLite cleanup receipt is created. SQLite rows, Project files, exports, backups and arbitrary log-directory files are outside this policy. No secure erasure is claimed.
+- Minor impact reflects newly functioning compatible retention behavior. Keep version 0.22.0 pending; no packaging, installer, tag or publication is prepared.
+
+##### Validation
+
+- `npm test -w @gamecrafter/platform-service -- src/logger.test.ts` first failed four new cases while the original persistence/size-rotation case passed, reproducing the missing retention hook and redirected-directory acceptance. Evidence: `.turbo/service-log-retention-red.log`.
+- Focused logger/compiled CLI suites passed ten tests in two files after implementation. The atomic-replacement probe initially failed because its filesystem spy did not intercept an ESM builtin binding; corrected the test mock and verified original-byte preservation plus temporary cleanup without changing the assertion. Evidence: `.turbo/service-log-retention-final-focused.log` (ten passing tests), with earlier lifecycle checks in `.turbo/service-log-retention-lifecycle-final.log`. A final regression reproduced coercion of an array-shaped log level into a recognized value; require a literal string level and preserve that unknown record shape. Red evidence: `.turbo/service-log-retention-unknown-shape-red.log`; the final focused suite passed afterward.
+- Native acceptance against the compiled CLI and a disposable profile passed six checks: saved-policy startup pruning, live shortening, reset to the default, real quiet-file periodic pruning, preservation of unrelated files/SQLite model-usage sentinel, and clean shutdown. Native acceptance has been repeated during implementation with real intervals of approximately 60 seconds; the final report records its exact elapsed time. Both managed files lost expired entries and retained fresh ones, using entry timestamps rather than file modification times. Evidence: `.turbo/service-log-retention-native/report.json` and `.turbo/service-log-retention-native.log`. The isolated daemon reports not running and its lock is removed; no ordinary profile or Project was modified.
+- The complete `npx turbo run build typecheck lint test --concurrency=1` attempt did not produce a complete passing report: the existing native Windows opener fixture failed in temporary-directory cleanup and worker/tool entry files disappeared, followed by worker termination. Earlier preparation runs were interrupted and are not counted as passing gates. See [the separate investigation/recovery record](docs/changes/2026-10-24-native-opener-fixture-cleanup.md); no antivirus-setting change or test assertion weakening is retained.
+- After verified local-tool restoration and forced service-output rebuilding, `npx turbo run build typecheck lint --concurrency=1` passed 25 tasks (17 cached), including Electron/browser application builds; `npx turbo run test --concurrency=1 --filter='!@gamecrafter/platform-service'` passed 14 tasks (12 cached). App-shell lint/typecheck/test placeholders still report skip. The service suite with only `--exclude src/assets/external-open.windows.test.ts` passed 730 tests / 6 skipped across 133 files in 593.38 seconds. Together with other workspaces, 966 tests passed / 7 skipped across 190 files, with one existing native Windows opener test explicitly excluded. This does not establish a complete full-gate pass. Evidence: `.turbo/service-log-retention-service-verified.log`, `.turbo/service-log-retention-build-quality.log` and `.turbo/service-log-retention-other-tests-verified.log`.
+- Generated-reference/inventory freshness (204 requests, 88 settings), documentation evidence integrity, release-version agreement, Markdown links, formatting, whitespace and changelog coverage checks passed. The user later supplied the Bitdefender behavioral-block notice and restart requirement (`SuspiciousBehavior.567DCD8166FD2594`); preserve the full-gate limitation and stop further native-opener runs/recovery until the event is reviewed. No antivirus setting changes or device restart were performed.
+- No frontend code changed; the existing Settings control is covered through its authenticated settings RPC and real CLI owner rather than new browser acceptance. No new live provider/engine/DCC workflow, packaged desktop/installer, power-loss drill, large-history qualification or production acceptance is claimed. Existing full-suite integration evidence must be distinguished from qualification of this feature.
+
+##### Files
+
+- `packages/platform-service/src/logger.ts`
+- `packages/platform-service/src/logger.test.ts`
+- `packages/platform-service/src/cli.ts`
+- `packages/platform-service/src/cli.test.ts`
+- `packages/platform-service/src/service.ts`
+- `packages/platform-service/src/settings/definitions.ts`
+- `docs/TECHNICAL_ARCHITECTURE.md`
+- `docs/DEVELOPMENT_PLAN.md`
+- `docs/STATUS.md`
+- `docs/OPEN_DECISIONS.md`
+- `docs/PLATFORM_DESIGN.md`
+- `docs/OPERATIONS_GUIDE.md`
+- `docs/CONTROL_ROOM_HANDBOOK.md`
+- `docs/USER_GUIDE.md`
+- `docs/SETTINGS_REFERENCE.md`
+- `docs/reference/settings-schemas.json`
+- `docs/changes/2026-10-24-service-log-retention.md`
+
 ### Fixed
 
 #### Keep Models tables and discovery controls readable in narrow views
@@ -126,6 +452,208 @@ vulnerability reporting, and schedule weekly GitHub Actions dependency updates.
 - `docs/changes/2026-10-24-repository-security-quality.md`
 - `CHANGELOG.md`
 
+#### Refresh vulnerable dependency lines without changing Theia
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-24-security-dependencies.md).
+
+##### Summary
+
+Refresh exact dependency and transitive override pins to remediate the reviewed npm advisories while retaining the directly declared Theia application/extension packages at 1.75.0 and keeping the product version at 0.22.0.
+
+##### Details
+
+- Pin Electron 42.11.18 consistently in the desktop manifest and root override, DOMPurify 3.4.17, MCP SDK 1.32.1 in both the service dev dependency and global override, and serializer 7.1.3. Raise the existing SDK security-version regression floor to 1.32.1; refresh the Theia development skill's Electron reference.
+- Upgrade Vitest to 5.0.5 and Puppeteer/Puppeteer Core to 25.14.0, aligning Theia CLI's transitive Puppeteer with the same direct dependency. Update the exact allowed install-script entry for Puppeteer. Select Vite 8.3.4 to close the vulnerable 8.3.0-8.3.2 line without adopting the newer 8.3.5 candidate in a concurrent dependency PR.
+- Pin patched transitive lines: body-parser 1.20.9 and 2.4.0 by major selector, fast-uri 3.1.9, follow-redirects 1.16.1, Hono 4.13.13, ip-address 10.7.4, markdown-it 14.3.3, multer 2.5.0, and Undici 6.29.1/7.30.1 by major selector. Preserve both body-parser and Undici API generations rather than globally replacing them with another major.
+- Pin Zod 4.6.7 after updating Puppeteer/Chromium BiDi and SDK consumers to versions declaring Zod 4 compatibility. This removes the vulnerable Zod 3 parser without overriding an unchanged Chromium BiDi consumer that required Zod 3. Retain existing local braces/sprintf-js security patches and the archive extractor seam.
+- Verify registry release dates using `npm view` and registry metadata. Prefer versions at least seven days old; explicit security exceptions are Electron 42.11.18 (October 21), serializer 7.1.3 (October 22), body-parser 1.20.9/2.4.0 and multer 2.5.0 (October 22), and fast-uri 3.1.9 (October 19). Older available versions in those lines still matched reviewed advisories; the seven-day rule is a preference, and retaining known affected versions would not complete remediation.
+- Update the lockfile, then use a clean `npm ci --foreground-scripts`; exact pin changes alone initially left old transitive lock entries, so perform a targeted lockfile update before installation. No `npm audit fix --force`, Theia downgrade, product-version preparation, ordinary profile change or installer publication occurs. Concurrent dependency PRs are neither edited nor merged.
+- During iteration, SDK 1.32.2 and serializer 7.1.4 were initially selected. Prefer the already-aged SDK 1.32.1 and the minimal patched serializer 7.1.3 after checking advisory ranges. Incremental installation left one old root SDK copy despite the new override; a targeted update plus a second clean install corrected it. Final `npm ls` has no invalid dependency and resolves both service and Theia MCP consumers to SDK 1.32.1 with Zod 4.6.7. These intermediate versions are not the final pins.
+- Compatibility and migration: dependency-only runtime/tooling changes, no application/RPC/storage version change or data migration. Native modules are reinstalled/rebuilt for verification. Impact `patch` reflects shipped security dependency corrections; a future release must still follow normal version preparation.
+
+##### Validation
+
+- Clean `npm ci --foreground-scripts` passed, including the retained local patches. Full `npm audit --json` and production-only `npm audit --omit=dev --json` both report zero vulnerabilities, compared with the review's 22 and 48 affected-package entries. Audit results are registry snapshots, not proof that application-level vulnerabilities are absent.
+- Focused provider, SDK, backup and opener verification passed 53 tests with Vitest 5.0.5. The final full Turbo gate passed 33/33 tasks with 21 cached; the platform suite reran and passed 702 tests with six capability/OS skips. Both Electron and browser application builds passed. All directly declared Theia application/extension dependencies remain exactly 1.75.0. No packaged or installed Electron upgrade is claimed.
+- Start the built browser on loopback port 3127 with separate `.turbo/security-remediation-ui-profile` and config directories. The first smoke reached seven successful UI checks with no renderer errors, then its direct RPC client used the default pipe because the smoke process lacked the server's profile variable; it failed with `ENOENT` before that direct RPC operation. Repeat with matching isolated profile/config environment: 33 rendered checks passed with zero renderer errors, including Project creation/opening, settings export/import, Models layout, skill reading, audit and backend disconnect survival. Retain the failed attempt and successful retry separately; no application patch was needed for the harness configuration error.
+- Final logs and screenshots are machine-local under `.turbo/security-remediation-*`; the successful rendered report is `.turbo/security-remediation-ui-retry/report.json`. These disposable-profile browser checks do not prove packaged Electron behavior, an installed upgrade, publisher trust, arbitrary provider/engine interoperability or production readiness.
+- Stop the task-owned browser server after verifying its recorded PID owns port 3127, then stop the isolated service through its supported CLI. Cleanup readback reports `not running` and no listener on 3127. Retain disposable fixtures/evidence; ordinary installed application/profile data is not stopped or modified.
+
+##### Files
+
+- `package.json`
+- `package-lock.json`
+- `apps/control-room/package.json`
+- `packages/platform-service/package.json`
+- `packages/platform-service/src/dependencies/mcp-sdk-version.test.ts`
+- `.agents/skills/theia-app-dev/SKILL.md`
+- `docs/changes/2026-10-24-security-dependencies.md`
+
+#### Correct asset-opening and input-interpretation security boundaries
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-24-security-remediation.md).
+
+##### Summary
+
+Replace the vulnerable Windows default asset opener with literal-path launch, reject configured Windows shell-command modes, and correct input-normalization weaknesses identified during the project review. Broader feature work remains outside this task.
+
+##### Details
+
+- The previous Windows default appended an existing Project asset pathname to `cmd /c start`, allowing legal filename metacharacters to become command syntax after a user open action. Preserve realpath/existence/Project containment, but pass the canonical pathname only through a dedicated child environment value to fixed `Invoke-Item -LiteralPath` code. Use the system Windows PowerShell executable, disable profiles/interaction, hide its helper window, and keep the helper attached until its bounded completion. A nonzero exit, startup error or ten-second timeout reports `launched: false`; configured application launch retains its existing spawn-based result.
+- The Windows default relies on the documented [Invoke-Item literal-path/default-action contract](https://learn.microsoft.com/en-us/PowerShell/module/microsoft.powershell.management/invoke-item?view=powershell-5.1), verified here with a real benign executable fixture rather than assuming command-array separation alone proves native launch behavior.
+- Reject configured `cmd`/`command.com` and PowerShell command-string modes before appending filenames. Require explicit PowerShell `-File` with a script and documented safe pre-file options; a later `-File` inside `-Command` text cannot bypass this check. Ordinary applications, fixed arguments, quoted paths, Node shebang scripts, and macOS/Linux defaults retain their argument behavior. Abbreviated/other PowerShell modes must be rewritten to explicit file mode; no persisted setting is silently changed.
+- Add mocked boundary/error/timeout/path tests and a native Windows regression that compiles a benign windowless fixture, opens literal metacharacter and space/Unicode executable names through the real default helper, and verifies the exact launched pathname. The test opens no authoring application and executes no injected shell payload. Initial red tests exposed the old `cmd` boundary and incorrect helper-success reporting; an initial .NET helper attempt returned `EPERM`, and a detached helper did not launch the native fixture. The final supported literal-path helper passes the native launch checks without detachment. These discarded attempts are not shipped implementations.
+- Escape Drive query backslashes before quotes in both list and exact-file lookup. A fixture parses the returned query literal for list/get/delete to prove the configured folder value round-trips. This addresses robustness without promoting the original owner-configured query warning into a demonstrated authorization exploit.
+- Decode S3 XML entities in one pass so decoded text is not interpreted as another entity. Verify the nested-entity result and retain archive-name rejection before download. Anchor the fixture's SigV4 authorization parser to its fixed scheme to remove repeated unanchored searches; real signature verification remains intact.
+- Replace the provider trailing-slash backtracking expression with a linear scan shared by endpoint construction and OpenAI response eligibility. Preserve ordinary and all-slash/empty values; exercise a 100,000-slash input. Escape backslashes before Markdown table delimiters in generated-reference formatting; current schema/reference bytes remain unchanged.
+- Use one independent pre-patch boundary/compatibility investigation and one independent candidate review. The latter found no concrete bypass/regression and identified intentional PowerShell-option restrictions for documentation. Add support for safe `-Sta`/`-Mta` switches while retaining explicit file-mode validation.
+- Triage all twelve reviewed CodeQL alerts: the Drive/S3/provider/generator/fixture patterns above and the three workflow permission declarations are corrected in source. The vector-store SHA-256 alert refers to a cache identity rather than password authentication; the A2A limiter alert has existing source-backed rate/concurrency controls and a passing unauthenticated-quota regression. Do not weaken those controls or add inappropriate slow password hashing to a cache key. No remote alert is dismissed or claimed cleared; fresh hosted analysis and formal disposition remain separate from these local fixes.
+- Compatibility: RPC/result/error schemas, Project data, filenames and product version remain unchanged. Existing shell-command authoring settings now fail closed with an actionable error and need the documented application/script-file rewrite; no data migration or automatic settings edit occurs. Impact `patch` reflects a security fix with this explicit configuration restriction. The original sealed security scan remains an immutable pre-fix snapshot.
+- Related work: [dependency remediation](docs/changes/2026-10-24-security-dependencies.md), [workflow hardening](docs/changes/2026-10-24-workflow-security.md), and [documentation reconciliation](docs/changes/2026-10-24-documentation-reconciliation.md) are tracked separately. Signed publication, plugin signature/egress policy, installer lifecycle and broad live acceptance remain open.
+
+##### Validation
+
+- Initial opener regression: five failures/six passes, including one corrected test expectation; the actual Windows/default and helper-error regressions failed on the old implementation. Subsequent focused opener run: 19 passes, including the real Windows literal-filename fixture. The final eight-file focused run passed 53 tests, including the added timeout regression, configured-mode rejection, literal filename launch and the nearest existing asset/provider/backup/SDK cases.
+- Narrow typecheck passed. The initial eight-file run's native-helper failure was investigated and corrected as described above. Final `npx turbo run build typecheck lint test --concurrency=1` passed 33/33 tasks (21 cached); the owning platform suite reran with 702 passes/six skips, and aggregate package results cover 911 passes/seven skips across 182 test files. An earlier combined run passed all 33 tasks uncached. Electron/browser builds passed; Electron's placeholder lint/typecheck/test tasks remain explicit skips rather than application-test evidence. Generated references/inventory/evidence, version, workflow assertions, formatting, links, changelog coverage and diff whitespace checks passed.
+- Source review and benign fixture execution do not establish all application security, supported-OS qualification, packaged/installed behavior, real remote backup operation or provider compatibility. No ordinary Project/profile, credential or paid provider was used. Automated package suites also run disposable native Blender and managed Qdrant fixtures when available; these are separate from ordinary user Projects or fresh broad integration acceptance. The earlier session review wording that no DCC operation occurred was too broad: its own retained test log includes two real Blender fixture checks. This record corrects that qualification without rewriting the original dated review receipt.
+
+##### Files
+
+- `packages/platform-service/src/assets/external-open.ts`
+- `packages/platform-service/src/assets/external-open.test.ts`
+- `packages/platform-service/src/assets/external-open.windows.test.ts`
+- `packages/platform-service/src/backup/destinations/google-drive.ts`
+- `packages/platform-service/src/backup/destinations/google-drive.test.ts`
+- `packages/platform-service/src/backup/destinations/s3.ts`
+- `packages/platform-service/src/backup/destinations/s3.test.ts`
+- `packages/platform-service/src/models/providers/http-utils.ts`
+- `packages/platform-service/src/models/providers/http-utils.test.ts`
+- `packages/platform-service/src/models/providers/openai-compatible.ts`
+- `scripts/generate-system-reference.cjs`
+- `docs/changes/2026-10-24-security-remediation.md`
+
+#### Pin workflow actions and narrow publication authority
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-24-workflow-security.md).
+
+##### Summary
+
+Make workflow token permissions explicit, grant publication write access only to the release job, and replace mutable third-party action tags with verified commit pins.
+
+##### Details
+
+- Declare `contents: read` for CI and the Windows integration probe, retaining the currently read-only repository default as defense in depth. Change the release workflow's default to read-only and grant `contents: write` only to its publishing job; validation and package jobs no longer inherit publication write authority.
+- Resolve each existing tag through GitHub's API and verify its commit date: checkout v4 at `11d5960a326750d5838078e36cf38b85af677262`, setup-node v4 at `49933ea5288caeca8642d1e84afbd3f7d6820020`, upload-artifact v4 at `ea165f8d65b6e75b540449e92b4886f43607fa02`, download-artifact v4 at `d3f86a106a0bac45b974a628896c90dbdf5c8093`, and action-gh-release v2 at `3bb12739c298aeb8a4eeaf626c5b8d85266b0e65`. All predate the seven-day preference. Keep version comments for maintainers and dependency tooling.
+- Preserve workflow triggers, existing quality checks, concurrency, signing-secret references, draft/testing-release policy, local Spectre action and artifact behavior. Do not duplicate the weekly Actions-update configuration or private-reporting policy proposed in PR #8, mutate repository settings, dismiss alerts, or publish a workflow run.
+- Compatibility and migration: no product/data change; no migration required. Workflow privilege changes are internal security maintenance with impact `none`. Hosted execution remains a separate verification boundary.
+
+##### Validation
+
+- GitHub GET readback established the exact action commits and dates. Parsed all three workflows with the installed YAML parser and asserted read-only defaults, publisher-only `contents: write`, and full forty-character commit pins on every external action: passed. Formatting, diff whitespace and changelog coverage checks passed. No hosted run of these local changes or release/signing operation is claimed; local policy assertions do not validate hosted token behavior or clear remote CodeQL alerts.
+
+##### Files
+
+- `.github/workflows/ci.yml`
+- `.github/workflows/release.yml`
+- `.github/workflows/windows-transport-probe.yml`
+- `docs/changes/2026-10-24-workflow-security.md`
+
+#### Reconcile GitHub security alerts and bound A2A authentication work
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-25-github-security-alerts.md).
+
+##### Summary
+
+Review live GitHub dependency/code/secret-scanning alerts, verify pending dependency fixes against every open advisory, close a pre-authentication rate-limiting gap and prepare the accumulated reviewed work for commit and push.
+
+##### Details
+
+- Read the authenticated GitHub alert APIs on 2026-10-25: 14 open Dependabot alerts, 12 open CodeQL alerts and zero open secret-scanning alerts. These are observations of the default branch, not counts of independently exploitable vulnerabilities. The installed GitHub connector lacks alert endpoints, so use the authenticated GitHub CLI for those reads. Preserve scanner settings and do not treat a clean npm result as proof of application security.
+- Compare every installed-lockfile package entry for each open Dependabot alert against the API's vulnerable semver range. All entries are outside the affected ranges, using the already-pending exact dependency remediation; no additional dependency change or forced audit fix is needed. Coverage: alerts 54/45 use markdown-it 14.3.3; 53/52 use follow-redirects 1.16.1; 49/48/47/46/44/43 use MCP SDK 1.32.1; 42 uses Hono 4.13.13; 41/40/39 use Vite 8.3.4. Check full and production-only npm audits independently. The newly observed markdown-it/follow-redirects advisories are supported by the [GitHub markdown-it advisory](https://github.com/advisories/GHSA-vfgh-jcmw-g37q) and [follow-redirects advisory](https://github.com/advisories/GHSA-8r9p-f939-6h3c); live alert ranges supply the per-alert comparison.
+- Recheck the twelve CodeQL locations. Pending source changes correct workflow permission defaults (1-3), the S3 fixture regular expression (4), provider trailing-slash scans (5-6), S3 one-pass XML entity decoding (7), Drive query quoting (8-9) and generated Markdown escaping (10). Preserve those independent work records and tests. Do not claim remote closure from local changes; GitHub's analyzed default-branch commit initially remains `4ed697edfa09a11368581c15f7ea90e5cc739e1a`.
+- Alert 11 flags authentication before a recognized limiter. Existing invalid-token responses and per-client quotas were present, but the credential database lookup still ran on every well-formed invalid token before the invalid-token quota returned HTTP 429. Add an aggregate 1,200-request fixed-minute source-address budget before parsing/authentication. Exhaustion now returns HTTP 429 before any credential query, including for valid tokens, until the minute resets. Retain the separate 120-request invalid-token and per-client budgets, public Agent Card limit, concurrency limits, loopback/Host/Origin boundary and authorization checks. Only the actual socket address keys the new budget; forwarded headers do not influence it. This is a bounded shared ceiling, so abusive loopback traffic can temporarily throttle valid clients from that source; no unlimited-availability claim is made. This implements the [CodeQL recommendation to limit expensive handler work](https://codeql.github.com/codeql-query-help/javascript/js-missing-rate-limiting/).
+- Add an HTTP regression with rotating syntactically valid invalid credentials, an exhausted-ceiling valid request that performs no database preparation, and successful authenticated access after the clock crosses the one-minute boundary. Preserve the existing regression proving 121 malformed unauthenticated requests do not consume a valid client's quota. The first sequential probe timed out before reaching its assertion; batch twenty requests at a time to exercise the same boundary within the original timeout, without increasing it. The corrected probe fails on the old implementation with HTTP 200 instead of 429, then passes with the limiter.
+- Alert 12 treats SHA-256 over vector adapter configuration/API-key material as password storage. Trace the value to the in-process adapter cache and persistent collection-mapping namespace: it is a deterministic identity, never a password verifier or authentication decision. Preserve that identity format so existing collection mappings continue to resolve. Add an explanatory source comment and a regression proving identical credentials reuse the handle, rotation selects a distinct handle/identity, and the identity contains a hexadecimal digest rather than the literal fixture key. The fixture creates adapter handles without contacting Qdrant. This evidence supports a false-positive disposition for that specific password-hashing rule, not a claim that arbitrary credential handling is secure.
+- Dismiss CodeQL alert 12 as `false positive` with the scoped cache-identity rationale after source tracing and regression verification. GitHub readback confirms the dismissal; the first overlong rationale was rejected by the API's 280-character limit and made no change, then the shorter rationale succeeded. Do not dismiss Dependabot alerts or the A2A finding to substitute for patched source and fresh hosted analysis. Open CodeQL count becomes eleven; the initial twelve-alert observation remains historical evidence.
+- Update the architecture and current status with the limiter behavior and hosted/local evidence distinction. Preserve the retired executable-generating opener fixture and endpoint-protection recovery boundary: do not rerun that fixture, compile installer fixtures or mutate ordinary engine/DCC projects for this pass. Keep Bitdefender enabled, with no exclusions or quarantine changes.
+- The final generated-inventory check initially found the retired native opener still listed as a current regression path, causing the documentation-evidence checker to fail as well. Regenerate both inventory artifacts from current source to remove that obsolete entry; preserve historical work-record references and leave the evidence checker's assertions intact.
+- The staged whitespace check additionally detected extra blank lines at EOF in three pending security records that the earlier unstaged check did not include. Normalize those endings before committing; preserve their historical findings, validation and file lists.
+- The remote security-policy PR 8 merged after this branch's starting commit. Preserve its private-reporting policy, Actions Dependabot schedule and permanent work record when incorporating current main. Existing dependency-update PRs remain independent; newer optional action/dependency versions are not automatically treated as security fixes. Commit/push authorization covers this session's accumulated reviewed security, documentation, plugin migration, Requests, audit export/retention and service-log work, each retaining its separate permanent record. No release or main-branch merge is authorized by this task.
+- Commit the accumulated reviewed work on `codex/security-review-remediation`, then merge current `origin/main` into that branch. The sole conflict is generated `CHANGELOG.md`; resolve it by regenerating from both branches' permanent records, retaining the incoming security policy and schedule unchanged. This incorporates main into the feature branch; it does not merge the feature branch into main.
+- Compatibility/migration: HTTP overload behavior changes only at the new aggregate ceiling; valid callers can receive 429 during a source flood. No setting, RPC schema, credential format, vector identity, Project/profile schema, dependency version or data migration changes in this follow-up. Impact is patch for the A2A security correction; version stays 0.22.0 pending.
+
+##### Validation
+
+- Live Dependabot range comparison passed all 14 alerts with no affected local lockfile paths. `npm audit --json` and `npm audit --omit=dev --json` both exited zero with zero vulnerabilities. Evidence: `.turbo/github-dependabot-open.json`, `.turbo/github-alerts-audit.json` and `.turbo/github-alerts-audit-production.json`.
+- The batched authentication regression failed on the old implementation with HTTP 200 instead of 429; the earlier sequential timeout is not a successful reproduction. Evidence: `.turbo/github-security-auth-ceiling-red-batched.log` and `.turbo/github-security-auth-ceiling-red.log`.
+- Seven focused service files passed 42 tests after the limiter, including A2A, vector registry, provider/backup/SDK and mocked opener. The additional cache-identity regression then passed with all five vector-registry tests. Evidence: `.turbo/github-security-focused.log` and `.turbo/github-security-cache-identity.log`.
+- `npx turbo run build typecheck lint --concurrency=1` passed 25 tasks (17 cached) after the final production changes, including Electron/browser builds. The existing installer-handoff require-resolution warning remains; app-shell placeholder checks still report skip. Other workspace tests passed 14 tasks (12 cached). Evidence: `.turbo/github-security-final-quality.log` and `.turbo/github-security-other-tests.log`.
+- `npm test -w @gamecrafter/platform-service -- --exclude src/updates/installer-handoff.test.ts --exclude src/dcc/blender-real.test.ts` passed 727 tests with seven skips across 131 files (130 passing files and one skipped file) in 386.45 seconds. Other workspaces account for 236 passes and one skip across 57 files, including cached results: aggregate 963 passes/eight skips across 188 files. The two exclusions are deliberate verification limits, not passes; no test assertion was weakened. The removed native opener is absent. Evidence: `.turbo/github-security-service-tests.log` and `.turbo/github-security-other-tests.log`.
+- Change-tracking tests passed 13 cases and cache-maintenance tests passed nine cases. Installed-tree validation with `npm ls --all --json` exited zero without problems. Generated RPC/settings/inventory freshness, documentation evidence integrity, version agreement, repository formatting, staged whitespace and changelog coverage checks passed. The initial obsolete inventory failures were corrected by regeneration. Markdown links passed before and after main integration (`.turbo/github-security-integrated-links.log`). All six recovered/regenerated developer files remained present after broad verification.
+- Current main was incorporated into the feature branch, with the generated changelog conflict resolved from the combined permanent records. No complete unexcluded full gate, native opener, installer, live DCC/engine/provider or security-product false-positive adjudication is claimed.
+- Push `codex/security-review-remediation` to origin and verify its remote ref matches the local commit. Open [draft PR 15](https://github.com/scarecr0w12/PlayWeld/pull/15) through the GitHub connector to make the complete change and verification limits reviewable. The PR is not merged. Post-push alert readback remains 14 open Dependabot alerts on the default branch, eleven open CodeQL alerts and zero open secret-scanning alerts; alert 12 is confirmed dismissed as false positive. No Dependabot alert was dismissed. These default-branch alerts cannot be reported resolved merely because a feature branch was pushed. Fresh hosted checks are pending and do not replace the retained local evidence.
+
+##### Files
+
+- `packages/platform-service/src/a2a/inbound-server.ts`
+- `packages/platform-service/src/a2a/inbound-server.test.ts`
+- `packages/platform-service/src/knowledge/vector-store-registry.ts`
+- `packages/platform-service/src/knowledge/vector-store-registry.test.ts`
+- `docs/TECHNICAL_ARCHITECTURE.md`
+- `docs/STATUS.md`
+- `docs/reference/DOCUMENTATION_INVENTORY.md`
+- `docs/reference/documentation-inventory.json`
+- `docs/changes/2026-10-24-security-dependencies.md`
+- `docs/changes/2026-10-24-security-remediation.md`
+- `docs/changes/2026-10-24-workflow-security.md`
+- `docs/changes/2026-10-25-github-security-alerts.md`
+
+### Documentation
+
+#### Reconcile current capability evidence and historical documentation
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-24-documentation-reconciliation.md).
+
+##### Summary
+
+Correct stale current-status claims using existing accepted receipts, document the secure asset-opening configuration contract, and preserve dated review findings as historical evidence.
+
+##### Details
+
+- Update status, plan and register prose that incorrectly said hosted CI had never run, task/settings contracts were not started, only noop handlers existed, no task UI existed, or every provider/generation/embedding interaction remained fake-only. Link exact hosted revision evidence and scoped OpenAI/Meshy/installed Knowledge receipts; retain unverified providers, operations and complete acceptance matrices. Update the settings count to 85 across 17 groups. Work-package statuses and user-owned decisions do not change; WP19 remains in progress.
+- Distinguish the last recorded local 0.22.0 deployment from current process health and pending source installation. Keep public 0.21.0 testing release, local deployment receipt, current source and future packaging as separate facts. Preserve old audit counts and historical review content instead of rewriting historical evidence.
+- Correct the architecture's stale isolation-selection claim to the selected LPAC/Job and bubblewrap backends with explicit remaining qualification; refresh its Electron pin and define the asset filename-as-data boundary. Update the handbook's default/native/configured opening behavior, explicit PowerShell file-mode policy, supported flags and failure semantics.
+- Add navigation from the documentation index to the dated review and remediation record. Add a follow-up link to the review without altering its pre-fix findings. Regenerate documentation inventory artifacts so new regression-test paths are discoverable. The unchanged generated RPC/settings reference remains fresh after Markdown escaping hardening.
+- Compatibility and migration: documentation/evidence reconciliation only, no new product decision, work-package promotion, schema/version migration or claims of complete security. Impact `none` reflects these documentation changes.
+
+##### Validation
+
+- Existing main CI readback and repository receipts support the corrected historical/scoped claims. Generated-reference freshness passed; the inventory initially detected the new test paths as stale and was regenerated. Final system-reference, documentation-inventory, evidence-integrity and release-version checks passed: 198 requests, 28 notifications, 85 settings, 26 service subsystems and 16 Control Room surfaces. Formatting, diff whitespace and generated-changelog/coverage checks passed.
+- The full `scripts/check-links.sh` completed successfully through WSL, including the new remediation records and updated documentation: `All links OK`. Later validation prose adds no links. This supersedes the earlier review's local checker-timeout limit only for the current execution, not for the preserved review snapshot.
+
+##### Files
+
+- `docs/STATUS.md`
+- `docs/DEVELOPMENT_PLAN.md`
+- `docs/OPEN_DECISIONS.md`
+- `docs/TECHNICAL_ARCHITECTURE.md`
+- `docs/CONTROL_ROOM_HANDBOOK.md`
+- `docs/README.md`
+- `docs/PROJECT_REVIEW_2026-10-24.md`
+- `docs/reference/DOCUMENTATION_INVENTORY.md`
+- `docs/reference/documentation-inventory.json`
+- `docs/changes/2026-10-24-documentation-reconciliation.md`
+
 ### Maintenance
 
 #### Build and verify the local PlayWeld 0.22.0 upgrade
@@ -197,6 +725,175 @@ Repair the Windows Swarm await regression fixture's competing deadlines without 
 
 - `packages/platform-service/src/workers/supervisor-await.test.ts`
 - `docs/changes/2026-10-18-windows-swarm-await-test-stability.md`
+
+#### Native opener verification and runner installation recovery
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-24-native-opener-fixture-cleanup.md).
+
+##### Summary
+
+Investigate a native Windows opener verification failure encountered during service-log retention work and recover missing local Vitest files from the unchanged pinned package. No product opener or test assertion change is retained.
+
+##### Details
+
+- The final full gate reported `EPERM` in the native asset-opening fixture's temporary-directory cleanup after its launch assertions. The cleanup failure reproduced in isolation, and the directory was absent on later inspection. This initially suggested a transient executable/directory lock.
+- Tried five filesystem cleanup retries with a 100 ms base delay, without retrying launches, changing assertions or increasing the test timeout. The corrected fixture did not obtain a complete passing run; revert this unproven adjustment. The source test remains as it was before this investigation. This record preserves the attempted/reverted work rather than claiming a fix.
+- Subsequent workers failed before discovery because `node_modules/vitest/suppress-warnings.cjs` and `node_modules/vitest/dist/workers/forks.js` were missing. Fetch the exact existing Vitest 5.0.5 package into ignored artifacts, verify its SHA-512 against package-lock.json and restore only missing files. Existing installed files matched the package bytes. Also restore the missing `node_modules/turbo/bin/turbo` launcher and `node_modules/@turbo/windows-64/bin/turbo.exe` from the exact locked Turbo 2.11.2 packages after checking their SHA-512 integrity. A compiled `packages/platform-service/lib/workers/worker-main.js` entry was missing too; regenerate service output with `npx tsc -b packages/platform-service/tsconfig.json --force` and the package build. The initially clean tracked `scripts/create-release-metadata.cjs` was also unexpectedly missing; restore that exact path from HEAD after confirming it was absent and had no pre-task modification. The two pre-existing intentional Theia handler deletions remain untouched. Run the formatter after reverting the cleanup experiment. No version, dependency manifest, lockfile or product patch changes were made for recovery.
+- The two restored worker files disappeared again during the native opener run, with worker termination and no complete suite result. Bitdefender and Windows Defender are installed; available Windows Defender events did not establish the actor. The user subsequently supplied a Bitdefender notice reporting potentially malicious behavior, all involved applications blocked, restart required, and detection `SuspiciousBehavior.567DCD8166FD2594`. This is the likely explanation for the process/file interruptions; the exact affected application list and whether the detection is a false positive remain unverified. Stop native-opener execution and further executable recovery after this confirmation. No antivirus exclusions, disablement or other security-setting changes were made. Keep native opener qualification separate from retention unit/CLI acceptance and report exclusions explicitly.
+- Compatibility/migration: investigation and local installation recovery only; no retained product/API/data/test behavior changes and no migration. Impact is none; version remains 0.22.0 pending.
+
+##### Validation
+
+- Later user-supplied screenshot identifies the temporary opener executable as the Malware-labelled entry and reports 20 blocked applications. The cropped visible list also shows Codex PowerShell, `conhost.exe` and `tar.exe`, without the complete affected-file/action list. The native fixture is subsequently retired under a [separate correction record](docs/changes/2026-10-24-retire-native-opener-executable-fixture.md); earlier statements that no test change was retained describe this investigation before that correction.
+
+- Post-restart follow-up: the user reported restarting Windows; the operating system reports boot at 2026-10-24 19:02:34 America/Phoenix. The two Vitest worker files, Turbo launcher/native binary, compiled service worker entry and tracked release-metadata script remain absent after the restart. Restart completion is not evidence that the blocked workflow is cleared. No files were restored and no native fixture or test runner was executed during this follow-up. Windows Event Log/provider inspection did not expose the Bitdefender event's affected application list; request that list and recorded actions from the product notification before further recovery or execution. Source inspection still identifies the native fixture's compile-and-launch chain, without establishing a false positive.
+- The user could no longer find the notification. Read-only window inspection found Bitdefender Central in Chrome; locate the installed local Security Center, verify its executable's valid Bitdefender SRL signature, and open that vendor UI for inspection. Windows UI Automation exposes the Notifications/Advanced Threat Defense labels, but those controls provide no invoke pattern, keyboard focus or accelerator. No event details were recovered and no restore/exclusion/security controls were invoked. Direct event selection in the local product remains the human handoff; the affected processes and remediation actions are still unknown.
+- Original cleanup failure: `.turbo/service-log-retention-opener-isolation.log` and `.turbo/service-log-retention-quality-final-source.log`.
+- Runner startup failure before test discovery: `.turbo/service-log-retention-fixture-focused.log`. The package tarball hash matched the lockfile and existing installed package files matched the tarball; only the two missing files were copied.
+- The native retry attempt remained incomplete (`.turbo/service-log-retention-repaired-focused.log`) and was reverted. No complete full-suite/native-opener pass is claimed. After restoration without the opener fixture, the ten retention/CLI tests passed and the restored Vitest files remained present. Build/typecheck/lint passed 25 tasks; other workspace test tasks passed 14 tasks after rebuilding the missing service worker entry. The remaining service suite explicitly excluded the native opener file and passed 730 tests with 6 skipped across 133 files; all other workspace test tasks passed. Full native-opener qualification remains pending. No restart was initiated from this session. Evidence: `.turbo/service-log-retention-isolated-verified.log`, `.turbo/service-log-retention-build-quality.log`, `.turbo/service-log-retention-other-tests-verified.log` and `.turbo/service-log-retention-rebuild.log`.
+
+##### Files
+
+- `packages/platform-service/src/assets/external-open.windows.test.ts`
+- `scripts/create-release-metadata.cjs`
+- `docs/changes/2026-10-24-native-opener-fixture-cleanup.md`
+
+#### Review project, repository controls, security and completion gaps
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-24-project-session-review.md).
+
+##### Summary
+
+Investigation-only review of PlayWeld at `7ccb07580d82164d16f63c6ce5404b81a754f1e6`, covering current repository settings, security signals and source boundaries, documentation consistency, incomplete features and improvement opportunities. No product repair or external configuration change is delivered.
+
+##### Details
+
+- Add `docs/PROJECT_REVIEW_2026-10-24.md` as the dated review artifact. Record the initially clean checkout and matching GitHub main, current source/local-record/public-release distinctions, independent offline architecture/security review, and partial security coverage. Preserve ordinary profiles, private overrides, credentials, existing work and all historical release records.
+- Identify a source-backed Windows asset-opening command-interpreter boundary failure, independently reviewed by the baseline auditor and parent. Record the realistic filename-control/user-action prerequisites, medium severity, remediation invariant and missing adversarial coverage without publishing a working payload. Full source evidence is retained in the private Codex Security scan; no payload was executed and no fix is claimed.
+- Refresh full and production-only npm advisory snapshots and live GitHub Dependabot, CodeQL and secret-scanning counts. Distinguish package-level propagation from independent exploit counts, retain CodeQL counterevidence and Drive query-escaping robustness work, and recommend compatibility-preserving dependency review rather than incompatible automatic fixes.
+- Verify active main ruleset, Actions allowlist and external-contributor policy, restricted default token permissions, security features and CodeQL configuration through read-only APIs. Separate already-live settings from proposed security-policy/Actions-update files in concurrent PR #8, and record existing dependency PR check failures without taking ownership of or diagnosing their changes. No setting, alert, issue, PR or release was changed.
+- Document contradictory live-provider and hosted-CI claims in status/plan against later evidence, and distinguish old review receipts from current status. Generated reference freshness is separate from semantic prose correctness. Do not alter confirmed decisions or work-package statuses in this investigation.
+- Identify repeated subprocess creation and heading rescans in the shell Markdown link checker as review-tool overhead. Attempt it through Git Bash and WSL, stop the task-owned checks after extended execution without results, and validate the same full Markdown scope/rules with a read-only cached Python implementation. No checker source was changed.
+- Inventory remaining release/recovery, plugin isolation/trust, provider/routing/spend, engine/DCC/assets/MCP/A2A, backup/state, swarm/canon, product/UI/accessibility and quality/performance obligations. Preserve user-owned decisions and technical dependency ordering in the plan. Record explicit app check skips and targeted maintainability opportunities without broad refactoring.
+- Compatibility and migration: no product source, dependency, package version, persisted schema, RPC contract or runtime configuration changes; no migration required. Impact `none` reflects a documentation/investigation task.
+
+##### Validation
+
+- Initial full `npx turbo run build typecheck lint test --concurrency=1`: 33/33 successful, all cached. `npx turbo run test --force --concurrency=1`: 15/15 successful, zero cached, 888 tests passed and seven skipped across 180 test files. Platform service: 679 passes/six skips; extension: 133 passes; contracts: 71 passes; extractor: one pass/one skip; client: two passes; SDK/sample: one each. Capability/OS/symlink-dependent cases and unavailable native Godot remain skipped; managed native Qdrant ran. Electron's placeholder test task remains distinct from executed application tests.
+- Before report creation, `npm run format:check`, generated system-reference/inventory checks, documentation-evidence check and release-version check passed. Release version remains 0.22.0. Fresh npm audit commands exit nonzero for advisories, not a passing security gate.
+- GitHub readback and independent static source review performed; static traces are not runtime exploit, installed isolation, or production acceptance evidence. Completed and sealed Codex Security scan `5d1d271e-6078-48a7-8f6d-d9f0e64dba6f` records one medium finding, nine reviewed surfaces and partial repository coverage with explicit follow-up. Its original-snapshot warning reflects the added review documentation/changelog; application source did not change. Local quality/test/format/audit logs are retained under ignored `.turbo/session-review-2026-10-24-*`.
+- Final `npm run format:check`, `npm run changelog:update`, `npm run changelog:check -- --base HEAD` and `git diff --check` passed. The required `scripts/check-links.sh` was attempted under Git Bash and WSL but stopped after extended execution without a result; this is not a passing shell-check claim. A read-only cached Python equivalent checked the same fence/link/heading-slug rules across 351 Markdown files and 1,455 relative links: zero errors. Later prose edits introduced no additional links.
+- Not run: dependency reinstallation, fresh Linux/desktop/browser/engine/DCC/provider/package/installer acceptance or exploit payload. Existing native dependencies and ordinary runtime data were preserved. Whole-repository line-by-line security review remains incomplete.
+
+##### Files
+
+- `docs/PROJECT_REVIEW_2026-10-24.md`
+- `docs/changes/2026-10-24-project-session-review.md`
+- `CHANGELOG.md`
+
+#### Retire the compiled Windows opener executable fixture
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-24-retire-native-opener-executable-fixture.md).
+
+##### Summary
+
+Remove the automated Windows opener fixture that compiled and executed a temporary program after the user's Bitdefender notification identified that exact executable. Preserve process-boundary coverage with mocks and explicitly retain the native-launch acceptance gap.
+
+##### Details
+
+- The screenshot identifies `literal&'%GC_OPEN_TEST%^!(asset).exe` under a temporary `gc-native-open-*` directory as the Malware-labelled entry and reports 20 blocked applications. The visible additional entries include the Codex PowerShell runtime (`pwsh.exe`), Windows `conhost.exe`, and `tar.exe`; the cropped image does not show all 20 applications or all remediation actions. This directly matches the fixture constructed by the native test. It supports associating the block with that test workflow, without proving the generated program was a false positive or that every blocked application was independently malicious. Do not publish machine-specific account paths or copy private notification/account data into source records.
+- Delete `packages/platform-service/src/assets/external-open.windows.test.ts`. It compiled a C# executable with the Windows .NET compiler, renamed it to metacharacter/Unicode filenames and launched it through the real default opener before removing its temporary directory. This compile-and-launch chain is no longer part of ordinary test discovery; no hidden opt-in flag, skipped copy or executable-generating replacement is retained. The generated C# source was intended only to write a receipt, but that source inspection does not analyze or clear the quarantined executable.
+- Retain the existing `external-open.test.ts` process mock. Add the reported metacharacter pattern as a harmless `.png` filename with plain fixture data, and require the exact fixed PowerShell invocation with `Invoke-Item -LiteralPath` and the dedicated environment variable. The process launcher remains mocked: this test does not compile code, create a PE executable, invoke PowerShell or open an asset. Existing path rejection, configured interpreter restrictions, literal argument forwarding and failure/timeout expectations remain intact. Production opener code, public contracts and permissions are unchanged.
+- This deliberately removes real native association/launch coverage; do not describe the replacement mock as equivalent native acceptance or mark the complete full gate passed because the fixture is gone. Record the boundary in technical architecture, WP15's authoritative plan text and current status. Native qualification needs a reviewed method. An independent pre-existing installer-handoff test also compiles native fixtures; it was inspected, left unchanged and not executed in this correction. Retiring this opener fixture does not certify the entire suite against endpoint protection.
+- Preserve the earlier investigation and recovery record, adding a link to this later correction rather than rewriting the previous attempted cleanup/recovery as a successful fix. The service-log retention implementation and earlier successful bounded checks remain unchanged. No blocked file restoration, quarantine operation, antivirus setting/exclusion, package installation or fresh native test run is performed after the screenshot review.
+- Compatibility/migration: test/documentation change only; no runtime/API/data/dependency or schema migration. Exact deleted path and modified paths are listed below. Impact is none; product version remains 0.22.0 pending, with no installer, tag or release prepared.
+
+##### Validation
+
+- Matched the screenshot's executable basename and temporary-directory prefix to the reviewed native fixture source before removal. Source review confirms the retained mocked path uses non-executable plain fixture data and intercepts `cross-spawn`; the new assertion pins the literal-path helper program. No generated executable was run to reproduce the security alert again.
+- `node node_modules/prettier/bin/prettier.cjs --check packages/platform-service/src/assets/external-open.test.ts` passed after formatting. This is static parsing/formatting evidence, not a passing test result.
+- Vitest cannot run from the current installation because its two worker/preload files remain absent after endpoint cleanup. Turbo's launcher/native binary and the compiled service worker are also absent; no restoration or alternate runner is used to bypass that state. The new mock case/assertion, full build/test gate and native qualification remain unverified. Earlier 966-pass/7-skip results predate this test correction and excluded the native opener; they are not validation of this change.
+- Changelog generation and coverage passed with `node scripts/change-tracking.cjs update` and `node scripts/change-tracking.cjs check --base HEAD`. Repository-wide Prettier checking passed; `scripts/check-links.sh` passed through WSL with `All links OK`; `git diff --check` passed (Git reported existing CRLF normalization notices).
+- Read-only recovery preparation verified the cached Vitest 5.0.5, Turbo 2.11.2 and Windows Turbo 2.11.2 archives against their exact `package-lock.json` SHA-512 integrity values and read the affected archive members without extracting or executing them. The Windows archive uses the `turbo-windows-x64/bin/turbo.exe` member path. The four affected dependency files, compiled service worker and tracked release-metadata script remain absent. Archive integrity establishes package provenance only; it does not adjudicate the behavioral detection or authorize quarantine recovery.
+- No live engine/provider/DCC, application/installer, vendor false-positive adjudication or security-product configuration claim is made.
+
+##### Files
+
+- `packages/platform-service/src/assets/external-open.windows.test.ts`
+- `packages/platform-service/src/assets/external-open.test.ts`
+- `docs/TECHNICAL_ARCHITECTURE.md`
+- `docs/DEVELOPMENT_PLAN.md`
+- `docs/STATUS.md`
+- `docs/changes/2026-10-24-native-opener-fixture-cleanup.md`
+- `docs/changes/2026-10-24-retire-native-opener-executable-fixture.md`
+
+#### Hosted qualification and integration of security remediation
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-25-hosted-security-integration.md).
+
+##### Summary
+
+Qualify [PR 15](https://github.com/scarecr0w12/PlayWeld/pull/15) against hosted quality/security checks and integrate only a passing head, then verify default-branch security alerts against fresh main analysis. This record is in progress; pending checks and integration are not completed evidence.
+
+##### Details
+
+- The user explicitly authorized checking hosted results, correcting remaining issues, merging PR 15 only after checks pass and verifying Dependabot/CodeQL resolution afterward. The starting local and remote head is `968ca5de74cc51004b495ca899759978b6f9e5c5`; the working tree was clean. Retain existing product version 0.22.0 and all separate security/feature records.
+- Read PR/job/analysis state through the GitHub connector and use authenticated alert APIs where the connector has no alert endpoint. Initial hosted CodeQL Actions and JavaScript/TypeScript jobs and GitGuardian passed. Both PR analysis records contain zero results without errors/warnings; this is evidence for that PR analysis, not a default-branch closure claim. Linux quality, Windows quality and browser build/smoke were still running.
+- Mark the draft ready for review under the merge authorization. The existing workflow's `ready_for_review` trigger schedules a replacement CI run; retain cancelled/superseded runs as historical attempts rather than failures or successful gates. Do not remove workflow checks, bypass a failed job, weaken assertions or change endpoint-protection settings to obtain a pass.
+- Integration policy: inspect the latest PR head, all applicable check results and mergeability immediately before merging, and supply the expected head SHA to GitHub's merge operation. Preserve the branch's permanent records and source fixes. Only a passing head may be merged. Afterward, distinguish patch-driven fixed alerts from the previously documented false-positive dismissal of CodeQL alert 12; do not dismiss Dependabot or unresolved source findings to reduce counts.
+- Post-merge verification must read main's actual merge SHA, completed CodeQL analysis for that main revision, and current Dependabot/CodeQL/secret-scanning states. A green PR job or a pushed branch alone does not meet this acceptance criterion. No release, installer publication, ordinary profile/Project changes, antivirus exclusions or access to the flagged temporary executable are part of this work.
+- Compatibility/migration: evidence and integration maintenance only so far, with no production/API/schema/dependency changes or data migration. Impact is none. Any diagnosed hosted defect and its concrete correction will be recorded here with its affected paths and actual validation before integration.
+
+##### Validation
+
+- Starting PR-head CodeQL analyses for `968ca5de74cc51004b495ca899759978b6f9e5c5` report zero results: JavaScript/TypeScript analysis 2023704870 with 87 rules and Actions analysis 2023702873 with 17 rules, both without errors/warnings. GitGuardian is successful. These are hosted scanner observations, not proof of universal application security.
+- Initial CI run 40243392046 was in progress when review began; run 40243599308 was scheduled by marking the PR ready. Final quality/browser results, any repair, final-head checks, merge and default-branch alert readback remain pending. No passing full gate or merged result is claimed in this draft record.
+
+##### Files
+
+- `docs/changes/2026-10-25-hosted-security-integration.md`
+
+#### Verified developer-tool recovery and focused retention verification
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-25-verified-tooling-recovery.md).
+
+##### Summary
+
+Recover the six missing developer/build files with explicit user authorization and pass the mocked opener and retention checks after retiring the executable-generating opener fixture.
+
+##### Details
+
+- The user authorized restoring verified files and rebuilding the service worker, with Bitdefender enabled and the flagged temporary executable left alone. Recheck each cached Vitest 5.0.5 and Turbo 2.11.2 archive against the exact package-lock SHA-512 integrity value before reading selected members. Restore only `suppress-warnings.cjs`, `dist/workers/forks.js`, the Turbo launcher and Windows binary; refuse to overwrite an existing destination and verify restored bytes. The Windows binary archive member is `turbo-windows-x64/bin/turbo.exe`. No package installation, dependency-version or lockfile change is made.
+- Restore the accidentally removed `scripts/create-release-metadata.cjs` directly from `HEAD`, preserving its exact Git bytes. Force the platform-service TypeScript project build, including project references, so the missing `lib/workers/worker-main.js` is regenerated from current source rather than recovered from quarantine; run the existing asset-copy script. This removes the accidental source deletion without reverting either intentionally removed frontend handler or unrelated pending work.
+- Run only selected existing tests: the process-mocked opener (including the newly strengthened fixed-command assertion), logger pruning and lifecycle, compiled CLI lifecycle/startup failure, audit-retention unit and RPC integration, and audit-retention panel. The CLI tests use disposable profiles; no ordinary profile or Project is selected. Do not run the retired opener fixture, the independent installer-handoff executable fixtures or a whole-suite command that would include them.
+- Update current status and WP15's authoritative plan text to replace the missing-tool/unrun-mock state with the actual recovery and focused results. Earlier investigation and fixture-retirement records remain historical evidence; this record supplies the later outcome. Native opener association/launch acceptance and the complete repository gate remain pending. Archive integrity and passing tests do not classify Bitdefender's behavioral detection as a false positive.
+- Compatibility/migration: maintenance and validation only; no production source, public API, schema, setting, dependency or data migration. Impact is none and version remains 0.22.0 pending. Bitdefender settings, exclusions and quarantine were not changed, and the flagged temporary executable was not accessed or executed. No package, installer, tag or release is prepared.
+
+##### Validation
+
+- All three cached archives matched their exact lockfile integrity hashes before restoration; the five restored file contents were checked byte for byte. A subsequent presence check found all six expected files, including the regenerated worker.
+- `node node_modules/typescript/bin/tsc -b packages/platform-service --force` and `node packages/platform-service/scripts/copy-assets.cjs` passed. This verifies source compilation and asset copying, not application or installer acceptance.
+- `npm test -w @gamecrafter/platform-service -- src/assets/external-open.test.ts src/logger.test.ts src/cli.test.ts src/audit/audit-retention.test.ts src/audit/audit-retention.integration.test.ts` passed 38 tests across five files, with no skips, in 11.94 seconds. Evidence: `.turbo/verified-recovery-focused-tests.log`.
+- `npm test -w @gamecrafter/theia-control-room -- src/browser/audit-retention-panel.test.tsx` passed six tests in one file, with no skips. Evidence: `.turbo/verified-recovery-retention-panel.log`. This is automated component evidence, not rendered browser acceptance.
+- `npm run format:check`, `npm run changelog:update`, `npm run changelog:check -- --base HEAD` and `git diff --check` passed. Git emitted existing CRLF normalization notices. `scripts/check-links.sh` passed through WSL with `All links OK` (evidence: `.turbo/verified-recovery-links.log`). After testing, all six expected files were still present, the restored release-metadata script matched `HEAD` exactly and the retired native opener test remained absent.
+- No fresh full-suite, native opener, installer-handoff, packaged desktop, live engine/DCC/provider or vendor security-adjudication result is claimed. The earlier real one-minute quiet-pruning acceptance was not repeated; the current logger test exercises periodic pruning through fake timers.
+
+##### Files
+
+- `scripts/create-release-metadata.cjs`
+- `docs/DEVELOPMENT_PLAN.md`
+- `docs/STATUS.md`
+- `docs/changes/2026-10-25-verified-tooling-recovery.md`
 
 ## 0.22.0
 
