@@ -370,6 +370,88 @@ Preserve readable Models table columns in narrow desktop views, contain scrollin
 
 ### Security
 
+#### Configure repository security and quality controls
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-24-repository-security-quality.md).
+
+##### Summary
+
+Configure the approved free GitHub security and quality settings, document private
+vulnerability reporting, and schedule weekly GitHub Actions dependency updates.
+
+##### Details
+
+- Add `.github/SECURITY.md` with a private reporting link, the information needed
+  to reproduce a report, and guidance to remove credentials and private data.
+  Security fixes target the latest release and `main`; older releases are not
+  maintained separately. The policy does not promise response or resolution times.
+- Add `.github/dependabot.yml` for weekly GitHub Actions updates in `/`, capped at
+  five open update pull requests. It does not configure npm version updates or
+  automatic merging; existing npm security updates remain enabled.
+- Apply the approved `main-security-quality` branch ruleset: block deletion and
+  force pushes, require pull requests and resolved review conversations, require
+  the existing Linux quality, Windows quality, and browser-build checks, and
+  require zero approving reviews. Administrators can explicitly bypass through
+  pull requests. Up-to-date branches and CodeQL checks are not merge requirements.
+- Restrict Actions to local actions, GitHub-owned actions, and the existing
+  `softprops/action-gh-release` action; require workflow approval for all external
+  contributors. Preserve read-only default token permissions, disabled workflow
+  pull-request approval, and the existing SHA-pinning setting.
+- Enable CodeQL default setup for JavaScript/TypeScript and GitHub Actions using
+  the default query suite, remote threat model, and standard hosted runners.
+  Preserve dependency graph, Dependabot alerts and security updates, secret
+  scanning, push protection, and private vulnerability reporting. No paid feature,
+  trial, credential generation, or new access grant is part of this task.
+- Existing dependency-update pull requests and their failures are outside this
+  change. Do not treat enabled scanners as proof that the application is secure.
+- Compatibility and migration: no product code, package version, data schema, or
+  RPC contract changes; no application migration required. Repository contributors
+  now use pull requests for `main`, with the administrator bypass described above.
+- Version impact is `none` because these are repository controls and maintenance
+  documentation, not a shipped application behavior change. File changes remain
+  proposed until this draft pull request is reviewed and merged.
+
+##### Validation
+
+- Inspected repository `AGENTS.md`, change-record instructions, relevant security
+  review guidance, workflow definitions, and existing checks before changing settings.
+- GitHub API accepted ruleset creation (ID `25797382`), Actions restrictions and
+  contributor-approval updates, and CodeQL setup. Initial CodeQL run:
+  <https://github.com/scarecr0w12/PlayWeld/actions/runs/40131964374>.
+- Read back the ruleset, allowed actions, external-contributor approval policy,
+  default token permissions, preserved security features, and CodeQL configuration.
+  Both initial CodeQL analyses completed successfully with empty analysis error
+  and warning fields. CodeQL reported 12 open alerts (nine high and three medium);
+  these are untriaged scanner findings and were not fixed or dismissed.
+- `npm run changelog:update`, `npm run changelog:check -- --base 7ccb07580d82164d16f63c6ce5404b81a754f1e6`, and `git diff --check` passed.
+  The existing pinned Prettier installation checked the complete isolated checkout;
+  all matched files passed without installing dependencies into the checkout.
+- The repository-wide Markdown link checker was started under Git Bash and stopped
+  after an extended run without a result. The PR's existing Linux CI also runs
+  this checker; the incomplete local check is not represented as passed.
+- The first PR Linux quality job passed builds, types, lint, tests, work records,
+  cache-maintenance tests, version validation, and documentation validation, then
+  failed formatting on `CHANGELOG.md`. Later validation prose had split a command
+  across lines in this source record after the earlier formatting check. Keep
+  that command on one line and regenerate the changelog to correct this task's
+  formatting regression. Check both generation freshness and formatting together
+  before committing the correction; hosted checks remain pending at that point.
+- Initial repository inspection found 11 open Dependabot alerts (four high and
+  seven medium), zero open secret-scanning alerts, and failing existing Dependabot
+  pull requests. These are observations, not fixes delivered by this task.
+- Application builds, engine integrations, desktop packaging, and installer tests
+  are not executed locally for this documentation and repository configuration
+  change. Hosted checks and CodeQL results are verified separately before handoff.
+
+##### Files
+
+- `.github/SECURITY.md`
+- `.github/dependabot.yml`
+- `docs/changes/2026-10-24-repository-security-quality.md`
+- `CHANGELOG.md`
+
 #### Refresh vulnerable dependency lines without changing Theia
 
 **Impact:** patch
@@ -505,6 +587,7 @@ Review live GitHub dependency/code/secret-scanning alerts, verify pending depend
 - The final generated-inventory check initially found the retired native opener still listed as a current regression path, causing the documentation-evidence checker to fail as well. Regenerate both inventory artifacts from current source to remove that obsolete entry; preserve historical work-record references and leave the evidence checker's assertions intact.
 - The staged whitespace check additionally detected extra blank lines at EOF in three pending security records that the earlier unstaged check did not include. Normalize those endings before committing; preserve their historical findings, validation and file lists.
 - The remote security-policy PR 8 merged after this branch's starting commit. Preserve its private-reporting policy, Actions Dependabot schedule and permanent work record when incorporating current main. Existing dependency-update PRs remain independent; newer optional action/dependency versions are not automatically treated as security fixes. Commit/push authorization covers this session's accumulated reviewed security, documentation, plugin migration, Requests, audit export/retention and service-log work, each retaining its separate permanent record. No release or main-branch merge is authorized by this task.
+- Commit the accumulated reviewed work on `codex/security-review-remediation`, then merge current `origin/main` into that branch. The sole conflict is generated `CHANGELOG.md`; resolve it by regenerating from both branches' permanent records, retaining the incoming security policy and schedule unchanged. This incorporates main into the feature branch; it does not merge the feature branch into main.
 - Compatibility/migration: HTTP overload behavior changes only at the new aggregate ceiling; valid callers can receive 429 during a source flood. No setting, RPC schema, credential format, vector identity, Project/profile schema, dependency version or data migration changes in this follow-up. Impact is patch for the A2A security correction; version stays 0.22.0 pending.
 
 ##### Validation
