@@ -117,6 +117,18 @@ export interface ControlRoomService {
     projectId?: string,
   ): Promise<EffectiveSetting>;
   readAudit(projectId: string, afterSeq?: number): Promise<RpcResult<'audit/read'>>;
+  exportAudit(projectId: string): Promise<RpcResult<'audit/export'>>;
+  auditRetention(projectId: string): Promise<RpcResult<'audit/retention'>>;
+  setAuditRetention(
+    projectId: string,
+    policy: RpcParams<'audit/setRetention'>['policy'],
+  ): Promise<RpcResult<'audit/setRetention'>>;
+  previewAuditCleanup(
+    params: RpcParams<'audit/previewCleanup'>,
+  ): Promise<RpcResult<'audit/previewCleanup'>>;
+  applyAuditCleanup(
+    params: RpcParams<'audit/applyCleanup'>,
+  ): Promise<RpcResult<'audit/applyCleanup'>>;
   listTasks(projectId: string): Promise<TaskRecord[]>;
   getTaskTree(projectId: string, rootTaskId: string): Promise<TaskRecord[]>;
   listTaskEvents(params: RpcParams<'task/events'>): Promise<RpcResult<'task/events'>>;
@@ -141,6 +153,7 @@ export interface ControlRoomService {
     },
   ): Promise<ToolCallRecord>;
   listApprovals(projectId: string, pendingOnly?: boolean): Promise<ApprovalRequest[]>;
+  pendingInputs(): Promise<RpcResult<'broker/pendingInputs'>>;
   approve(
     projectId: string,
     approvalId: string,

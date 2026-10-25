@@ -1,6 +1,6 @@
 import { Static, Type } from '@sinclair/typebox';
 import { ExecutionModeSchema, SideEffectSchema, ToolIdSchema } from '../tools';
-import { SettingDefinitionSchema } from '../settings/schema';
+import { SettingDefinitionSchema, SettingsScope } from '../settings/schema';
 
 export const PLUGIN_PROTOCOL_VERSION = 1;
 
@@ -117,6 +117,50 @@ export const PluginCommandContributionSchema = Type.Object(
 );
 export type PluginCommandContribution = Static<typeof PluginCommandContributionSchema>;
 
+const migrationScopes = {
+  scopes: Type.Optional(Type.Array(SettingsScope, { minItems: 1, uniqueItems: true })),
+};
+export const PluginSettingsOperationSchema = Type.Union([
+  Type.Object(
+    {
+      kind: Type.Literal('rename'),
+      from: Type.String({ minLength: 1 }),
+      to: Type.String({ minLength: 1 }),
+      ...migrationScopes,
+    },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    { kind: Type.Literal('remove'), key: Type.String({ minLength: 1 }), ...migrationScopes },
+    { additionalProperties: false },
+  ),
+  Type.Object(
+    {
+      kind: Type.Literal('map-values'),
+      key: Type.String({ minLength: 1 }),
+      values: Type.Array(
+        Type.Object({ from: Type.Unknown(), to: Type.Unknown() }, { additionalProperties: false }),
+        { minItems: 1 },
+      ),
+      ...migrationScopes,
+    },
+    { additionalProperties: false },
+  ),
+]);
+export type PluginSettingsOperation = Static<typeof PluginSettingsOperationSchema>;
+export const PluginSettingsUpgradeSchema = Type.Object(
+  {
+    schemaVersion: Type.Literal(1),
+    pluginId: Type.String({ minLength: 1 }),
+    from: Type.String(),
+    to: Type.String(),
+    operations: Type.Array(PluginSettingsOperationSchema),
+    definitions: Type.Array(SettingDefinitionSchema),
+  },
+  { additionalProperties: false },
+);
+export type PluginSettingsUpgrade = Static<typeof PluginSettingsUpgradeSchema>;
+
 export const PluginManifestSchema = Type.Object(
   {
     schemaVersion: Type.Literal(1),
@@ -177,6 +221,7 @@ export const PluginManifestSchema = Type.Object(
           from: Type.String({ minLength: 1 }),
           to: Type.String({ minLength: 1 }),
           description: Type.String(),
+          operations: Type.Optional(Type.Array(PluginSettingsOperationSchema)),
         },
         { additionalProperties: false },
       ),

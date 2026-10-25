@@ -14,5 +14,5 @@ it('resolves the declared patched MCP fixture SDK rather than a stale nested ins
     readFileSync(path.resolve(__dirname, '../../package.json'), 'utf8'),
   ) as { devDependencies: Record<string, string> };
   expect(installed.version).toBe(workspace.devDependencies['@modelcontextprotocol/sdk']);
-  expect(gte(installed.version, '1.31.0')).toBe(true);
+  expect(gte(installed.version, '1.32.1')).toBe(true);
 });

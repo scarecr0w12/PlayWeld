@@ -634,7 +634,7 @@
     {
       "key": "logs.retentionDays",
       "title": "Log retention (days)",
-      "description": "Number of days to retain service logs.",
+      "description": "Maximum age of recognized CLI service-log entries; startup, setting changes and each minute prune expired entries. Size rotation can remove history sooner.",
       "group": "logs",
       "schema": {
         "type": "integer",
@@ -642,6 +642,44 @@
       },
       "default": 30,
       "scopes": ["platform"],
+      "source": "builtin"
+    },
+    {
+      "key": "audit.retentionDays",
+      "title": "Audit retention (days)",
+      "description": "Zero keeps audit history indefinitely; a positive value defines the retention cutoff.",
+      "group": "logs",
+      "schema": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 36500
+      },
+      "default": 0,
+      "scopes": ["platform", "project"],
+      "source": "builtin"
+    },
+    {
+      "key": "audit.deletionEnabled",
+      "title": "Allow audit deletion",
+      "description": "Allow explicit previewed cleanup and, when separately enabled, automatic audit retention.",
+      "group": "logs",
+      "schema": {
+        "type": "boolean"
+      },
+      "default": false,
+      "scopes": ["platform", "project"],
+      "source": "builtin"
+    },
+    {
+      "key": "audit.autoPrune",
+      "title": "Automatically prune audit history",
+      "description": "Opt in to periodic cleanup of eligible records; deletion must be allowed and retention days must be positive.",
+      "group": "logs",
+      "schema": {
+        "type": "boolean"
+      },
+      "default": false,
+      "scopes": ["platform", "project"],
       "source": "builtin"
     },
     {

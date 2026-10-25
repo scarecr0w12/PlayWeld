@@ -19,6 +19,7 @@ import {
   providerFetch,
   providerJson,
   safeExcerpt,
+  trimTrailingSlashes,
 } from './http-utils';
 import { providerToolNames } from './tool-names';
 import { OpenAIResponses } from './openai-responses';
@@ -461,7 +462,7 @@ export class OpenAICompatibleProvider implements ModelProvider {
   private responsesEligible(account: ProviderRuntimeAccount): boolean {
     return (
       this.options.toolResponsesFallback === true &&
-      this.baseUrl(account).replace(/\/+$/, '') === 'https://api.openai.com/v1'
+      trimTrailingSlashes(this.baseUrl(account)) === 'https://api.openai.com/v1'
     );
   }
 

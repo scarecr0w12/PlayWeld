@@ -5,11 +5,14 @@ import type {
   SettingsImportResult,
   RpcNotificationParams,
   SettingsScope,
+  PluginManifest,
+  PluginSettingsUpgrade,
 } from '@gamecrafter/contracts';
 import { redact, RpcError as ServiceRpcError, RpcErrorCode } from '@gamecrafter/contracts';
 import type { Database } from '../db/database';
 import { ProjectDatabases } from '../projects/project-databases';
 import { SettingsRegistry } from './registry';
+import { PluginSettingsMigrations } from './plugin-settings-migrations';
 
 export interface SettingsContext {
   projectId?: string;
@@ -17,6 +20,7 @@ export interface SettingsContext {
 }
 
 export class SettingsService {
+  private readonly pluginMigrations: PluginSettingsMigrations;
   private readonly sessions = new Map<string, Map<string, unknown>>();
   private readonly changedListeners = new Set<
     (event: RpcNotificationParams<'settings/changed'>) => void
@@ -27,16 +31,47 @@ export class SettingsService {
     private readonly profileDatabase: Database,
     private readonly projectDatabases: ProjectDatabases,
     private readonly now: () => Date = () => new Date(),
-  ) {}
+  ) {
+    this.pluginMigrations = new PluginSettingsMigrations(
+      profileDatabase,
+      projectDatabases,
+      registry,
+      this.sessions,
+      now,
+    );
+  }
+
+  preparePluginUpgrade(
+    previous: PluginManifest | undefined,
+    next: PluginManifest,
+    projectIds: string[],
+  ): PluginSettingsUpgrade | undefined {
+    return this.pluginMigrations.prepare(previous, next, projectIds);
+  }
+  commitPluginUpgrade(next: PluginManifest, plan?: PluginSettingsUpgrade): void {
+    this.pluginMigrations.commit(next, plan);
+  }
+  activatePluginSettings(next: PluginManifest, previousVersion?: string): void {
+    this.pluginMigrations.activate(next, previousVersion);
+  }
 
   describe(): ReturnType<SettingsRegistry['describe']> {
     return this.registry.describe();
   }
 
   getAll(context: SettingsContext = {}): EffectiveSetting[] {
+    this.pluginMigrations.ensure(context.projectId);
     return this.registry
       .describe()
       .definitions.map((definition) => this.resolve(definition.key, context));
+  }
+
+  getPluginSettings(pluginId: string, context: SettingsContext = {}): EffectiveSetting[] {
+    this.pluginMigrations.ensure(context.projectId, undefined, false, pluginId);
+    return this.registry
+      .describe()
+      .definitions.filter((definition) => definition.source === `plugin:${pluginId}`)
+      .map((definition) => this.resolve(definition.key, context));
   }
 
   export(context: SettingsContext = {}): SettingsExport {
@@ -105,6 +140,12 @@ export class SettingsService {
       changes.push({ key: setting.key, value });
       result.importedKeys.push(setting.key);
     }
+    for (const { key } of changes)
+      this.pluginMigrations.ensure(
+        input.scope === 'project' ? input.projectId : undefined,
+        key,
+        result.dryRun,
+      );
     if (!result.dryRun) {
       database.transaction(() => {
         for (const { key, value } of changes)
@@ -122,6 +163,7 @@ export class SettingsService {
 
   resolve(key: string, context: SettingsContext = {}): EffectiveSetting {
     const definition = this.getDefinition(key);
+    this.pluginMigrations.ensure(context.projectId, key);
     const layers: EffectiveSetting['layers'] = { default: definition.default };
     let source: EffectiveSetting['source'] = 'default';
     let value: unknown = definition.default;
@@ -172,6 +214,7 @@ export class SettingsService {
     context: SettingsContext = {},
   ): EffectiveSetting {
     const definition = this.getDefinition(key);
+    this.pluginMigrations.ensure(context.projectId, key);
     if (scope !== 'platform' && !definition.scopes.includes(scope)) {
       throw new ServiceRpcError(
         `Setting ${key} cannot be overridden at ${scope} scope`,
@@ -250,6 +293,7 @@ export class SettingsService {
   }
 
   unregisterSource(source: string, projectIds: string[] = []): string[] {
+    if (source.startsWith('plugin:')) this.pluginMigrations.forget(source.slice(7), projectIds);
     const keys = this.registry.unregisterSource(source);
     for (const key of keys) {
       this.profileDatabase.prepare('DELETE FROM settings_values WHERE key = ?').run(key);

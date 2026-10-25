@@ -60,6 +60,54 @@ function widget() {
 }
 
 describe('Audit cost visibility', () => {
+  it('downloads the complete service export for the captured Project while preserving the current page and filter', async () => {
+    const view = widget();
+    view.query = 'request-1';
+    view.afterSeq = 700;
+    const snapshot = view.snapshot;
+    const receipt = {
+      path: '/tmp/audit fixture.json',
+      counts: { calls: 1201, events: 1500, approvals: 2, modelUsage: 1300 },
+      bytes: 42000,
+    };
+    view.service = {
+      exportAudit: vi.fn(async () => {
+        view.projectId = 'another-project';
+        return receipt;
+      }),
+    };
+    view.downloads = { download: vi.fn(async () => undefined) };
+    await view.exportFullHistory();
+    expect(view.service.exportAudit).toHaveBeenCalledWith('project');
+    expect(view.downloads.download).toHaveBeenCalledOnce();
+    expect(view.downloads.download.mock.calls[0][0][0].scheme).toBe('file');
+    expect(view.exportNotice).toContain('Fixture');
+    expect(view.exportNotice).toContain('4003 records');
+    expect(view.snapshot).toBe(snapshot);
+    expect(view.query).toBe('request-1');
+    expect(view.afterSeq).toBe(700);
+    expect(view.exporting).toBe(false);
+  });
+
+  it('shows export preparation failures and allows another attempt without discarding the loaded page', async () => {
+    const view = widget();
+    const snapshot = view.snapshot;
+    view.service = { exportAudit: vi.fn().mockRejectedValue(new Error('Fixture disk full')) };
+    view.downloads = { download: vi.fn() };
+    await view.exportFullHistory();
+    expect(view.error).toBe('Fixture disk full');
+    expect(view.exporting).toBe(false);
+    expect(view.snapshot).toBe(snapshot);
+    expect(view.downloads.download).not.toHaveBeenCalled();
+  });
+  it('offers a complete-history export independently of the current page and filter', () => {
+    const view = widget();
+    view.query = 'does-not-match';
+    view.snapshot = undefined;
+    const html = renderToStaticMarkup(view.render());
+    expect(html).toContain('Export full history');
+    expect(html).not.toContain('disabled="">Export full history');
+  });
   it('shows decision inference with unknown tokens and cache counts without inventing zeroes', () => {
     const view = widget();
     view.snapshot.modelUsage = [

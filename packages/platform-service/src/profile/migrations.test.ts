@@ -2,8 +2,62 @@ import { describe, expect, it } from 'vitest';
 import { Database } from '../db/database';
 import { migrate } from '../db/migrator';
 import { profileMigrations } from './migrations';
+import { projectMigrations } from '../projects/migrations';
 
 describe('profile migrations', () => {
+  it('adds audit retention metadata without discarding routing learning', () => {
+    const database = Database.open(':memory:');
+    try {
+      migrate(
+        database,
+        profileMigrations.filter((migration) => migration.id < 21),
+      );
+      database
+        .prepare(
+          "INSERT INTO route_decisions (decision_id,decision,project_id,task_type,model_id,explored,decided_at) VALUES ('fixture','{}','project','fixture','model',0,'2020-01-01')",
+        )
+        .run();
+      database
+        .prepare(
+          "INSERT INTO route_outcomes (decision_id,success,quality_score,source,cost_usd,latency_ms,input_tokens,output_tokens,recorded_at) VALUES ('fixture',1,0.9,'self',2,5,13,7,'2020-01-01')",
+        )
+        .run();
+      migrate(database, profileMigrations);
+      expect(
+        database.prepare('SELECT quality_score,audit_retained FROM route_outcomes').get(),
+      ).toEqual({ quality_score: 0.9, audit_retained: 1 });
+      expect(database.prepare('SELECT * FROM audit_cleanup_receipts').all()).toEqual([]);
+    } finally {
+      database.close();
+    }
+  });
+  it('adds plugin checkpoints without rewriting existing profile or Project settings', () => {
+    for (const [migrations, table] of [
+      [profileMigrations, 'settings_values'],
+      [projectMigrations, 'settings_overrides'],
+    ] as const) {
+      const database = Database.open(':memory:');
+      try {
+        migrate(
+          database,
+          migrations.filter((migration) => migration.id < (table === 'settings_values' ? 20 : 14)),
+        );
+        database
+          .prepare(`INSERT INTO ${table} (key, value, updated_at) VALUES (?, ?, ?)`)
+          .run('plugin.fixture.existing', '"preserved"', '2026-10-01T00:00:00.000Z');
+        migrate(database, [...migrations]);
+        expect(
+          database
+            .prepare(`SELECT value FROM ${table} WHERE key = ?`)
+            .get('plugin.fixture.existing'),
+        ).toEqual({ value: '"preserved"' });
+        expect(database.prepare('SELECT * FROM plugin_settings_versions').all()).toEqual([]);
+      } finally {
+        database.close();
+      }
+    }
+  });
+
   it('creates model usage and MCP, plugin, engine, asset, backup, DCC, and A2A persistence tables', () => {
     const database = Database.open(':memory:');
     try {
@@ -33,7 +87,9 @@ describe('profile migrations', () => {
       expect(tables).toContain('a2a_inbound_config');
       expect(tables).toContain('a2a_inbound_clients');
       expect(tables).toContain('a2a_remote_tasks');
-      expect(database.prepare('SELECT id FROM schema_migrations').all()).toHaveLength(19);
+      expect(database.prepare('SELECT id FROM schema_migrations').all()).toHaveLength(21);
+      expect(tables).toContain('plugin_settings_versions');
+      expect(tables).toContain('plugin_settings_upgrades');
       expect(
         database
           .prepare('PRAGMA table_info(a2a_remote_tasks)')

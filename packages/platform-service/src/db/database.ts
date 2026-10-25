@@ -19,6 +19,10 @@ export class Statement {
   all<T = Record<string, SQLOutputValue>>(...params: SQLInputValue[]): T[] {
     return this.statement.all(...params) as T[];
   }
+
+  *iterate<T = Record<string, SQLOutputValue>>(...params: SQLInputValue[]): IterableIterator<T> {
+    for (const row of this.statement.iterate(...params)) yield row as T;
+  }
 }
 
 export class Database {

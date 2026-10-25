@@ -323,7 +323,8 @@ export class TaskGraph {
     if (current.state !== 'waiting_input') {
       throw new RpcError(`Task is not waiting for input: ${taskId}`, RpcErrorCode.TaskNotWaiting);
     }
-    if (!this.options.store.getQuestion(taskId, questionId)) {
+    const question = this.options.store.getQuestion(taskId, questionId);
+    if (!question || question.answeredAt !== null) {
       throw new RpcError(`Question not found: ${questionId}`, RpcErrorCode.QuestionNotFound);
     }
     const input = asRecord(current.input);

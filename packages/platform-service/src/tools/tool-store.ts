@@ -150,6 +150,27 @@ export class ToolStore {
       .map(callFromRow);
   }
 
+  *exportCalls(projectId: string): IterableIterator<ToolCallRecord> {
+    for (const row of this.database
+      .prepare(
+        `SELECT ${toolCallColumns} FROM tool_calls WHERE project_id = ? ORDER BY started_at, call_id`,
+      )
+      .iterate<ToolCallRow>(projectId))
+      yield callFromRow(row);
+  }
+
+  *exportApprovals(projectId: string): IterableIterator<ApprovalRequest> {
+    for (const row of this.database
+      .prepare(
+        `SELECT approval_id AS approvalId, project_id AS projectId, call_id AS callId,
+        tool_id AS toolId, side_effects AS sideEffects, summary, input AS inputJson,
+        requested_at AS requestedAt, resolved_at AS resolvedAt, approved, reason
+       FROM approvals WHERE project_id = ? ORDER BY requested_at, approval_id`,
+      )
+      .iterate<ApprovalRow>(projectId))
+      yield approvalFromRow(row);
+  }
+
   insertApproval(approval: ApprovalRequest): void {
     this.database
       .prepare(

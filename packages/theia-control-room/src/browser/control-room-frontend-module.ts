@@ -37,8 +37,9 @@ import { ChatWidget } from './chat-widget';
 import { ChatViewContribution } from './chat-view-contribution';
 import { GameCrafterSettingsWidget } from './settings-widget';
 import { SettingsViewContribution } from './settings-view-contribution';
-import { TaskQuestionHandler } from './task-question-handler';
-import { ToolApprovalHandler } from './tool-approval-handler';
+import { RequestsModel } from './requests-model';
+import { RequestsWidget } from './requests-widget';
+import { RequestsViewContribution } from './requests-view-contribution';
 import { AuditWidget } from './audit-widget';
 import { AuditViewContribution } from './audit-view-contribution';
 import { GameCrafterThemeContribution } from './theme-contribution';
@@ -82,6 +83,16 @@ export default new ContainerModule((bind) => {
   }
 
   bind(AuditWidget).toSelf();
+  bind(RequestsModel).toSelf().inSingletonScope();
+  bind(FrontendApplicationContribution).toService(RequestsModel);
+  bind(RequestsWidget).toSelf();
+  bind(WidgetFactory)
+    .toDynamicValue((context) => ({
+      id: RequestsWidget.ID,
+      createWidget: () => context.container.get(RequestsWidget),
+    }))
+    .inSingletonScope();
+  bindViewContribution(bind, RequestsViewContribution);
   bind(WidgetFactory)
     .toDynamicValue((context) => ({
       id: AuditWidget.ID,
@@ -210,10 +221,6 @@ export default new ContainerModule((bind) => {
   bindViewContribution(bind, SwarmViewContribution);
   bindViewContribution(bind, UpdatesViewContribution);
   bindViewContribution(bind, ChatViewContribution);
-  bind(TaskQuestionHandler).toSelf().inSingletonScope();
-  bind(FrontendApplicationContribution).toService(TaskQuestionHandler);
-  bind(ToolApprovalHandler).toSelf().inSingletonScope();
-  bind(FrontendApplicationContribution).toService(ToolApprovalHandler);
 
   bind(CreateProjectCommand).toSelf().inSingletonScope();
   bind(CommandContribution).toService(CreateProjectCommand);

@@ -56,6 +56,30 @@ export class SettingsRegistry {
     return removed.sort((left, right) => left.localeCompare(right));
   }
 
+  replaceSource(source: string, definitions: SettingDefinition[]): void {
+    const previous = this.describe().definitions.filter(
+      (definition) => definition.source === source,
+    );
+    this.unregisterSource(source);
+    try {
+      this.register(source, [], definitions);
+    } catch (error) {
+      this.register(source, [], previous);
+      throw error;
+    }
+  }
+
+  validateReplacement(source: string, definitions: SettingDefinition[]): void {
+    const candidate = new SettingsRegistry();
+    const current = this.describe();
+    candidate.register(
+      'validation',
+      current.groups,
+      current.definitions.filter((definition) => definition.source !== source),
+    );
+    candidate.register(source, [], definitions);
+  }
+
   describe(): { groups: SettingGroup[]; definitions: SettingDefinition[] } {
     const groups = [...this.groups.values()].sort((left, right) => left.order - right.order);
     const groupOrders = new Map(groups.map((group) => [group.id, group.order]));

@@ -264,7 +264,10 @@ async function requireSuccess(response: Response, statuses: number[]): Promise<v
 
 function xmlValue(block: string, tag: string): string | undefined {
   const match = block.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`));
-  return match?.[1]?.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  return match?.[1]?.replace(
+    /&(?:amp|lt|gt);/g,
+    (entity) => ({ '&amp;': '&', '&lt;': '<', '&gt;': '>' })[entity]!,
+  );
 }
 
 function parseDate(value: string | undefined): string | null {

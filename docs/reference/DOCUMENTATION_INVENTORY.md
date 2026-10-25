@@ -2,7 +2,7 @@
 
 Generated from built contracts, built setting definitions, and service source paths. Regenerate with `node scripts/generate-documentation-inventory.cjs`; check freshness with `--check`. Counts do not establish acceptance. The [coverage record](../DOCUMENTATION_COVERAGE.md) owns gaps and observed results.
 
-Request methods: **198**; notifications: **28**; settings: **85**; setting groups: **17**. Full names and test paths are in [the JSON inventory](documentation-inventory.json).
+Request methods: **204**; notifications: **28**; settings: **88**; setting groups: **17**. Full names and test paths are in [the JSON inventory](documentation-inventory.json).
 
 ## RPC families
 
@@ -10,10 +10,10 @@ Request methods: **198**; notifications: **28**; settings: **85**; setting group
 | --- | --- | --- | --- |
 | a2a | 10 | [Guide](../USER_GUIDE.md) | [Source](../../packages/platform-service/src/a2a/) |
 | asset | 15 | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/assets/) |
-| audit | 1 | [Guide](../OPERATIONS_GUIDE.md) | [Source](../../packages/platform-service/src/tools/) |
+| audit | 6 | [Guide](../OPERATIONS_GUIDE.md) | [Source](../../packages/platform-service/src/audit/) |
 | backup | 19 | [Guide](../OPERATIONS_GUIDE.md) | [Source](../../packages/platform-service/src/backup/) |
 | board | 19 | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/board/) |
-| broker | 2 | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/tools/) |
+| broker | 3 | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/tools/) |
 | change | 11 | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/change/) |
 | chat | 5 | [Guide](../WORKED_TUTORIAL.md) | [Source](../../packages/platform-service/src/chat/) |
 | dcc | 8 | [Guide](../INTEGRATION_GUIDE.md) | [Source](../../packages/platform-service/src/dcc/) |
@@ -49,7 +49,7 @@ Request methods: **198**; notifications: **28**; settings: **85**; setting group
 | board: Discussion board | 6 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
 | plugins: Plugins & updates | 7 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
 | storage: Storage, search & backup | 2 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
-| logs: Logs & audit | 1 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
+| logs: Logs & audit | 4 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
 | engine: Engine connectors | 3 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
 | knowledge: Knowledge & search | 12 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
 | assets: Assets | 6 | [Exact values and scopes](../SETTINGS_REFERENCE.md) |
@@ -64,7 +64,8 @@ Request methods: **198**; notifications: **28**; settings: **85**; setting group
 | --- | --- | --- | --- |
 | a2a | [Guide](../USER_GUIDE.md) | [Source](../../packages/platform-service/src/a2a/) | 2 |
 | agents | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/agents/) | 4 |
-| assets | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/assets/) | 5 |
+| assets | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/assets/) | 6 |
+| audit | [Guide](../OPERATIONS_GUIDE.md) | [Source](../../packages/platform-service/src/audit/) | 3 |
 | backup | [Guide](../OPERATIONS_GUIDE.md) | [Source](../../packages/platform-service/src/backup/) | 9 |
 | board | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/board/) | 4 |
 | change | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/change/) | 5 |
@@ -84,7 +85,7 @@ Request methods: **198**; notifications: **28**; settings: **85**; setting group
 | roles | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/roles/) | 3 |
 | settings | [Guide](../SETTINGS_REFERENCE.md) | [Source](../../packages/platform-service/src/settings/) | 2 |
 | skills | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/skills/) | 8 |
-| tasks | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/tasks/) | 4 |
+| tasks | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/tasks/) | 5 |
 | tools | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/tools/) | 3 |
 | updates | [Guide](../RELEASE_GUIDE.md) | [Source](../../packages/platform-service/src/updates/) | 4 |
 | workers | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/workers/) | 3 |

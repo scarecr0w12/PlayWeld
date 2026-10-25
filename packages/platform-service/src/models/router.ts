@@ -433,7 +433,7 @@ export class ModelRouter {
       );
   }
 
-  modelUsage(projectId: string, limit: number): ModelUsageRecord[] {
+  *exportModelUsage(projectId: string, limit = -1): IterableIterator<ModelUsageRecord> {
     const rows = this.options.database
       .prepare(
         `SELECT usage_id AS usageId, request_id AS requestId, project_id AS projectId,
@@ -446,7 +446,7 @@ export class ModelRouter {
          FROM model_usage WHERE project_id = ?
          ORDER BY occurred_at DESC, usage_id DESC LIMIT ?`,
       )
-      .all<{
+      .iterate<{
         usageId: string;
         requestId: string | null;
         projectId: string;
@@ -461,42 +461,44 @@ export class ModelRouter {
         storedCostUsd: number;
         costStatus: ModelUsageRecord['costStatus'];
       }>(projectId, limit);
-    const current = rows.map((row) => ({
-      usageId: row.usageId,
-      requestId: row.requestId,
-      taskId: row.taskId,
-      decisionId: row.decisionId,
-      modelId: row.modelId,
-      ...modelLabels(this.options.registry, row.modelId),
-      occurredAt: row.occurredAt,
-      source: 'completion' as const,
-      inputTokens: row.inputTokens,
-      outputTokens: row.outputTokens,
-      cacheReadInputTokens: row.cacheReadInputTokens,
-      cacheCreationInputTokens: row.cacheCreationInputTokens,
-      costUsd: row.costStatus === 'unknown' ? null : row.storedCostUsd,
-      costStatus: row.costStatus,
-    }));
+    for (const row of rows)
+      yield {
+        usageId: row.usageId,
+        requestId: row.requestId,
+        taskId: row.taskId,
+        decisionId: row.decisionId,
+        modelId: row.modelId,
+        ...modelLabels(this.options.registry, row.modelId),
+        occurredAt: row.occurredAt,
+        source: 'completion' as const,
+        inputTokens: row.inputTokens,
+        outputTokens: row.outputTokens,
+        cacheReadInputTokens: row.cacheReadInputTokens,
+        cacheCreationInputTokens: row.cacheCreationInputTokens,
+        costUsd: row.costStatus === 'unknown' ? null : row.storedCostUsd,
+        costStatus: row.costStatus,
+      };
     const legacy = this.options.database
       .prepare(
         `SELECT d.decision_id AS decisionId, d.model_id AS modelId,
           o.recorded_at AS occurredAt, o.input_tokens AS inputTokens,
           o.output_tokens AS outputTokens
          FROM route_decisions d JOIN route_outcomes o ON o.decision_id = d.decision_id
-         WHERE d.project_id = ? AND o.source = 'self'
+         WHERE d.project_id = ? AND o.source = 'self' AND o.audit_retained = 1
            AND NOT EXISTS (
              SELECT 1 FROM model_usage u WHERE u.decision_id = d.decision_id
            )
          ORDER BY o.recorded_at DESC, d.decision_id DESC LIMIT ?`,
       )
-      .all<{
+      .iterate<{
         decisionId: string;
         modelId: string;
         occurredAt: string;
         inputTokens: number;
         outputTokens: number;
-      }>(projectId, limit)
-      .map((row) => ({
+      }>(projectId, limit);
+    for (const row of legacy)
+      yield {
         usageId: row.decisionId,
         requestId: null,
         taskId: null,
@@ -511,20 +513,21 @@ export class ModelRouter {
         cacheCreationInputTokens: 0,
         costUsd: null,
         costStatus: 'unverified' as const,
-      }));
-    const decisionUsage: ModelUsageRecord[] = this.options.database
+      };
+    const decisionUsage = this.options.database
       .prepare(
         'SELECT assessment_json AS assessment FROM decision_assessments WHERE project_id = ? ORDER BY created_at DESC, assessment_id DESC LIMIT ?',
       )
-      .all<{ assessment: string }>(projectId, limit)
-      .map((row) => JSON.parse(row.assessment) as DecisionAssessment)
-      .filter(
-        (entry) =>
-          entry.status === 'assessed' ||
-          entry.reasonCodes.includes('decision-request-failed') ||
-          entry.reasonCodes.includes('assessment-cancelled'),
-      )
-      .map((entry) => ({
+      .iterate<{ assessment: string }>(projectId, limit);
+    for (const row of decisionUsage) {
+      const entry = JSON.parse(row.assessment) as DecisionAssessment;
+      if (!(
+        entry.status === 'assessed' ||
+        entry.reasonCodes.includes('decision-request-failed') ||
+        entry.reasonCodes.includes('assessment-cancelled')
+      ))
+        continue;
+      yield {
         usageId: entry.assessmentId,
         requestId: `decision:${entry.assessmentId}`,
         taskId: entry.taskId,
@@ -540,8 +543,12 @@ export class ModelRouter {
         cacheCreationInputTokens: null,
         costUsd: entry.usage.costUsd,
         costStatus: entry.usage.costUsd === null ? 'unknown' : 'known',
-      }));
-    return [...current, ...legacy, ...decisionUsage]
+      };
+    }
+  }
+
+  modelUsage(projectId: string, limit: number): ModelUsageRecord[] {
+    return [...this.exportModelUsage(projectId, limit)]
       .sort(
         (left, right) =>
           right.occurredAt.localeCompare(left.occurredAt) ||

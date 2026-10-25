@@ -54,7 +54,7 @@ async function reply(
   }
   const authorization = request.headers.authorization ?? '';
   const match = authorization.match(
-    /Credential=([^/]+)\/(\d{8})\/([^/]+)\/s3\/aws4_request, SignedHeaders=([^,]+), Signature=([0-9a-f]+)/,
+    /^AWS4-HMAC-SHA256 Credential=([^/]+)\/(\d{8})\/([^/]+)\/s3\/aws4_request, SignedHeaders=([^,]+), Signature=([0-9a-f]+)/,
   );
   if (!match || match[1] !== accessKeyId || match[3] !== region) {
     response.writeHead(403).end('bad credentials');
@@ -127,6 +127,22 @@ async function reply(
 }
 
 describe('S3 backup destination', () => {
+  it('decodes XML entities once instead of reinterpreting the decoded result', async () => {
+    const fetcher: typeof fetch = async () =>
+      new Response(
+        '<ListBucketResult><Contents><Key>backups/a&amp;lt;b.gcbackup</Key><Size>1</Size></Contents></ListBucketResult>',
+      );
+    const destination = new S3BackupDestination(
+      { endpoint: 'https://fixture.test', region, bucket, prefix: 'backups', forcePathStyle: true },
+      { accessKeyId, secretAccessKey },
+      fetcher,
+    );
+    expect((await destination.list()).map((entry) => entry.archiveName)).toEqual([
+      'a&lt;b.gcbackup',
+    ]);
+    await expect(destination.get('a&lt;b.gcbackup')).rejects.toThrow('Invalid backup archive name');
+  });
+
   it('uploads, lists, downloads, and deletes an object with a verified SigV4 signature', async () => {
     const objects = new Map<string, Buffer>();
     let verifiedRequests = 0;

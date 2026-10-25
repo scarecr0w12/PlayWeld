@@ -78,6 +78,19 @@ function create(goal: string, patch: Partial<TaskCreateInput> = {}) {
 }
 
 describe('TaskGraph cancellation and dependency propagation', () => {
+  it('rejects a previously answered question when the task is waiting for a different question', () => {
+    const task = create('two questions');
+    graph.transition(task.taskId, 'claimed', 'test', 'test');
+    graph.transition(task.taskId, 'running', 'test', 'test');
+    const first = graph.addQuestion(task.taskId, 'First?', null);
+    graph.answerQuestion(task.taskId, first.questionId, 'original');
+    const second = graph.addQuestion(task.taskId, 'Second?', null);
+    expect(() => graph.answerQuestion(task.taskId, first.questionId, 'stale answer')).toThrow();
+    expect(graph.get(task.taskId).state).toBe('waiting_input');
+    expect(store.getQuestion(task.taskId, first.questionId)?.answer).toBe('original');
+    graph.answerQuestion(task.taskId, second.questionId, 'current');
+    expect(graph.get(task.taskId).state).toBe('running');
+  });
   it('fences every descendant before awaiting worker shutdown or publishing callbacks', async () => {
     const root = create('root');
     const child = create('child', { parentTaskId: root.taskId });

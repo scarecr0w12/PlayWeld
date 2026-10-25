@@ -94,6 +94,7 @@ const MAX_REQUESTS = 32;
 const MAX_REQUESTS_PER_CLIENT = 8;
 const MAX_PUBLIC_CARD_REQUESTS = 4;
 const REQUESTS_PER_MINUTE = 120;
+const AUTHENTICATION_ATTEMPTS_PER_MINUTE = 1200;
 
 export interface A2AInboundOptions {
   database: Database;
@@ -239,10 +240,12 @@ export class A2AInboundServer {
     const activeByClient = new Map<string, number>();
     const publicRate = new Map<string, { started: number; count: number }>();
     const invalidTokenRate = new Map<string, { started: number; count: number }>();
+    const authenticationRate = new Map<string, { started: number; count: number }>();
     const clientRate = new Map<string, { started: number; count: number }>();
     const withinRateLimit = (
       buckets: Map<string, { started: number; count: number }>,
       key: string,
+      maximum = REQUESTS_PER_MINUTE,
     ): boolean => {
       const now = Date.now();
       const entry = buckets.get(key);
@@ -250,7 +253,7 @@ export class A2AInboundServer {
         buckets.set(key, { started: now, count: 1 });
         return true;
       }
-      if (entry.count >= REQUESTS_PER_MINUTE) return false;
+      if (entry.count >= maximum) return false;
       entry.count += 1;
       return true;
     };
@@ -275,10 +278,16 @@ export class A2AInboundServer {
         response.status(413).end();
         return;
       }
+      const source = request.socket.remoteAddress ?? 'unknown';
+      // Bound credential lookup itself, in addition to the separate invalid-token
+      // and authenticated-client budgets applied below.
+      if (!withinRateLimit(authenticationRate, source, AUTHENTICATION_ATTEMPTS_PER_MINUTE)) {
+        response.status(429).end();
+        return;
+      }
       const token = parseBearer(request.headers.authorization);
       const clientId = token ? this.authenticate(token) : undefined;
       if (!clientId) {
-        const source = request.socket.remoteAddress ?? 'unknown';
         response.status(withinRateLimit(invalidTokenRate, source) ? 401 : 429).end();
         return;
       }

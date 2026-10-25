@@ -1,6 +1,6 @@
 # PlayWeld documentation
 
-**Last updated:** 2026-10-06
+**Last updated:** 2026-10-24
 
 Find instructions for using PlayWeld, maintaining your workspace, and contributing to the platform. Start with a task below; use the references when you need exact settings or API details.
 
@@ -18,6 +18,8 @@ Find instructions for using PlayWeld, maintaining your workspace, and contributi
 | Connect an external IDE to PlayWeld            | [External IDE MCP and native Theia integration](EXTERNAL_IDE_INTEGRATION.md)                                                                                |
 | Back up, restore, or troubleshoot              | [Operations guide](OPERATIONS_GUIDE.md) · [Profile recovery runbook](RECOVERY_RUNBOOK.md)                                                                  |
 | Change PlayWeld's code or documentation        | [Developer guide](DEVELOPER_GUIDE.md)                                                                                                                      |
+
+For the current review and security corrections, see the [2026-10-24 project review](PROJECT_REVIEW_2026-10-24.md) and [security remediation record](changes/2026-10-24-security-remediation.md). Older review/acceptance documents describe their dated artifacts, not the current vulnerability count or complete runtime state.
 
 For terminology, use the [glossary](GLOSSARY.md). For current capabilities and known gaps, use [implementation status](STATUS.md).
 

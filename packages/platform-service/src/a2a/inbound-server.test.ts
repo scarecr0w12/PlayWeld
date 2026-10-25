@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { createServer, request as httpRequest, type Server } from 'node:http';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { uuidv7, type TaskEvent, type TaskRecord } from '@gamecrafter/contracts';
 import { Database } from '../db/database';
 import { migrate } from '../db/migrator';
@@ -280,6 +280,42 @@ describe('A2A inbound loopback gateway', () => {
     }
     expect(lastUnauthenticated).toBe(429);
     expect((await request(port, token, 'GetTask', { id: taskId })).status).toBe(200);
+  }, 15_000);
+
+  it('bounds authentication attempts before credential lookup and releases the ceiling next minute', async () => {
+    const fixture = createInboundFixture();
+    const port = await availableLoopbackPort();
+    await fixture.gateway.configure(true, port);
+    const projectId = uuidv7();
+    fixture.projectIds.add(projectId);
+    const client = fixture.gateway.upsertClient({
+      name: 'authentication-ceiling client',
+      grants: [grant(projectId)],
+    });
+    const token = fixture.gateway.issueToken(client.clientId).token;
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now());
+    const statements = vi.spyOn(fixture.database, 'prepare');
+    try {
+      const created = await request(port, token, 'SendMessage', sendParams(projectId));
+      const taskId = created.body.result.task.id;
+      for (let batch = 0; batch < 60; batch += 1) {
+        await Promise.all(
+          Array.from({ length: 20 }, (_, index) =>
+            request(port, `${'x'.repeat(32)}${batch * 20 + index}`, 'GetTask', { id: taskId }),
+          ),
+        );
+      }
+      // Reject even a valid token before further database authentication work when
+      // the aggregate ceiling is exhausted. The ordinary 120-request quotas remain separate.
+      statements.mockClear();
+      expect((await request(port, token, 'GetTask', { id: taskId })).status).toBe(429);
+      expect(statements).not.toHaveBeenCalled();
+      clock.mockReturnValue(Date.now() + 60_001);
+      expect((await request(port, token, 'GetTask', { id: taskId })).status).toBe(200);
+    } finally {
+      statements.mockRestore();
+      clock.mockRestore();
+    }
   }, 15_000);
 
   it('does not return a deduplicated task outside the client role or ownership grant', async () => {

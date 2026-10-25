@@ -69,6 +69,11 @@ export class GameCrafterSettingsWidget extends ControlRoomReactWidget {
       }),
     );
     this.toDispose.push(
+      this.clientEvents.pluginChanged(() => {
+        void this.refresh();
+      }),
+    );
+    this.toDispose.push(
       this.clientEvents.projectChanged(() => {
         void this.refresh();
       }),

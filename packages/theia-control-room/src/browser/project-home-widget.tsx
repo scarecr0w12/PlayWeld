@@ -21,6 +21,7 @@ import { CONNECTIONS_OPEN_COMMAND_ID } from './connections-view-contribution';
 import { DISCUSSION_BOARD_OPEN_COMMAND_ID } from './discussion-board-view-contribution';
 import { SWARM_OPEN_COMMAND_ID } from './swarm-view-contribution';
 import { PLUGINS_OPEN_COMMAND_ID } from './plugins-catalog-view-contribution';
+import { REQUESTS_OPEN_COMMAND_ID } from './requests-model';
 import { ENGINE_OPEN_COMMAND_ID } from './engine-view-contribution';
 import { DCC_OPEN_COMMAND_ID } from './dcc-view-contribution';
 import { KNOWLEDGE_OPEN_COMMAND_ID } from './knowledge-view-contribution';
@@ -357,6 +358,12 @@ const HOME_NAVIGATION_GROUPS = [
     title: 'AI and teamwork',
     description: 'Set up assistance, share context, and review delegated work.',
     items: [
+      {
+        label: 'Requests',
+        command: REQUESTS_OPEN_COMMAND_ID,
+        icon: 'inbox',
+        description: 'Review pending approvals and task questions across Projects.',
+      },
       {
         label: 'Models',
         command: MODELS_OPEN_COMMAND_ID,

@@ -303,7 +303,7 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
         id="gamecrafter-plugins-install"
         hidden={this.activeSection !== 'install'}
       >
-        <h2>Install a platform plugin</h2>
+        <h2>Install or upgrade a platform plugin</h2>
         <form
           className="gamecrafter-plugins-install-form"
           onSubmit={(event) => {
@@ -351,6 +351,20 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
                 {warning}
               </p>
             ))}
+            {this.inspection.manifest.migrations.length > 0 && (
+              <details className="gamecrafter-page-advanced">
+                <summary>Settings migration review</summary>
+                {this.inspection.manifest.migrations.map((migration) => (
+                  <section key={`${migration.from}:${migration.to}`}>
+                    <h4>
+                      {migration.from} → {migration.to}
+                    </h4>
+                    <p>{migration.description}</p>
+                    <pre>{JSON.stringify(migration.operations ?? [], null, 2)}</pre>
+                  </section>
+                ))}
+              </details>
+            )}
             <h4>Requested capabilities</h4>
             <ul className="gamecrafter-plugin-capabilities">
               {this.inspection.capabilities.length === 0 ? (
@@ -381,7 +395,11 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
               disabled={this.busy || !this.capabilitiesAccepted}
               onClick={() => void this.installInspectedPlugin()}
             >
-              Accept capabilities and install
+              {this.plugins.some(
+                (entry) => entry.installed.pluginId === this.inspection!.manifest.id,
+              )
+                ? 'Accept capabilities and upgrade'
+                : 'Accept capabilities and install'}
             </button>
           </div>
         )}
@@ -873,12 +891,15 @@ export class PluginsCatalogWidget extends ControlRoomReactWidget {
 
   private async installInspectedPlugin(): Promise<void> {
     if (!this.inspection || !this.capabilitiesAccepted) return;
+    const upgrading = this.plugins.some(
+      (entry) => entry.installed.pluginId === this.inspection!.manifest.id,
+    );
     await this.withBusy(async () => {
       const installed = await this.service.installPlugin(
         this.source.trim(),
         this.inspection!.capabilities,
       );
-      this.resultMessage = `Installed ${installed.manifest.name} v${installed.version}.`;
+      this.resultMessage = `${upgrading ? 'Upgraded' : 'Installed'} ${installed.manifest.name} v${installed.version}.`;
       this.inspection = undefined;
       this.capabilitiesAccepted = false;
       this.source = '';

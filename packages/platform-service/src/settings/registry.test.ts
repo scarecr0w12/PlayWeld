@@ -10,7 +10,7 @@ describe('SettingsRegistry', () => {
 
     const description = registry.describe();
     expect(description.groups).toHaveLength(17);
-    expect(description.definitions).toHaveLength(85);
+    expect(description.definitions).toHaveLength(88);
     for (const [key, value] of Object.entries({
       mode: 'shadow',
       accountId: '',

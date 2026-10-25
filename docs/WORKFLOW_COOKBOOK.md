@@ -1,6 +1,6 @@
 # PlayWeld workflow cookbook
 
-**Last updated:** 2026-10-06
+**Last updated:** 2026-10-24
 
 Use the disposable [Lantern Workshop](WORKED_TUTORIAL.md) Project for these exercises. Each workflow below gives prerequisites, actions, outputs, permissions, failure recovery and evidence. The [coverage record](DOCUMENTATION_COVERAGE.md) owns verification gaps. These instructions describe existing UI/service paths; they do not promote untested paths into live acceptance. Refer to the [glossary](GLOSSARY.md) and [handbook](CONTROL_ROOM_HANDBOOK.md) for terms and controls.
 
@@ -32,7 +32,7 @@ Evidence status: the original walkthrough previewed impact without submitting th
 
 ## Respond to questions, approvals and cancellation
 
-A task question asks for information, for example “Should the timer reset on R?” Inspect the task/Project identity and available answers, submit the intended answer, then verify the task leaves `waiting_input` or records the answer. Durable questions/answers belong to the task service. Closing a notification does not answer a question.
+Open **Requests** for the grouped pending-input list; **Review requests** notifications open that view without authorizing anything. A task question asks for information, for example “Should the timer reset on R?” Inspect the task/Project identity and available answers, submit the intended answer, then verify the task leaves `waiting_input` or records the answer. Durable questions/answers belong to the task service. Closing a notification does not answer a question.
 
 A broker approval authorizes a particular tool call. Inspect tool ID, arguments, paths, side-effect classification and requesting task. Approve or deny using the presented controls; do not change to Full access merely to hide a pending approval. A rejection or expired approval is an operational result that the task must handle, not evidence that the operation ran. Inspect **Audit & History** for the associated call.
 

@@ -6,6 +6,40 @@ import { describe, expect, it } from 'vitest';
 import { GoogleDriveBackupDestination } from './google-drive';
 
 describe('Google Drive backup destination', () => {
+  it('keeps backslashes and quotes inside the folder query literal for list, get and delete', async () => {
+    const folderId = "folder\\'part\\";
+    const queries: string[] = [];
+    const fetcher: typeof fetch = async (input) => {
+      const url = new URL(String(input));
+      if (url.pathname === '/token')
+        return Response.json({ access_token: 'fixture-token', expires_in: 3600 });
+      if (url.pathname === '/drive/v3/files') {
+        queries.push(url.searchParams.get('q')!);
+        return Response.json({ files: [{ id: 'fixture-id', name: 'test.gcbackup', size: '0' }] });
+      }
+      return new Response('', { status: 200 });
+    };
+    const destination = new GoogleDriveBackupDestination(
+      {
+        folderId,
+        clientId: 'fixture',
+        tokenEndpoint: 'https://fixture.test/token',
+        apiEndpoint: 'https://fixture.test',
+      },
+      { clientSecret: 'fixture', refreshToken: 'fixture' },
+      fetcher,
+    );
+    await destination.list();
+    await destination.get('test.gcbackup');
+    await destination.delete('test.gcbackup');
+    expect(queries).toHaveLength(3);
+    for (const query of queries) {
+      const match = /^'((?:\\.|[^\\'])*)' in parents and /.exec(query);
+      expect(match, query).not.toBeNull();
+      expect(match![1]!.replace(/\\(.)/g, '$1')).toBe(folderId);
+    }
+  });
+
   it('refreshes OAuth credentials and completes resumable upload, list, download, and delete', async () => {
     const files = new Map<string, { name: string; bytes: Buffer; modifiedTime: string }>();
     const sessions = new Map<string, { name: string; chunks: Buffer[]; received: number }>();

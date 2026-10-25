@@ -1,7 +1,7 @@
 # Skills, Agent Roles, and Tool Connections: Design
 
 **Status:** Engineering-default design built on the 2026-09-27 research pass. User-confirmed requirements are cited from `PLATFORM_DESIGN.md`; everything else here is a selected engineering default under the delegated best-practice judgment, not an implementation claim.  
-**Last updated:** 2026-10-18
+**Last updated:** 2026-10-24
 **Research basis:** [agent-skills-and-agent-ecosystem.md](research/agent-skills-and-agent-ecosystem.md), [engine-connectors.md](research/engine-connectors.md), [dcc-and-asset-tools.md](research/dcc-and-asset-tools.md), [process-isolation.md](research/process-isolation.md), [local-model-and-routing-sources.md](research/local-model-and-routing-sources.md).
 
 This document resolves the skill, agent-role, and tool-connection contracts that `OPEN_DECISIONS.md` left open (A03, S04 skill portion, S06, S07, S08, C01, and parts of A02/S01/S02). It is organized by contract, not by milestone.
@@ -161,6 +161,12 @@ Access modes apply at the broker: Full executes everything within available cred
 
 The internal `decisions/assess` tool uses the same broker with `paid` side effects even for a local judge, and requires the request's Project/task identity to match the execution context. For agent tasks, task goal and role/work type come from service records; requested capability constraints and manual choices remain binding. A new agent loop can assess once and record/checkpoint bounded advice. Shadow mode changes no dispatch or instructions; explicit assist mode can supply a currently eligible model suggestion and conservative task flags. Model output never approves tools, supplies completion validation, relabels task type, spawns work, or changes required reviews. See [typed decision assistance](TECHNICAL_ARCHITECTURE.md#typed-decision-assistance) for endpoint configuration, probability semantics, evidence scope, and history ownership.
 
+Audit records remain service-owned. The selected [complete Project audit export](TECHNICAL_ARCHITECTURE.md#complete-project-audit-export) writes only a new redacted cache artifact through the authenticated user-facing RPC; it does not grant agents a new broker tool or change access ceilings. Export validation and file publication do not modify the source history.
+
+Audit cleanup is a separate authenticated user-facing control, with [service-owned eligibility and receipts](TECHNICAL_ARCHITECTURE.md#audit-retention-and-deletion). It adds no agent broker tool, permission grant or automatic deletion by default. Explicit Project policy can opt in to periodic retention; manual deletion requires an exact session-bound preview and confirmation.
+
+Required-input notifications coalesce into a review link to the service-backed Requests view. Project/root-task grouping changes presentation only: each approval still targets one immutable call ID, each question answer targets one task/question ID, and stale or disconnected projections cannot authorize work. See [grouping and recovery semantics](TECHNICAL_ARCHITECTURE.md#grouped-requests-and-approval-authority). MCP elicitation and other integration-specific input flows remain separate.
+
 ### 4.3 Engine connectors (implements C03; informs C04)
 
 Each engine connector exposes two layers behind one capability report:
@@ -198,6 +204,10 @@ A2A is a distinct agent-task protocol, not an MCP transport and not a new in-hou
 
 These settings and connection records are separate from MCP server definitions and model-provider accounts. A2A is an agent-to-agent task delegation contract; it does not make a remote Agent Card's advertised skills authoritative or directly grant those tools to a local agent.
 
+### 4.7 Plugin settings migrations (W06/S04 engineering default)
+
+The existing manifest `migrations` array supports optional declarative `operations` for owned-setting rename, whole-value mapping and explicit removal, with optional scope selection. It does not name an executable migration script. Higher-version installation uses the reviewed upgrade path, keeps enablement/secret ownership, validates persisted values before activation and replays pending Project settings migrations on access. See [the complete architecture/default and failure semantics](TECHNICAL_ARCHITECTURE.md#plugin-settings-upgrades) and [runnable author guidance](EXTENSION_COOKBOOK.md#upgrade-a-platform-plugins-settings). Compatible legacy manifests remain valid; broader executable/data migrations and plugin signing are separate contracts.
+
 ## 5. Project folder additions
 
 Each Project folder gains: `AGENTS.md` (generated, describes canon location, records, engine, conventions, and how to run validation), `.agents/skills/` (Project-authored skills), `.gamecrafter/roles/` (Project-authored roles), `.gamecrafter/agent-memory/<role>/`, and `.gamecrafter/skill-enablement` state in Project SQLite. Cloning copies all of these; pinned skill versions missing on the destination machine are offered for exact reinstall (S07 default).
@@ -214,7 +224,7 @@ Each Project folder gains: `AGENTS.md` (generated, describes canon location, rec
 | C01                 | Resolved: connection record with mode, negotiated MCP revision, deprecated-feature policy               |
 | A10                 | Resolved: A2A v1.0, outbound static-auth Agent Card connections and loopback-only scoped inbound tasks   |
 | C03                 | Resolved: per-operation execution-mode and evidence metadata                                            |
-| A02, S01            | Defaults recorded (limits, ceiling inheritance, side-effect taxonomy); exact prompt grouping still open |
+| A02, S01            | Defaults recorded (limits, ceiling inheritance, side-effect taxonomy); approval/task-question grouping follows the [Requests contract](TECHNICAL_ARCHITECTURE.md#grouped-requests-and-approval-authority) |
 | S02, C04, C05       | Direction selected; remain **Verify** until tested                                                      |
 
 ## Operational and contributor references

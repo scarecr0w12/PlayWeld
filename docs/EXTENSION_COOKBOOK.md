@@ -1,6 +1,6 @@
 # Contributor extension cookbook
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-24
 
 This guide makes extension boundaries practical. [Developer guide](DEVELOPER_GUIDE.md) covers repository setup; [integration guide](INTEGRATION_GUIDE.md) covers supported adapters; [glossary](GLOSSARY.md) defines the terms. Durable records belong to the platform service. Exact input/result schemas are in the [generated reference](reference/rpc-schemas.json).
 
@@ -28,9 +28,40 @@ npm test -w @gamecrafter/platform-service -- src/plugins
 
 Read [its manifest](../packages/plugins/sample-hello/gamecrafter-plugin.json), [worker](../packages/plugins/sample-hello/src/index.ts), and [SDK](../packages/plugin-sdk/src/). In Plugins, inspect the local sample directory, review declared capabilities, install it at the intended scope and enable/start it. Inspect registered `sample-hello/greet`, invoke it with `{"name":"Lantern Workshop"}` through the supported broker/tool surface, and compare the greeting/evidence. Stop/disable and uninstall after the exercise. Retain installation/privilege/runtime errors. Installation alone does not establish a started worker.
 
-Runtime prerequisite: inspect `plugin/isolationReport` and the host's available isolation implementation. The repository's Windows runtime has unsupported isolation paths; do not bypass them or claim that a Windows install proves tool execution. On a supported Linux host, test the actual worker boundary. Tests use their named host/fixture and explicitly skip missing prerequisites.
+Runtime prerequisite: inspect `plugin/isolationReport` and the host's available isolation implementation. Windows LPAC/Job and Linux bubblewrap have scoped acceptance; broader process/network/OS qualification remains open. Do not bypass unavailable isolation or equate installation with tool execution. Tests use their named host/fixture and explicitly skip missing prerequisites.
 
 Manifest capabilities currently include Project reads/writes, process spawn, outbound network (optionally a host allowlist), tool calls, model completion, board reads/posts and secret reads. [Capability schema](../packages/contracts/src/plugins/schema.ts) supplies exact forms. Contributions include schemas/tools, modules/genres/record types, settings, skills/roles, commands and declarative panels. Review requested privileges separately from implementation correctness. A plugin tool invoking another tool still goes through host authorization. Do not use the sample's secret-testing branches as a production secret-output pattern.
+
+## Upgrade a platform plugin's settings
+
+Inspect the new package in Plugins, review its version, capabilities, migration descriptions/operations and warnings, then choose **Accept capabilities and upgrade**. The same `plugin/install` RPC performs a forward upgrade; uninstalling first discards owned settings and is unnecessary. Identical version/bytes are a no-op. Changed bytes under an existing version, downgrades, incompatible dependent plugins and invalid migrated overrides are rejected. Running workers are stopped before activation and restart is attempted afterward; failures remain visible in worker status. Enabled state and secret references are preserved.
+
+For example, a v2 manifest can rename a v1 setting and map an old enum to a new one:
+
+```json
+{
+  "migrations": [
+    {
+      "from": "1.0.0",
+      "to": "2.0.0",
+      "description": "Rename greeting style and replace the casual enum",
+      "operations": [
+        { "kind": "rename", "from": "plugin.example.style", "to": "plugin.example.greetingStyle" },
+        { "kind": "map-values", "key": "plugin.example.greetingStyle", "values": [
+          { "from": "casual", "to": "friendly" },
+          { "from": "formal", "to": "formal" }
+        ] }
+      ]
+    }
+  ]
+}
+```
+
+This is a manifest fragment; provide the normal required manifest fields and declare the target setting/schema/default/scopes. `rename` refuses to overwrite an existing destination override. `map-values` must match exactly one mapping for each present override; omitted settings remain inherited, not materialized defaults. `remove` explicitly deletes an owned override. Optional `scopes` selects any nonempty combination of `platform`, `project`, and `session`; omitted scopes apply everywhere. Values that become invalid, removed setting definitions, or disallowed scope overrides need an explicit compatible transform/removal. Migration code is not executed in the service.
+
+Platform activation and its version checkpoint commit together. Each Project applies and checkpoints its pending chain atomically when settings are next accessed; closed/unavailable Projects retain their prior data. Keep the complete relevant chain in distributable manifests so a restored Project can migrate in a fresh profile; this profile also preserves prior upgrade plans for Projects that skip versions. If no valid chain or value mapping exists, repair the manifest or settings rather than silently discarding overrides. Back up before an intentional remove operation. Older release builds do not understand the new operations field; when publishing, set the platform compatibility range to a release containing this feature. The feature remains pending release preparation in this checkout.
+
+Run `src/settings/settings-service.test.ts` and `src/plugins/plugin-service.integration.test.ts` for scoped persistence, restart, failure and native-worker examples. The [architecture](TECHNICAL_ARCHITECTURE.md#plugin-settings-upgrades) records the per-store transaction boundary and separate uninstall/offline cleanup limits.
 
 ## Create a Project skill and role
 

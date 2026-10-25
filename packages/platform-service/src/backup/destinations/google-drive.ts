@@ -118,7 +118,7 @@ export class GoogleDriveBackupDestination implements BackupDestinationAdapter {
 
   async list(signal?: AbortSignal): Promise<BackupArchiveEntry[]> {
     const query = new URLSearchParams({
-      q: `'${this.folderId.replace(/'/g, "\\'")}' in parents and name contains '.gcbackup' and trashed = false`,
+      q: `'${escapeDriveQueryValue(this.folderId)}' in parents and name contains '.gcbackup' and trashed = false`,
       fields: 'files(id,name,size,modifiedTime)',
       pageSize: '1000',
       spaces: 'drive',
@@ -172,7 +172,7 @@ export class GoogleDriveBackupDestination implements BackupDestinationAdapter {
 
   private async findFile(archiveName: string, signal?: AbortSignal): Promise<DriveFile> {
     const query = new URLSearchParams({
-      q: `'${this.folderId.replace(/'/g, "\\'")}' in parents and name = '${archiveName}' and trashed = false`,
+      q: `'${escapeDriveQueryValue(this.folderId)}' in parents and name = '${archiveName}' and trashed = false`,
       fields: 'files(id,name,size,modifiedTime)',
       pageSize: '10',
       spaces: 'drive',
@@ -218,6 +218,10 @@ export class GoogleDriveBackupDestination implements BackupDestinationAdapter {
     this.accessTokenExpiresAt = Date.now() + expiresIn * 1000;
     return token.access_token;
   }
+}
+
+function escapeDriveQueryValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 }
 
 async function ensureSuccess(response: Response, statuses: number[]): Promise<void> {

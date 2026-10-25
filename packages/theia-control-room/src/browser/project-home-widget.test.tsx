@@ -126,7 +126,7 @@ describe('Project Home navigation and guidance', () => {
     for (const button of collectNavigationButtons(widget.render())) button.props.onClick?.();
     const commandIds = actions.map((action) => action.commandId);
     for (const [id] of commands.executeCommand.mock.calls) expect(commandIds).toContain(id);
-    expect(new Set(commandIds).size).toBe(19);
+    expect(new Set(commandIds).size).toBe(20);
     expect(commandIds).toContain('ide-settings');
     expect(commandIds).toContain('open-view');
     expect(commandIds).toContain('gamecrafter.projectHome.toggle');
@@ -153,6 +153,7 @@ describe('Project Home navigation and guidance', () => {
       'Assets',
       'Backups',
       'Audit &amp; History',
+      'Requests',
       'Models',
       'Chat',
       'Skills &amp; Roles',
@@ -177,6 +178,7 @@ describe('Project Home navigation and guidance', () => {
       'gamecrafter.assets.open',
       'gamecrafter.backups.open',
       'gamecrafter.audit.open',
+      'gamecrafter.requests.open',
       'gamecrafter.models.open',
       'gamecrafter.chat.open',
       'gamecrafter.skills.open',
@@ -198,7 +200,7 @@ describe('Project Home navigation and guidance', () => {
     expect(html).toContain('Create a Project to get its game folder and platform record.');
     expect(html).toContain('id="gamecrafter-home-next-step-title">Create a Project');
     const navigationButtons = collectNavigationButtons(content);
-    expect(navigationButtons).toHaveLength(15);
+    expect(navigationButtons).toHaveLength(16);
     expect(commands.executeCommand).not.toHaveBeenCalled();
   });
 

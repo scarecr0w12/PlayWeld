@@ -877,11 +877,9 @@ export class PluginHost {
   }
 
   private pluginSettings(pluginId: string, projectId: string): Record<string, unknown> {
-    const prefix = `plugin.${pluginId}.`;
     return Object.fromEntries(
       this.options.settings
-        .getAll({ projectId })
-        .filter((setting) => setting.key.startsWith(prefix))
+        .getPluginSettings(pluginId, { projectId })
         .map((setting) => [setting.key, setting.value]),
     );
   }

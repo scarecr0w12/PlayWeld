@@ -1,5 +1,14 @@
 import { Static, Type, type TSchema } from '@sinclair/typebox';
 import {
+  AuditExportReceiptSchema,
+  AuditHistoryStoreSchema,
+  AuditRetentionPolicySchema,
+  AuditCleanupPreviewSchema,
+  AuditCleanupReceiptSchema,
+  AuditRetentionStateSchema,
+} from '../audit';
+import { PendingInputsSchema } from '../tasks/pending-inputs';
+import {
   EngineFamily,
   ProjectCloneInputSchema,
   ProjectCreateInputSchema,
@@ -1259,6 +1268,50 @@ export const RpcMethods = {
       { additionalProperties: false },
     ),
   },
+  'audit/export': {
+    params: Type.Object(
+      { projectId: Type.String({ format: 'uuid' }) },
+      { additionalProperties: false },
+    ),
+    result: AuditExportReceiptSchema,
+  },
+  'audit/retention': {
+    params: Type.Object(
+      { projectId: Type.String({ format: 'uuid' }) },
+      { additionalProperties: false },
+    ),
+    result: AuditRetentionStateSchema,
+  },
+  'audit/setRetention': {
+    params: Type.Object(
+      { projectId: Type.String({ format: 'uuid' }), policy: AuditRetentionPolicySchema },
+      { additionalProperties: false },
+    ),
+    result: AuditRetentionStateSchema,
+  },
+  'audit/previewCleanup': {
+    params: Type.Object(
+      {
+        projectId: Type.String({ format: 'uuid' }),
+        store: AuditHistoryStoreSchema,
+        before: Type.Optional(Type.String({ format: 'date-time' })),
+      },
+      { additionalProperties: false },
+    ),
+    result: AuditCleanupPreviewSchema,
+  },
+  'audit/applyCleanup': {
+    params: Type.Object(
+      {
+        projectId: Type.String({ format: 'uuid' }),
+        store: AuditHistoryStoreSchema,
+        previewId: Type.String({ format: 'uuid' }),
+        confirm: Type.Literal(true),
+      },
+      { additionalProperties: false },
+    ),
+    result: AuditCleanupReceiptSchema,
+  },
   'tool/calls': {
     params: Type.Object(
       {
@@ -1286,6 +1339,10 @@ export const RpcMethods = {
       { approvals: Type.Array(ApprovalRequestSchema) },
       { additionalProperties: false },
     ),
+  },
+  'broker/pendingInputs': {
+    params: Type.Object({}, { additionalProperties: false }),
+    result: PendingInputsSchema,
   },
   'broker/approve': {
     params: Type.Object(

@@ -120,6 +120,8 @@ export class VectorStoreRegistry {
     if (adapter.validateConnection) adapter.validateConnection(config, allowRemote);
     else if (['remote', 'local', 'external'].includes(deployment))
       validateVectorEndpoint(config.url, deployment, allowRemote);
+    // Stable adapter/cache identity, also used to namespace collection mappings.
+    // This is not a password verifier; changing credentials selects a new handle.
     const identity = createHash('sha256')
       .update(
         JSON.stringify({
