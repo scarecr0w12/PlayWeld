@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import type { Database } from './database';
-import { currentMigrationVersion, latestMigrationVersion, type Migration } from './migrator';
+import { validateMigrationHistory, latestMigrationVersion, type Migration } from './migrator';
 
 export function snapshotBeforeMigrations(
   database: Database,
@@ -9,7 +9,7 @@ export function snapshotBeforeMigrations(
   migrations: Migration[],
   keep = 3,
 ): string | null {
-  const oldVersion = currentMigrationVersion(database);
+  const oldVersion = validateMigrationHistory(database, migrations);
   if (latestMigrationVersion(migrations) <= oldVersion) return null;
 
   const snapshotDirectory = path.join(profileDirectory, 'pre-migration');

@@ -991,7 +991,10 @@
       "name": "db",
       "implementation": "packages/platform-service/src/db",
       "tests": [
+        "packages/platform-service/src/db/database-health-cli.test.ts",
+        "packages/platform-service/src/db/database-health.test.ts",
         "packages/platform-service/src/db/database.test.ts",
+        "packages/platform-service/src/db/migration-compatibility.integration.test.ts",
         "packages/platform-service/src/db/migration-snapshot.test.ts"
       ],
       "guide": "TECHNICAL_ARCHITECTURE.md"

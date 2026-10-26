@@ -151,8 +151,13 @@ export class PlatformService {
     mkdirSync(paths.logDir, { recursive: true, mode: 0o700 });
     const token = loadOrCreateToken(paths);
     const database = Database.open(paths.profileDbPath);
-    snapshotBeforeMigrations(database, paths.profileDir, profileMigrations);
-    migrate(database, profileMigrations);
+    try {
+      snapshotBeforeMigrations(database, paths.profileDir, profileMigrations);
+      migrate(database, profileMigrations);
+    } catch (error) {
+      database.close();
+      throw error;
+    }
     const profile = new ProfileStore(database);
     const workspace = new ProjectWorkspace({ profile, platformVersion });
     const projectDatabases = new ProjectDatabases(profile);

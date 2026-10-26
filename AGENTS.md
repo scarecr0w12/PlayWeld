@@ -12,7 +12,7 @@ It holds both the design documents (`docs/`) and the application code (`packages
 
 - `docs/`: design documents, decision register, development plan, research notes (roles below).
 - `packages/contracts`: `@gamecrafter/contracts`: TypeBox schemas, derived TypeScript types, RPC method table, error codes. Every persisted record and RPC message carries a `schemaVersion`.
-- `packages/platform-service`: `@gamecrafter/platform-service`: the local daemon (authenticated JSON-RPC over a Unix socket / named pipe, global profile SQLite, Project workspaces). Binary `gamecrafter-service start|stop|status`.
+- `packages/platform-service`: `@gamecrafter/platform-service`: the local daemon (authenticated JSON-RPC over a Unix socket / named pipe, global profile SQLite, Project workspaces). Binary `gamecrafter-service start|stop|status|doctor`; `doctor` diagnoses an explicitly selected database without starting the daemon.
 - `packages/service-client`: `@gamecrafter/service-client`: typed client used by the Theia backend and by tests.
 - `packages/theia-control-room`: Theia extension (backend bridge to the service, Control Room views).
 - `apps/control-room`: the Theia Electron application (desktop-only product target). `apps/control-room-browser` is a development-only browser target used for UI smoke tests.

@@ -70,7 +70,7 @@ Request methods: **204**; notifications: **28**; settings: **88**; setting group
 | board | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/board/) | 4 |
 | change | [Guide](../WORKFLOW_COOKBOOK.md) | [Source](../../packages/platform-service/src/change/) | 5 |
 | chat | [Guide](../WORKED_TUTORIAL.md) | [Source](../../packages/platform-service/src/chat/) | 0 |
-| db | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/db/) | 2 |
+| db | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/db/) | 5 |
 | dcc | [Guide](../INTEGRATION_GUIDE.md) | [Source](../../packages/platform-service/src/dcc/) | 5 |
 | dependencies | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/dependencies/) | 2 |
 | engines | [Guide](../INTEGRATION_GUIDE.md) | [Source](../../packages/platform-service/src/engines/) | 6 |
