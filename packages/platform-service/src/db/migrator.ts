@@ -57,6 +57,15 @@ export function validateMigrationHistory(db: Database, migrations: Migration[]):
       throw new MigrationCompatibilityError('history-mismatch');
     throw error;
   }
+  if (
+    rows.length === 0 &&
+    db
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE name <> 'schema_migrations' AND name NOT GLOB 'sqlite_*' LIMIT 1",
+      )
+      .get()
+  )
+    throw new MigrationCompatibilityError('unrecognized-schema');
   for (const [index, row] of rows.entries()) {
     if (!Number.isSafeInteger(row.id) || row.id <= 0)
       throw new MigrationCompatibilityError('history-mismatch');

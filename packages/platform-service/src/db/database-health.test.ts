@@ -82,6 +82,18 @@ it('does not bless a future schema or a current history with a missing core tabl
   expect(inspectDatabaseHealth(missing.file, 'profile')).toMatchObject({ status: 'incompatible' });
 });
 
+it('does not treat an empty history beside authored data as an uninitialized store', () => {
+  const { file } = fixture('profile', 0);
+  const database = Database.open(file);
+  database.exec(
+    "CREATE TABLE authored_data (value TEXT); INSERT INTO authored_data VALUES ('retain')",
+  );
+  database.close();
+  const before = readFileSync(file);
+  expect(inspectDatabaseHealth(file, 'profile')).toMatchObject({ status: 'incompatible' });
+  expect(readFileSync(file)).toEqual(before);
+});
+
 it('reports malformed migration metadata as incompatible without exposing schema details', () => {
   const { file } = fixture();
   const db = Database.open(file);

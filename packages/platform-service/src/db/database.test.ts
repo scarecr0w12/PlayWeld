@@ -120,6 +120,23 @@ describe('database migrations', () => {
     expect(database.prepare('SELECT value FROM authored_data').get()).toEqual({ value: 'retain' });
   });
 
+  it('does not initialize authored tables beside an empty migration-history table', () => {
+    const database = Database.open(':memory:');
+    openDatabases.push(database);
+    migrate(database, []);
+    database.exec(
+      "CREATE TABLE authored_data (value TEXT); INSERT INTO authored_data VALUES ('retain')",
+    );
+    expect(() => migrate(database, migrations)).toThrow(/unrecognized.*database/i);
+    expect(database.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get()).toEqual({
+      count: 0,
+    });
+    expect(
+      database.prepare("SELECT name FROM sqlite_master WHERE name = 'sample'").get(),
+    ).toBeUndefined();
+    expect(database.prepare('SELECT value FROM authored_data').get()).toEqual({ value: 'retain' });
+  });
+
   it.each([
     'ALTER TABLE schema_migrations RENAME COLUMN name TO unrecognized',
     "INSERT INTO schema_migrations VALUES (9223372036854775807, 'future', 'later')",

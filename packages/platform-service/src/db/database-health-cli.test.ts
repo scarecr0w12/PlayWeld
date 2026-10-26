@@ -21,6 +21,7 @@ function fixture() {
     spawnSync(process.execPath, [path.resolve(__dirname, '../../lib/cli.js'), 'doctor', ...args], {
       encoding: 'utf8',
       timeout: 10000,
+      windowsHide: true,
       env: { ...process.env, GAMECRAFTER_PROFILE_DIR: path.join(root, 'unused-profile') },
     });
   return { root, file, invoke };
