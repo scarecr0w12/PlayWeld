@@ -108,6 +108,8 @@ The remaining matrix below mixes fixture-only operations with broader acceptance
 
 ### 4.3 Security and isolation
 
+- [SQLite health diagnostics and migration compatibility](TECHNICAL_ARCHITECTURE.md#sqlite-health-diagnostics-and-migration-compatibility) now provide an explicit-file CLI doctor without starting the daemon, plus recognized-prefix validation before migration/profile-snapshot writes. Source/compiled-CLI fixtures cover corrupt/foreign-key-invalid, missing/empty, locked and older/future/malformed databases, byte preservation and an independent known-good snapshot. Automatic repair/quarantine, broader recovery qualification and extra domain-ledger deletion remain open on the combined W05/S09 Features card; see [the work record](changes/2026-10-25-sqlite-health-diagnostics.md).
+
 - The [2026-10-25 GitHub alert follow-up](changes/2026-10-25-github-security-alerts.md) corrected the fourteen dependency advisories, with zero vulnerabilities in full and production-only npm audits. [Post-merge main verification](changes/2026-10-25-hosted-security-integration.md) confirms all fourteen Dependabot alerts fixed, ten CodeQL alerts fixed, two CodeQL findings dismissed with source/test-backed false-positive rationales, and zero open Dependabot/CodeQL/secret-scanning alerts. The A2A custom pre-authentication ceiling bounds credential-lookup work; hosted regressions verify it, although CodeQL still flags the custom guard. The other false positive concerns a deterministic vector adapter/cache identity rather than password verification. These dispositions do not adjudicate the Bitdefender event.
 
 - Plugin signature verification and a trust policy for unsigned plugins (S06).
@@ -128,7 +130,7 @@ The remaining matrix below mixes fixture-only operations with broader acceptance
 
 - Canon authority rules for drafts, proposals, and retcons (K04); optional story and disabled-module records (K07); genre taxonomy for hybrid genres (K01/K02 with K03).
 - Vector stores other than Qdrant through plugins (R03); board proposal diffs finer than whole-file replacement and canon reconciliation beyond decision records (WP11).
-- Engine identity versus engine version policy (W02); Git policy for code, design, and large assets (W04); SQLite corruption handling (W05).
+- Engine identity versus engine version policy (W02); Git policy for code, design, and large assets (W04); automatic SQLite corruption recovery and broader qualification beyond the implemented diagnostic/migration guards (W05).
 
 ### 4.6 Models, routing, and spend
 

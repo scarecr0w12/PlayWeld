@@ -1,6 +1,6 @@
 # PlayWeld operations and recovery guide
 
-**Last updated:** 2026-10-24
+**Last updated:** 2026-10-25
 
 **Audience:** Local administrators and maintainers. [Documentation index](README.md).
 
@@ -97,6 +97,8 @@ Do not stop unrelated user processes while cleaning up a test. Use the explicit 
 `window.closeBehavior` defaults to `continue`. Selecting `stop-and-checkpoint` changes the intended close behavior. Verify the service status after closing when diagnosing background execution; a closed window is not itself a stopped service.
 
 ## Routine health checks
+
+If the service cannot start, use the built CLI's [explicit-file database doctor](RECOVERY_RUNBOOK.md#diagnose-a-database-without-starting-the-service). It checks SQLite integrity, foreign keys and recognized migration history with read-only authority, emits a schema-versioned report and never creates a missing database or applies migrations. Preserve the original database and WAL/journal evidence; restore verified data to a separate destination. An unavailable/locked result is not a corruption verdict. Startup migration preflight also refuses future, gapped, renamed or unrecognized history before migration/snapshot writes; it does not silently reset the store.
 
 Run the [explicit-profile diagnostic command](RECOVERY_RUNBOOK.md#inspect-an-explicitly-selected-profile) for service identity, Project registrations and optional index counts. It is read-only, requires an absolute profile path and omits credential values. Its output still contains local paths and Project names; inspect it before sharing.
 

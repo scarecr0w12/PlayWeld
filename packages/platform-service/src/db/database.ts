@@ -28,14 +28,19 @@ export class Statement {
 export class Database {
   private constructor(private readonly database: DatabaseSync) {}
 
-  static open(databasePath: string): Database {
-    const database = new DatabaseSync(databasePath);
-    if (databasePath !== ':memory:') {
-      database.exec('PRAGMA journal_mode=WAL');
+  static open(databasePath: string, options: { readOnly?: boolean } = {}): Database {
+    const database = new DatabaseSync(databasePath, { readOnly: options.readOnly ?? false });
+    try {
+      if (databasePath !== ':memory:' && !options.readOnly) {
+        database.exec('PRAGMA journal_mode=WAL');
+      }
+      database.exec('PRAGMA foreign_keys=ON');
+      database.exec('PRAGMA busy_timeout=5000');
+      return new Database(database);
+    } catch (error) {
+      database.close();
+      throw error;
     }
-    database.exec('PRAGMA foreign_keys=ON');
-    database.exec('PRAGMA busy_timeout=5000');
-    return new Database(database);
   }
 
   exec(sql: string): void {

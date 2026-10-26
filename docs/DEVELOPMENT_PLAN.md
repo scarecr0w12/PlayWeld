@@ -1,7 +1,7 @@
 # PlayWeld Development Plan: Work Packages by Dependency
 
 **Status:** Living plan. Ordering below is **technical dependency**, not product phasing: a work package appears after the packages whose interfaces it consumes. Every package targets the complete system described in [PLATFORM_DESIGN.md](PLATFORM_DESIGN.md); none of them is a milestone, release, or "first game".  
-**Last updated:** 2026-10-24
+**Last updated:** 2026-10-25
 **Related records:** [technical architecture](TECHNICAL_ARCHITECTURE.md), [decision register](OPEN_DECISIONS.md), [skills, roles, and tools](SKILLS_AGENTS_AND_TOOLS.md).
 
 Each work package lists the design sections and register entries it implements, its hard dependencies, its "done when" criteria, and its current status. Status values: **Not started**, **In progress**, **Implemented (unit/integration-tested)**, **Verified (live)**. Only behaviour covered by tests in this repository may be marked Implemented; connectors reach Verified only after tests against the real engine, tool, or server.
@@ -69,9 +69,11 @@ flowchart TD
 
 - **Implements:** [TECHNICAL_ARCHITECTURE "Local API"](TECHNICAL_ARCHITECTURE.md#engineering-defaults-for-remaining-technology-choices), W05 (profile schema and migrations).
 - **Depends on:** WP1.
-- **Scope:** daemon lifecycle (`gamecrafter-service start|stop|status`, single-instance lock), Unix-socket/named-pipe JSON-RPC with per-install token, precompiled schema validation on every request and result, global profile SQLite (`node:sqlite` behind one seam) with forward-only migrations, structured logging.
+- **Scope:** daemon lifecycle (`gamecrafter-service start|stop|status`, single-instance lock), explicit-file read-only database `doctor`, Unix-socket/named-pipe JSON-RPC with per-install token, precompiled schema validation on every request and result, global profile SQLite (`node:sqlite` behind one seam) with forward-only migrations, structured logging.
 - **Done when:** the integration test authenticates, rejects a bad token, and exercises every method; the CLI round-trips start/status/stop.
 - **Status:** Implemented (unit/integration-tested). Native Windows named-pipe integration now exercises authentication, Project lifecycle, chat persistence, session settings, tasks, broker approvals, board maintenance, knowledge, and coordination. The CI quality matrix now runs the full suite on both OS targets. A real CLI regression verifies authenticated, checkpointed stop and lock cleanup, including Windows where SIGTERM bypassed orderly shutdown. See [local review and live-test evidence](PROGRAM_REVIEW.md) and [current repairs](FULL_PROJECT_REVIEW.md).
+
+WP2/W05 diagnostic addition: [non-destructive SQLite health checks](TECHNICAL_ARCHITECTURE.md#sqlite-health-diagnostics-and-migration-compatibility) cover profile and Project files without starting the service. Known migration history is validated before migration/snapshot writes; incompatible startup releases its database handle. Source/compiled-CLI fixtures cover integrity/foreign-key failures, missing/empty files, locks, WAL reads, older/future/malformed history and an independent known-good snapshot. Automatic corruption repair, exhaustive schema semantics, broader recovery qualification and extra domain-ledger deletion remain open under W05/S09; this is not completion of the combined Features card.
 
 ### WP3 — Project workspace
 

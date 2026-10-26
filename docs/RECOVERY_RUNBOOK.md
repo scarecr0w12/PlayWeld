@@ -1,6 +1,6 @@
 # Profile recovery and diagnostic worked examples
 
-**Last updated:** 2026-10-02
+**Last updated:** 2026-10-25
 
 This runbook expands the [operations guide](OPERATIONS_GUIDE.md) with reproducible actions and acceptance checks. It uses Lantern Workshop and an isolated service. The service owns profile settings, Project registrations and encrypted account credentials; Project workspaces retain their own files and records. See the [glossary](GLOSSARY.md) and [coverage inventory](DOCUMENTATION_COVERAGE.md) for these boundaries.
 
@@ -33,6 +33,23 @@ Replace the path and UUID with actual values. The command requires an absolute p
 The output contains service version/protocol/PID/profile identity and registered Project IDs/names/paths. With a Project ID it also fetches index counts, pending work, conflict and broken-reference counts, and vector-store kind/reachability. It does not request raw credentials, settings exports, private source text or provider logs. Paths and Project names can still be private; review output before sharing it.
 
 An absent token, stopped endpoint or authentication error is a failed diagnostic, not a healthy empty profile. The command prints an error code/name and exits nonzero. Use the CLI `status` command and confirm the selected environment before retrying. A successful response proves the local service answered; it does not establish provider, editor or archive health.
+
+## Diagnose a database without starting the service
+
+Use the built CLI when startup fails or when checking a stopped profile/Project database before an independent restore. Select an existing file explicitly; the command does not use `GAMECRAFTER_PROFILE_DIR` to guess a database, start a service, migrate, repair, reset, vacuum or delete records:
+
+```powershell
+node packages/platform-service/lib/cli.js doctor --database 'C:\PlayWeld\diagnostic-copy\profile.sqlite' --kind profile
+node packages/platform-service/lib/cli.js doctor --database 'C:\PlayWeld\diagnostic-copy\Project\.gamecrafter\project.sqlite' --kind project
+```
+
+Replace these example paths with the intended absolute database path. Both flags are required and may appear in either order; relative paths, duplicate/unknown flags and repair requests are rejected. Exit 0 means `healthy` or `upgrade-required` (a recognized older schema); exit 1 means a valid invocation found `missing`, `uninitialized`, `incompatible`, `corrupt` or `unavailable`; exit 2 means invalid arguments. Older readable databases still require a verified backup before normal startup performs migrations.
+
+The schema-versioned JSON report contains the selected kind, UTC check time, current/latest migration versions when readable, check outcomes and fixed recovery guidance. It omits the filesystem path, raw SQLite error text, migration names and record values. `integrity_check(1)`, a foreign-key check, recognized migration-prefix validation and core-table markers run in one read transaction. A foreign-key failure is reported under `corrupt` with separate integrity/foreign-key outcomes; it does not assert physical page damage. `uninitialized` is not healthy and must not be treated as permission to initialize an unexpectedly empty file. This is structural/history validation, not a full semantic audit of every application table or proof that a backup contains the intended game.
+
+The connection has SQLite read-only authority and does not change journal mode or force a checkpoint. SQLite can nevertheless create/update WAL shared-memory coordination files when reading a live database; read-only is not a claim that every filesystem byte is immutable ([SQLite WAL documentation](https://www.sqlite.org/wal.html#read_only_databases)). Stop the owning service before collecting a recovery copy and preserve the database with its `-wal`, `-shm` and any rollback-journal files. Never delete those files to make a diagnostic pass. Do not use SQLite's immutable mode against an active database. Lock/access/I/O failures are unavailable evidence, not proof of corruption. A scan can be expensive on a large file; no large-history performance qualification is claimed.
+
+For recovery, keep the original untouched, use the [verified profile restore flow](#restore-and-launch-a-profile) or the corresponding Project restore into a separate empty destination, stop its owner, and diagnose the restored database. Then start the restored service with its explicit profile and verify Project identities, settings and representative authored content. A passing doctor result alone does not verify archive authenticity, credential decryptability or application readiness. In-place salvage, automatic quarantine/reset, derived-index corruption rebuilding and broader domain-ledger deletion remain outside this command.
 
 ## Rebuild an index and validate the result
 
