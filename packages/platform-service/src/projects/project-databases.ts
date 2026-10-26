@@ -3,6 +3,7 @@ import path from 'node:path';
 import { RpcError, RpcErrorCode } from '@gamecrafter/contracts';
 import { Database } from '../db/database';
 import { migrate } from '../db/migrator';
+import { snapshotProjectBeforeMigrations } from '../db/migration-snapshot';
 import type { ProfileStore } from '../profile/profile-store';
 import { projectMigrations } from './migrations';
 
@@ -28,6 +29,12 @@ export class ProjectDatabases {
     mkdirSync(projectStateDirectory, { recursive: true });
     const database = Database.open(path.join(projectStateDirectory, 'project.sqlite'));
     try {
+      snapshotProjectBeforeMigrations(
+        database,
+        projectStateDirectory,
+        projectMigrations,
+        projectId,
+      );
       migrate(database, projectMigrations);
       database
         .prepare(

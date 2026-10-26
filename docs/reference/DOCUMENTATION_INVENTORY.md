@@ -81,7 +81,7 @@ Request methods: **204**; notifications: **28**; settings: **88**; setting group
 | plugins | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/plugins/) | 4 |
 | processes | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/processes/) | 1 |
 | profile | [Guide](../TECHNICAL_ARCHITECTURE.md) | [Source](../../packages/platform-service/src/profile/) | 2 |
-| projects | [Guide](../WORKED_TUTORIAL.md) | [Source](../../packages/platform-service/src/projects/) | 1 |
+| projects | [Guide](../WORKED_TUTORIAL.md) | [Source](../../packages/platform-service/src/projects/) | 2 |
 | roles | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/roles/) | 3 |
 | settings | [Guide](../SETTINGS_REFERENCE.md) | [Source](../../packages/platform-service/src/settings/) | 2 |
 | skills | [Guide](../EXTENSION_COOKBOOK.md) | [Source](../../packages/platform-service/src/skills/) | 8 |
