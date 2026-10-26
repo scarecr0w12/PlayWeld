@@ -1,6 +1,6 @@
 # Profile recovery and diagnostic worked examples
 
-**Last updated:** 2026-10-25
+**Last updated:** 2026-10-26
 
 This runbook expands the [operations guide](OPERATIONS_GUIDE.md) with reproducible actions and acceptance checks. It uses Lantern Workshop and an isolated service. The service owns profile settings, Project registrations and encrypted account credentials; Project workspaces retain their own files and records. See the [glossary](GLOSSARY.md) and [coverage inventory](DOCUMENTATION_COVERAGE.md) for these boundaries.
 
@@ -50,6 +50,16 @@ The schema-versioned JSON report contains the selected kind, UTC check time, cur
 The connection has SQLite read-only authority and does not change journal mode or force a checkpoint. SQLite can nevertheless create/update WAL shared-memory coordination files when reading a live database; read-only is not a claim that every filesystem byte is immutable ([SQLite WAL documentation](https://www.sqlite.org/wal.html#read_only_databases)). Stop the owning service before collecting a recovery copy and preserve the database with its `-wal`, `-shm` and any rollback-journal files. Never delete those files to make a diagnostic pass. Do not use SQLite's immutable mode against an active database. Lock/access/I/O failures are unavailable evidence, not proof of corruption. A scan can be expensive on a large file; no large-history performance qualification is claimed.
 
 For recovery, keep the original untouched, use the [verified profile restore flow](#restore-and-launch-a-profile) or the corresponding Project restore into a separate empty destination, stop its owner, and diagnose the restored database. Then start the restored service with its explicit profile and verify Project identities, settings and representative authored content. A passing doctor result alone does not verify archive authenticity, credential decryptability or application readiness. In-place salvage, automatic quarantine/reset, derived-index repair and broader domain-ledger deletion remain outside this read-only command. The separate full knowledge rebuild below can repair its scoped lexical FTS index.
+
+## Preserve and inspect a Project pre-migration snapshot
+
+Before a registered Project database at a recognized older schema is upgraded, the service now takes a fresh snapshot under `.gamecrafter/pre-migration/project-v<old>-to-v<target>-<uuid>.sqlite`. It verifies integrity, foreign keys, old migration history and the Project ID before publishing the file and beginning migrations. A failed snapshot stops the upgrade. New and already-current databases do not produce a snapshot; this does not retroactively snapshot prior upgrades. Profile snapshots keep their existing policy.
+
+After stopping the owning service, preserve the original Project folder, database and WAL/journal files, together with all published recovery files. Choose the intended old version and attempt using its filename and contents; the target in a filename is the attempted target, not proof that upgrade succeeded. Inspect the selected snapshot explicitly, using the doctor commands above with `--kind project`. An older valid snapshot should report `upgrade-required`; that is expected and does not authorize overwriting the original. Check the Project identity and representative history in an independent working copy with a compatible application. Preserve authored game/canon files at the intended revision as well: a database snapshot alone cannot recover the complete game.
+
+Each retry gets a new snapshot; earlier snapshots are not pruned or overwritten, even after migration failure. Inspect disk use and make a verified encrypted backup before considering manual cleanup. Do not delete the newest useful recovery evidence to make an upgrade pass. A `.partial` file is unpublished/incomplete evidence and must not be selected as a verified recovery file; it may remain after interrupted execution. Snapshots are plaintext operational data, excluded from Git and source-to-clone copying. Existing encrypted whole-Project backups may include them, including their original identities; they are not automatically reidentified or selected on restore.
+
+If snapshot creation or verification blocks startup, check free space, access and the recovery directory. The directory must not be a symlink/junction; its own `.gitignore` must contain only `*` followed by a newline (CRLF accepted). Preserve any conflicting file before repairing that local metadata. Do not change migration history or disable the check. General database salvage, automatic rollback, snapshot pruning, in-place restore, source-file version restoration and broad disaster-recovery qualification remain outside this feature. See [the architecture and boundaries](TECHNICAL_ARCHITECTURE.md#project-pre-migration-recovery-snapshots).
 
 ## Rebuild an index and validate the result
 
