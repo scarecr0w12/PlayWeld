@@ -88,9 +88,17 @@ jobs:
           done
           # This disposable hosted runner blocks Chromium user namespaces.
           npm run test:ui -- --no-sandbox
+      - name: Requests keyboard and recovery acceptance
+        env:
+          GAMECRAFTER_REQUESTS_SMOKE_ARTIFACT_DIR: ${{ runner.temp }}/requests-keyboard
+        run: npm run test:ui:requests-keyboard -- --no-sandbox
       - if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: browser-ui-evidence
-          path: .artifacts/live-browser/
+          path: |
+            .artifacts/live-browser/
+            ${{ runner.temp }}/requests-keyboard/**/report.json
+            ${{ runner.temp }}/requests-keyboard/**/failure.json
+            ${{ runner.temp }}/requests-keyboard/**/*.png
           if-no-files-found: warn
