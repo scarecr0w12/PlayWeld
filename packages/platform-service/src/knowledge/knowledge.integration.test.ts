@@ -33,6 +33,88 @@ afterEach(async () => {
 });
 
 describe('knowledge service integration', () => {
+  it('recovers lost lexical entries through a full rebuild without changing source content', async () => {
+    await startService();
+    const project = await client!.call('project/create', {
+      name: 'Lexical recovery',
+      engine: { family: 'godot' },
+      parentDirectory: path.join(temporaryDirectories[0]!, 'recovery-projects'),
+    });
+    const sourcePath = path.join(project.path, 'docs', 'recovery.md');
+    writeFileSync(sourcePath, 'harborfalldiag recovery sentinel');
+    const initial = await client!.call('knowledge/index/reconcile', {
+      projectId: project.projectId,
+    });
+    await waitForTask(project.projectId, initial.taskId);
+    const database = Database.open(path.join(project.path, '.gamecrafter', 'project.sqlite'));
+    try {
+      const before = database.prepare('SELECT * FROM knowledge_chunks ORDER BY rowid').all();
+      const events = database.prepare('SELECT * FROM events ORDER BY rowid').all();
+      database.exec("INSERT INTO knowledge_chunks_fts(knowledge_chunks_fts) VALUES ('delete-all')");
+      expect(
+        new KnowledgeStore(database).searchLexical(project.projectId, 'harborfalldiag', {}, 10),
+      ).toEqual([]);
+      const repair = await client!.call('knowledge/index/rebuild', {
+        projectId: project.projectId,
+        full: true,
+      });
+      expect(
+        (await client!.call('task/get', { projectId: project.projectId, taskId: repair.taskId }))
+          .input,
+      ).toMatchObject({ full: true });
+      await waitForTask(project.projectId, repair.taskId);
+      const recovered = await client!.call('knowledge/search', {
+        projectId: project.projectId,
+        query: 'harborfalldiag',
+        mode: 'lexical',
+      });
+      expect(recovered.hits[0]?.path).toBe('docs/recovery.md');
+      expect(readFileSync(sourcePath, 'utf8')).toBe('harborfalldiag recovery sentinel');
+      expect(database.prepare('SELECT * FROM knowledge_chunks ORDER BY rowid').all()).toEqual(
+        before,
+      );
+      const retained = database
+        .prepare('SELECT * FROM events ORDER BY rowid LIMIT ?')
+        .all(events.length);
+      expect(retained).toEqual(events);
+      expect(
+        (await client!.call('task/get', { projectId: project.projectId, taskId: repair.taskId }))
+          .result?.summary,
+      ).toContain('Rebuilt lexical search index.');
+      const indexOutput = (taskId: string) =>
+        JSON.parse(
+          database
+            .prepare(
+              "SELECT output FROM tool_calls WHERE task_id = ? AND tool_id = 'knowledge/index-execute'",
+            )
+            .get<{ output: string }>(taskId)!.output,
+        ) as { lexicalIndexRebuilt: boolean; noOp: boolean };
+      expect(indexOutput(repair.taskId)).toMatchObject({ lexicalIndexRebuilt: true, noOp: false });
+      const incremental = await client!.call('knowledge/index/rebuild', {
+        projectId: project.projectId,
+        full: false,
+      });
+      const full = await client!.call('knowledge/index/rebuild', {
+        projectId: project.projectId,
+        full: true,
+      });
+      expect(full.taskId).not.toBe(incremental.taskId);
+      expect(
+        (await client!.call('task/get', { projectId: project.projectId, taskId: full.taskId }))
+          .input,
+      ).toMatchObject({ full: true });
+      await waitForTask(project.projectId, incremental.taskId);
+      await waitForTask(project.projectId, full.taskId);
+      expect(indexOutput(full.taskId)).toMatchObject({ lexicalIndexRebuilt: false, noOp: true });
+      expect(
+        (await client!.call('task/get', { projectId: project.projectId, taskId: initial.taskId }))
+          .state,
+      ).toBe('succeeded');
+    } finally {
+      database.close();
+    }
+  }, 60_000);
+
   it('uses real embedded backends and rebuilds unchanged sources after switching storage', async () => {
     const provider = await startFakeEmbeddingProvider();
     closeFakeProvider = provider.close;

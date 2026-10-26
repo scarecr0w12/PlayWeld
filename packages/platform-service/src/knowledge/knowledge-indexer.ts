@@ -99,6 +99,7 @@ export interface ReconcileResult {
   status: KnowledgeIndexState;
   changedPaths: string[];
   noOp: boolean;
+  lexicalIndexRebuilt: boolean;
 }
 
 export class KnowledgeIndexer {
@@ -122,7 +123,8 @@ export class KnowledgeIndexer {
 
   reconcile(projectId: string, full = true): Promise<ReconcileResult> {
     const active = this.running.get(projectId);
-    if (active) return active;
+    // A full request must still check/recover FTS after an incremental run finishes.
+    if (active) return full ? active.then(() => this.reconcile(projectId, true)) : active;
     const task = this.reconcileProject(projectId, full).finally(() =>
       this.running.delete(projectId),
     );
@@ -194,6 +196,7 @@ export class KnowledgeIndexer {
       JSON.parse(readFileSync(path.join(project.path, 'gamecrafter.project.json'), 'utf8')),
     );
     const store = new KnowledgeStore(this.options.projectDatabases.get(projectId));
+    const lexicalIndexRebuilt = full ? store.recoverLexicalIndex() : false;
     const previousStates = store.indexState() as KnowledgeIndexFileState[];
     const stateByPath = new Map(previousStates.map((state) => [state.path, state]));
     const headBlobs = gitHeadBlobs(project.path);
@@ -375,7 +378,8 @@ export class KnowledgeIndexer {
     const meta = {
       projectId,
       lastFullReconcileAt:
-        full && (changedPaths.length > 0 || !previousMeta.lastFullReconcileAt)
+        full &&
+        (lexicalIndexRebuilt || changedPaths.length > 0 || !previousMeta.lastFullReconcileAt)
           ? this.now().toISOString()
           : previousMeta.lastFullReconcileAt,
       lastIncrementalAt:
@@ -386,7 +390,12 @@ export class KnowledgeIndexer {
     };
     if (JSON.stringify(meta) !== JSON.stringify(previousMeta)) store.setIndexMeta(meta);
     const status = await this.status(projectId);
-    return { status, changedPaths, noOp: changedPaths.length === 0 };
+    return {
+      status,
+      changedPaths,
+      noOp: changedPaths.length === 0 && !lexicalIndexRebuilt,
+      lexicalIndexRebuilt,
+    };
   }
 
   private parseSource(

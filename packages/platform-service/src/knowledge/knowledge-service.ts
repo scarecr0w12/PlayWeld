@@ -451,9 +451,10 @@ export class KnowledgeService {
     this.options.events.indexChanged(context.projectId, result.status);
     return {
       output: {
-        summary: `Indexed ${result.status.chunks} chunk(s).`,
+        summary: `${result.lexicalIndexRebuilt ? 'Rebuilt lexical search index. ' : ''}Indexed ${result.status.chunks} chunk(s).`,
         status: result.status,
         noOp: result.noOp,
+        lexicalIndexRebuilt: result.lexicalIndexRebuilt,
       },
       evidence: [{ kind: 'knowledge-index', ref: context.taskId }],
     };
@@ -700,7 +701,7 @@ export class KnowledgeService {
         states: ['ready', 'claimed', 'running', 'waiting_input'],
         limit: 1000,
       })
-      .find((task) => task.kind === kind);
+      .find((task) => task.kind === kind && (!full || asRecord(task.input).full === true));
     if (active) return active.taskId;
     const input: TaskCreateInput = {
       projectId,
