@@ -1,6 +1,6 @@
 # Retire the compiled Windows opener executable fixture
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** none
 

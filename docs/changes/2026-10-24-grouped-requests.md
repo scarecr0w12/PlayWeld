@@ -1,6 +1,6 @@
 # Group pending approvals and task questions in Requests
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** minor
 

@@ -1,6 +1,6 @@
 # Recover inconsistent knowledge lexical indexes during full reconciliation
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** patch
 

@@ -24,6 +24,7 @@
     "test:ui": "node scripts/live-ui-smoke.cjs",
     "test:ui:settings-models": "node scripts/settings-models-ui-smoke.cjs",
     "test:ui:chat-layout": "node scripts/chat-layout-ui-smoke.cjs",
+    "test:ui:requests-keyboard": "node scripts/requests-keyboard-ui-smoke.cjs",
     "format": "node node_modules/prettier/bin/prettier.cjs --write .",
     "format:check": "node node_modules/prettier/bin/prettier.cjs --check .",
     "release:version": "node scripts/set-release-version.cjs",

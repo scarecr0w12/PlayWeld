@@ -1,6 +1,6 @@
 # Reconcile current capability evidence and historical documentation
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** none
 

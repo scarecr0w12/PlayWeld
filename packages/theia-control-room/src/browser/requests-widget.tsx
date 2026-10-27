@@ -39,7 +39,22 @@ export class RequestsWidget extends ControlRoomReactWidget {
   }
   protected onActivateRequest(message: Message): void {
     super.onActivateRequest(message);
+    this.update();
+    if (!this.node.contains(this.node.ownerDocument.activeElement)) {
+      this.node.querySelector<HTMLSelectElement>('select[aria-label="Requests Project"]')?.focus();
+    }
     void this.model.refresh();
+  }
+  override update(): void {
+    if (this.isDisposed) return;
+    const hadFocus = this.node.contains(this.node.ownerDocument.activeElement);
+    super.update();
+    const active = this.node.ownerDocument.activeElement;
+    if (hadFocus && (!this.node.contains(active) || active?.matches(':disabled'))) {
+      // A completed/disconnected request may remove or disable the focused control.
+      // Restore navigation, never another request's response action or selection.
+      this.node.querySelector<HTMLElement>('nav[aria-label="Pending requests"]')?.focus();
+    }
   }
   protected render(): React.ReactNode {
     const inputs = this.model.snapshot?.inputs ?? [];
@@ -107,7 +122,7 @@ export class RequestsWidget extends ControlRoomReactWidget {
           </p>
         )}
         <div className="gamecrafter-requests-layout">
-          <nav aria-label="Pending requests" className="gamecrafter-requests-list">
+          <nav aria-label="Pending requests" tabIndex={-1} className="gamecrafter-requests-list">
             {[...groups].map(([key, items]) => (
               <section key={key}>
                 <h2>{items[0]!.projectName}</h2>
