@@ -4,7 +4,7 @@
       {
         "hooks": [
           {
-            "command": "cmd /c \"entire-brain hook pre-edit --claude-hook || entire brain hook pre-edit --claude-hook || exit /b 0\"",
+            "command": "node -e \"const c=require('node:child_process');for(const command of ['entire-brain hook pre-edit --claude-hook','entire brain hook pre-edit --claude-hook']){const r=c.spawnSync(command,{shell:true,stdio:'inherit',windowsHide:true});if(!r.error&&r.status===0)break;}\"",
             "type": "command"
           }
         ],
