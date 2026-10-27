@@ -79,3 +79,8 @@ The public product name is **PlayWeld**, and the user owns `playweld.com`. Prese
 - Leave model/provider selection to the current session and inherited configuration. Do not override another agent's model, permission decisions, or active work. Define path ownership before parallel edits; coordinate shared contracts, lockfiles, generated changelogs, ports, and persistent data. Never use shared Git stashes to integrate worktrees.
 - `.kilo/agent-manager.json`, `.kilo/worktrees/`, Kilo caches, local credentials, and generated package-manager files are machine state, not shared configuration. Never manually edit Agent Manager state to start, move, or assign sessions. Use the Agent Manager tool/API, and only create visible sessions when the user requests them.
 - Configuration changes require a fresh Kilo session to verify effective discovery and MCP connectivity. Static schema checks alone do not prove a plugin loads, an MCP server connects, or an engine integration works. Record actual verification and remaining local setup in `docs/changes/`.
+
+<!-- entire-agent:begin -->
+Read .entire/agent-guide.md for this repository's workflow, source inspection, and verification guidance.
+@.entire/agent-guide.md
+<!-- entire-agent:end -->
