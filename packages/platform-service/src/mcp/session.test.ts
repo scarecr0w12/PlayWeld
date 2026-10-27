@@ -92,6 +92,99 @@ function connectionConfig(scope: 'platform' | 'project' = 'platform') {
 }
 
 describe('McpSession negotiation and calls', () => {
+  it('preserves invalidation between response processing and delivery to callers', async () => {
+    let listings = 0;
+    let delayed: JsonRpcMessage | undefined;
+    let automaticRefresh: Promise<unknown> | undefined;
+    const transport = new FakeTransport((message, current) => {
+      if (message.method === 'server/discover')
+        current.result(message, {
+          protocolVersions: ['2026-07-28'],
+          serverInfo: { name: 'fixture', version: '1' },
+          capabilities: {},
+        });
+      else if (message.method === 'subscriptions/listen') current.result(message, {});
+      else if (message.method === 'tools/list') {
+        listings += 1;
+        if (listings === 2) delayed = message;
+        else current.result(message, { tools: [{ name: 'current', inputSchema: {} }] });
+      }
+    });
+    const session = new McpSession({
+      config: connectionConfig(),
+      transport,
+      clientInfo: { name: 'test', version: '1' },
+      interactions: {
+        toolsInvalidated: () => {
+          automaticRefresh = session.listTools();
+        },
+      },
+    });
+    try {
+      await session.connect();
+      const refresh = session.refreshTools();
+      await Promise.resolve();
+      transport.result(delayed!, { tools: [{ name: 'obsolete', inputSchema: {} }] });
+      queueMicrotask(() => transport.notify('notifications/tools/list_changed'));
+      expect((await refresh).tools.map((tool) => tool.name)).toEqual(['current']);
+      expect(await automaticRefresh).toMatchObject({ tools: [{ name: 'current' }] });
+      expect((await session.listTools()).tools.map((tool) => tool.name)).toEqual(['current']);
+      expect(listings).toBe(3);
+    } finally {
+      await session.disconnect();
+    }
+  });
+
+  it.each(['notification', 'stream-close'])(
+    'does not publish an in-flight tool listing invalidated by %s',
+    async (invalidation) => {
+      let listings = 0;
+      let delayed: JsonRpcMessage | undefined;
+      const transport = new FakeTransport((message, current) => {
+        if (message.method === 'server/discover')
+          current.result(message, {
+            protocolVersions: ['2026-07-28'],
+            serverInfo: { name: 'fixture', version: '1' },
+            capabilities: { tools: {} },
+          });
+        else if (message.method === 'subscriptions/listen') current.result(message, {});
+        else if (message.method === 'tools/list') {
+          listings += 1;
+          if (listings === 2) delayed = message;
+          else
+            current.result(message, {
+              tools: [{ name: listings === 1 ? 'initial' : 'current', inputSchema: {} }],
+            });
+        }
+      });
+      const session = new McpSession({
+        config: connectionConfig(),
+        transport,
+        clientInfo: { name: 'test', version: '1' },
+      });
+      try {
+        await session.connect();
+        const first = session.refreshTools();
+        await Promise.resolve();
+        expect(delayed).toBeDefined();
+        if (invalidation === 'notification') transport.notify('notifications/tools/list_changed');
+        else transport.closeStream();
+        const second = session.listTools();
+        transport.result(delayed!, { tools: [{ name: 'obsolete', inputSchema: {} }] });
+        const snapshots = await Promise.all([first, second, session.refreshTools()]);
+        expect(snapshots.map((snapshot) => snapshot.tools.map((tool) => tool.name))).toEqual([
+          ['current'],
+          ['current'],
+          ['current'],
+        ]);
+        expect((await session.listTools()).tools.map((tool) => tool.name)).toEqual(['current']);
+        expect(listings).toBe(3);
+      } finally {
+        await session.disconnect();
+      }
+    },
+  );
+
   it('does not emit repeated connection changes when an uncached tool list is unchanged', async () => {
     const transport = new FakeTransport((message, current) => {
       if (message.method === 'server/discover')
@@ -120,6 +213,49 @@ describe('McpSession negotiation and calls', () => {
     expect(changed).toHaveBeenCalledTimes(before);
     await session.disconnect();
   });
+
+  it.each(['invalidation', 'invalid-result', 'request-error'])(
+    'bounds a failed refresh caused by %s and permits later discovery',
+    async (failure) => {
+      let failing = false;
+      let listings = 0;
+      const transport = new FakeTransport((message, current) => {
+        if (message.method === 'server/discover')
+          current.result(message, {
+            protocolVersions: ['2026-07-28'],
+            serverInfo: { name: 'fixture', version: '1' },
+            capabilities: { tools: {} },
+          });
+        else if (message.method === 'subscriptions/listen') current.result(message, {});
+        else if (message.method === 'tools/list') {
+          listings += 1;
+          if (failing && failure === 'request-error') current.error(message, -32603, 'Unavailable');
+          else if (failing && failure === 'invalid-result') current.result(message, {});
+          else {
+            if (failing) current.notify('notifications/tools/list_changed');
+            current.result(message, { tools: [{ name: 'echo', inputSchema: {} }] });
+          }
+        }
+      });
+      const session = new McpSession({
+        config: connectionConfig(),
+        transport,
+        clientInfo: { name: 'test', version: '1' },
+      });
+      try {
+        await session.connect();
+        failing = true;
+        await expect(session.refreshTools()).rejects.toThrow();
+        expect(listings).toBe(failure === 'invalidation' ? 4 : 2);
+        expect(session.state.status).toBe('connected');
+        failing = false;
+        expect((await session.refreshTools()).tools.map((tool) => tool.name)).toEqual(['echo']);
+        expect(listings).toBe(failure === 'invalidation' ? 5 : 3);
+      } finally {
+        await session.disconnect();
+      }
+    },
+  );
 
   it('falls back from server/discover method-not-found and caches deterministic tool lists', async () => {
     const transport = new FakeTransport((message, current) => {
