@@ -1,6 +1,6 @@
 # Pin workflow actions and narrow publication authority
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** none
 

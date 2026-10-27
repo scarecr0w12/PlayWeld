@@ -1,6 +1,6 @@
 # Configure repository security and quality controls
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** none
 

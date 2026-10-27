@@ -109,6 +109,29 @@ export interface KnowledgeIndexMeta {
 export class KnowledgeStore {
   constructor(private readonly database: Database) {}
 
+  /** Repair only the disposable external-content FTS index, never its content tables. */
+  recoverLexicalIndex(): boolean {
+    return this.database.transaction(() => {
+      const check = () =>
+        this.database.exec(
+          "INSERT INTO knowledge_chunks_fts(knowledge_chunks_fts, rank) VALUES ('integrity-check', 1)",
+        );
+      try {
+        check();
+        return false;
+      } catch (error) {
+        // SQLITE_CORRUPT_VTAB is the FTS consistency failure. Locks, I/O failures,
+        // missing schemas and general database corruption must fail without repair.
+        if ((error as { errcode?: number } | null)?.errcode !== 267) throw error;
+      }
+      this.database.exec(
+        "INSERT INTO knowledge_chunks_fts(knowledge_chunks_fts) VALUES ('rebuild')",
+      );
+      check();
+      return true;
+    });
+  }
+
   replaceIndexedPath(input: IndexedKnowledgePath): void {
     this.database.transaction(() => {
       this.database.prepare('DELETE FROM knowledge_chunks WHERE path = ?').run(input.path);

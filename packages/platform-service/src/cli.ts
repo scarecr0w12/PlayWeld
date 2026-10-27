@@ -7,8 +7,9 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { acquireLock, isProcessAlive, readLock } from './lock';
 import { enableFileLogging, log, setFileLogRetentionDays } from './logger';
 import { resolvePaths } from './paths';
-import { PlatformService } from './service';
+import type { PlatformService as ServiceInstance } from './service';
 import { connect } from '@gamecrafter/service-client';
+import { inspectDatabaseHealth } from './db/database-health';
 
 const packageJson = JSON.parse(
   readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'),
@@ -36,16 +37,49 @@ async function main(): Promise<void> {
     case 'stop':
       await stopService(paths);
       break;
+    case 'doctor':
+      diagnoseDatabase(args);
+      break;
     default:
-      process.stderr.write('Usage: gamecrafter-service <start [--foreground]|status|stop>\n');
+      process.stderr.write(
+        'Usage: gamecrafter-service <start [--foreground]|status|stop|doctor --database <absolute-path> --kind <profile|project>>\n',
+      );
       process.exitCode = 2;
   }
+}
+
+function diagnoseDatabase(args: string[]): void {
+  const options = new Map<string, string>();
+  for (let index = 0; index < args.length; index += 2) {
+    const flag = args[index]!;
+    const value = args[index + 1];
+    if (!['--database', '--kind'].includes(flag) || !value || options.has(flag)) {
+      process.stderr.write(
+        'Usage: gamecrafter-service doctor --database <absolute-path> --kind <profile|project>\n',
+      );
+      process.exitCode = 2;
+      return;
+    }
+    options.set(flag, value);
+  }
+  const file = options.get('--database');
+  const kind = options.get('--kind');
+  if (!file || !path.isAbsolute(file) || (kind !== 'profile' && kind !== 'project')) {
+    process.stderr.write(
+      'Usage: gamecrafter-service doctor --database <absolute-path> --kind <profile|project>\n',
+    );
+    process.exitCode = 2;
+    return;
+  }
+  const report = inspectDatabaseHealth(file, kind);
+  process.stdout.write(JSON.stringify(report, null, 2) + '\n');
+  process.exitCode = report.status === 'healthy' || report.status === 'upgrade-required' ? 0 : 1;
 }
 
 async function runForeground(paths: ReturnType<typeof resolvePaths>): Promise<void> {
   mkdirSync(paths.profileDir, { recursive: true, mode: 0o700 });
   const lock = acquireLock(paths);
-  let service: PlatformService;
+  let service: ServiceInstance;
   let stopping = false;
   const shutdown = async (checkpoint = true) => {
     if (stopping) return;
@@ -57,6 +91,7 @@ async function runForeground(paths: ReturnType<typeof resolvePaths>): Promise<vo
   };
   try {
     disableFileLogging = enableFileLogging(paths.logDir);
+    const { PlatformService } = await import('./service.js');
     service = await PlatformService.start({
       paths,
       platformVersion: packageJson.version,

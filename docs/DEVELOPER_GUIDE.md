@@ -1,6 +1,6 @@
 # PlayWeld developer guide
 
-**Last updated:** 2026-10-06
+**Last updated:** 2026-10-25
 
 **Audience:** Contributors changing the platform, Control Room, connectors or documentation. [Documentation index](README.md).
 
@@ -64,6 +64,8 @@ Read [AGENTS.md](../AGENTS.md) before editing. It specifies document roles, meta
 Make contracts the shared boundary. Define input/result/persisted schemas in the relevant contracts domain, derive TypeScript types from them, export them, and add the RPC definition when exposing a method. Include `schemaVersion` where required by the record contract. Closed schemas reject additional properties; do not send guessed fields from a widget.
 
 Implement state ownership in the platform service. Use stores and migrations for durable state; use [database.ts](../packages/platform-service/src/db/database.ts) for SQLite access. Do not import `node:sqlite` directly in a frontend, plugin or unrelated storage module.
+
+Migration history must be a recognized applied prefix before migration SQL or profile snapshot retention runs. Future versions, gaps, name changes and unrelated schemas fail closed. Use `Database.open(path, { readOnly: true })` for diagnostics; this skips journal-mode changes and cannot create a missing database. The [database doctor](RECOVERY_RUNBOOK.md#diagnose-a-database-without-starting-the-service) reports fixed guidance without raw SQLite errors or record values. Preserve the distinction between read-only SQL authority and SQLite WAL coordination files, and between structural validation and application-level semantic correctness.
 
 Register the handler in [service.ts](../packages/platform-service/src/service.ts). Emit the appropriate typed notifications after the underlying persisted change. Add typed bridge methods only when a Theia surface needs them. The service-client's generic `call` method already derives parameter/result types from `RpcMethods`.
 

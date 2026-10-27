@@ -4,6 +4,283 @@ Complete tracked work, grouped by version and category, with full details, valid
 
 ## Unreleased
 
+### Documentation
+
+#### Correct stale plugin isolation and generation evidence guidance
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-26-integration-evidence-corrections.md).
+
+##### Summary
+
+Replace two stale blanket unverified claims in the integration guide with dated, scoped evidence links for Windows plugin workers and one Meshy generation/import workflow.
+
+##### Details
+
+- The executable-plugin section previously described Windows AppContainer as unverified/fail-closed even though the 2026-10-06 editor-bridge acceptance records LPAC/Job filesystem/network denial checks under Node and Electron Node mode and shared Node/Python lifecycle checks. Link the existing acceptance section and retain explicit limits for broader process tests, allowed outbound networking, host allowlists and alternate Windows versions. Unavailable isolation continues to fail closed; signatures and additional hardening remain open.
+- The generation-provider section previously said paid live generation remained unverified. Link the 2026-10-06 adversarial review's single meshy-6-lite preview, download/hash/GLB checks, review-gated and exact-byte isolated import. Name the five-credit geometry scope and retain unverified production-art, image-to-3D, refine, Tripo and broader provider paths. State the existing explicit session-authorization requirement for paid calls.
+- Refresh the guide's update date to 2026-10-26 while retaining the acceptance dates in each corrected paragraph. This reconciles contributor guidance with already recorded acceptance; it does not rerun those operations, promote their dates to current qualification, approve further paid calls or mark a work package complete. Historical acceptance records remain unchanged.
+- Compatibility and migration: documentation only, no application, API/schema, database, dependency or version change and no migration required. Impact none because this corrects evidence wording without changing behavior.
+
+##### Validation
+
+- Compared both guide paragraphs with docs/EDITOR_BRIDGE_ACCEPTANCE.md and docs/ADVERSARIAL_SYSTEM_REVIEW.md on current main and verified the exact Windows isolation heading used by the new relative anchor.
+- npm run format:check passed repository-wide. The complete scripts/check-links.sh ran through Ubuntu/WSL and returned All links OK with exit code zero. npm run changelog:update and npm run changelog:check -- --base 3b35deb50ffd5c08c2a8dbaa6426983d81d3dd30 passed, as did git diff --check. node scripts/check-documentation-evidence.cjs passed its inventory/report/file-integrity checks, and node scripts/generate-system-reference.cjs --check confirmed 204 request and 88 setting references. Final validation-text/date edits do not change link targets; the generated record projection is refreshed before handoff.
+- The SDK/full-gate results are recorded separately in the conformance task. No new plugin-isolation execution, generation, provider call, renderer/installer drill or release publication was performed for this documentation correction.
+
+##### Files
+
+- `docs/INTEGRATION_GUIDE.md`
+- `docs/changes/2026-10-26-integration-evidence-corrections.md`
+
+### Maintenance
+
+#### Populate the PlayWeld Features GitHub Project inventory
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-25-features-project-inventory.md).
+
+##### Summary
+
+Populated the user-created [PlayWeld Features Project](https://github.com/users/scarecr0w12/projects/5) with 58 evidence-bounded feature/function cards: 27 Done, two In progress, 22 To do and seven Requested. Created 57 Project drafts and reused the existing Windows uninstall/rollback issue. The Project remains private and no v1.0 scope is accepted by this inventory.
+
+##### Details
+
+- The user selected PlayWeld Features to track implemented, partially completed, remaining and requested functionality. After an initial missing-scope failure and expired device authorization, the user refreshed GitHub CLI permissions. Confirmed the exact owner, Project title, URL and ID before mutation; no credentials or device codes are retained in this record.
+- Read the authoritative development plan, implementation status, confirmed requirements and open decision register. Created 57 descriptive Project drafts rather than opening 57 repository issues. Reused the sole preexisting Project item, [issue #3](https://github.com/scarecr0w12/PlayWeld/issues/3), retaining its issue body and setting its Project status to To do. Verified the final inventory has one matching card for each prepared title and no duplicate of that issue.
+- Extended the existing Status field with To do and Requested while preserving the IDs, names, descriptions and colors of Backlog, Ready, In progress, In review and Done. Added Area as a single-select field and Reference as a text field; all 58 cards have the intended status, area and work-package/decision references. Existing priority, size, iteration, date and other fields were preserved; no priorities, estimates, iterations or release commitments were invented.
+- Done cards cover independent Projects, desktop shell, settings, durable tasks, grouped requests, broker permissions, audit/export/cleanup, provider accounts, model routing/capacities, chat, optional decision assistance, skills/roles, MCP, discussion/decisions, plugins, engine operations and managed bridges, Knowledge/search/storage, generation/import, asset viewers, DCC, local backups/restore, Swarm/worktrees, external IDE integration, A2A and documentation. Their bodies distinguish repository implementation, fixture testing and selected live acceptance rather than implying exhaustive release readiness.
+- In-progress cards distinguish WP19 packaging/release lifecycle from Q04 plugin SDK conformance/migration guidance. To do cards cover release trust/lifecycle, support and UI/accessibility/performance qualification, current full-gate evidence, plugin signatures/isolation, model-provider and judgment qualification, spending behavior, community MCP/A2A, wider engine/DCC/provider checks, asset inspection/conversion, remote backup/recovery, external action recovery, canon diffs, remote vector/plugin acceptance and remaining ledger/corruption handling.
+- Requested cards represent existing unresolved product choices: existing-game onboarding, navigation/create/clone experience, creative feedback/progress, canon/module/genre semantics, cross-Project privacy, editor-extension privileges and optional in-place restore. They explicitly remain proposals or unresolved choices, not newly accepted requirements or automatic v1.0 scope. Existing implemented portions are described separately.
+- Linked the Project to scarecr0w12/PlayWeld. Initialized its previously empty description and README with inventory purpose, status meanings, Area/Reference usage, source links, evidence boundaries and draft-to-issue guidance. The Project remains private. The development plan remains the owner of dependency ordering; no work-package status or user-confirmed design decision was changed.
+- Temporary import data, resume-aware synchronization script and before/after receipts remain ignored under .turbo/feature-project-sync/. They are local execution artifacts, not a second committed feature register. The GitHub Project is the requested feature tracker; repository status/plan/register remain the sources for the initial inventory's implementation claims.
+- Compatibility and migration: repository/provider maintenance only; no application, API, database, package-version or runtime migration. Version impact none because the change organizes existing work and requests without shipping application behavior. No commit, release, engine mutation, paid generation or ordinary-profile change was performed.
+
+##### Validation
+
+- gh project list/view/field-list/item-list confirmed Project #5, exact title PlayWeld Features, private visibility, the existing five Status options and the sole preexisting issue #3. Inspected GitHub's live single-select input contract before updating options so original option IDs were retained.
+- Parsed the staged JSON and verified 58 input entries. Synchronization completed with 57 created drafts and one reused issue; read back all 58 cards and checked exact title uniqueness, status, area and reference against every input row. The receipt reports zero mismatches and status counts of 27 Done, two In progress, 22 To do and seven Requested.
+- gh project link 5 --owner scarecr0w12 --repo scarecr0w12/PlayWeld succeeded. Project README/description initialization succeeded. No new repository issues were opened.
+- git check-ignore confirmed the temporary inventory is ignored. Work-record Prettier formatting, npm run changelog:update, npm run changelog:check -- --base HEAD and git diff --check passed after the publication record was updated. Final Project metadata readback confirmed 58 items, 21 fields and unchanged private visibility; field readback confirmed all five original Status option IDs were preserved.
+- Documentation link checking was launched through the default bash runner during preparation, but its process result was unavailable after resumption. Restarted the required scripts/check-links.sh through explicit Git Bash with captured output/exit files; result remains pending at this record update and is not claimed as passing.
+- Source builds, application tests, live provider/engine calls, paid generation, installer operations and release publication were skipped because this changes feature tracking and its permanent record, not application behavior. Implementation claims come from the cited existing records rather than new runtime qualification.
+
+##### Files
+
+- `docs/changes/2026-10-25-features-project-inventory.md`
+
+#### Prioritize, estimate and publish PlayWeld Features
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-25-features-project-prioritization.md).
+
+##### Summary
+
+Individually assessed all 31 open cards in the [PlayWeld Features Project](https://github.com/users/scarecr0w12/projects/5), assigned development priority/size/effort and detailed implementation or qualification criteria, and made the Project public at the user's explicit request. All 58 cards remain present; the 27 Done cards retain their existing content and evidence limits.
+
+##### Details
+
+- The previous inventory provided status, area, reference and short functional descriptions but left development priority, size and detailed execution criteria unset. The user explicitly requested card-by-card prioritization, sizing, additional detail and public visibility. Read back the exact Project and all existing items/fields before mutation; preserved existing Status, Area, Reference, title, assignment, iteration and date choices.
+- Assessed all 31 open cards independently against the repository's current plan, implementation/evidence boundaries and unresolved product choices. Assigned 14 P0, eleven P1 and six P2 priorities. P0 means a recommended release-safety, trust, data/recovery or evidence gate for capabilities actually promised in 1.0; P1 means important core workflow/support/product decisions; P2 means optional integration/feature breadth. These are engineering recommendations, not a newly accepted v1.0 feature list or claims that every P0 represents an exploitable defect.
+- Assigned five Medium, thirteen Large and thirteen Extra Large development sizes using the existing Size field. Populated the existing numeric Estimate field with relative points: XS=1, S=2, M=3, L=5, XL=8. Added a separate Effort text field: XS up to one engineer workday, S one to two, M three to five, L six to ten, XL eleven to twenty-plus with required decomposition before implementation. All estimates are coarse planning ranges, include focused implementation/tests/evidence, exclude external waits/procurement/authorization and are not calendar commitments.
+- Added Work type, V1.0 relevance, Risk and Confidence single-select fields. The 31 assessments comprise six Hardening, four Feature, twelve Verification, eight Decision and one Maintenance cards; relevance is twelve recommended Release gate, seven Core candidate, six Optional candidate and six Decision needed. Risk describes delivery/data/trust consequence rather than a validated vulnerability severity. Confidence describes estimate uncertainty, not implementation or release readiness. No assignees, deadlines, iterations or automatic execution were selected.
+- Added a distinct Development assessment section to every open card, retaining its original description/source/evidence text. Each section includes priority rationale, size/relative points/rough effort, work type, release relevance, risk, confidence, proposed scope, four card-specific acceptance criteria, prerequisites/related work, assumptions, exclusions and overlap warnings. Updated thirty Project drafts and appended the assessment to the existing [Windows uninstall/rollback issue #3](https://github.com/scarecr0w12/PlayWeld/issues/3), retaining its original scope and acceptance text rather than replacing or duplicating the issue.
+- Recommended release gates emphasize trustworthy packaging/signing, scoped Windows/Linux lifecycle, support/evidence definition, core UI/accessibility, current-candidate quality evidence, truthful plugin trust/isolation, spending ceilings, external-effect recovery, non-destructive corruption handling, cross-Project privacy and editor-extension privilege clarity. Linux qualification is conditional on advertised targets. Isolation layering/host allowlists and extended ledger cleanup are explicitly separable from the necessary safe baseline.
+- Core candidates cover SDK conformance, measured performance, provider/decision qualification, community MCP, selected engine coverage, remote backup, canon reconciliation, existing-game onboarding, navigation/creation, creative feedback and canon/module semantics. Optional candidates cover live A2A, commercial DCC breadth, additional paid generation, richer asset inspection/conversion, remote/plugin vector stores and in-place restore. Provider/engine/DCC/storage matrices, umbrella cards and shared recovery work contain overlap/decomposition notes; they must not be summed blindly into a release date. In-place restore explicitly distinguishes an XS decide/defer action from XL conditional implementation.
+- Retained all seven Requested statuses and their product-owned decisions. Prioritization does not approve those requests or reopen already confirmed module-preservation requirements. Prerequisites identify planning constraints/related work rather than introducing a second authoritative execution order; technical dependency ordering remains in the existing development plan.
+- Extended the Project README with priority definitions, the size/point/effort table, field meanings, estimate limitations, optional/conditional release scope and the absence of new execution commitments. Preserved its existing purpose/status/source guidance. Screened all 58 existing card bodies/titles and the final README for recognizable credential/private-key, embedded credential URL and personal filesystem-path patterns, and reviewed the authored assessment text for public suitability. This bounded content review is not a whole-repository secret scan.
+- Changed Project visibility from private to public only after every card's detailed content and eight planning field values passed authoritative readback. Read back public=true and the exact final README. The user's explicit instruction authorized this publication; no repository visibility, code, releases, credentials, runtime profiles, engine/DCC state or paid services were changed.
+- Compatibility and migration: repository/provider planning maintenance only; no application, RPC/schema, database, package-version or runtime migration. Existing Project statuses and the 27 Done descriptions remain intact. No new issues/cards were created. Version impact none because this publishes engineering planning and requests without shipping application behavior. Temporary preparation/update scripts and before/after receipts remain ignored local execution artifacts under .turbo/feature-project-sync/, not a competing feature register.
+
+##### Validation
+
+- Read all 58 Project items and existing fields through the GitHub CLI/GraphQL API. Checked that the plan covered exactly the 31 non-Done titles once, every size was defined, every card had scope/prerequisites and each had four acceptance criteria. Source/temporary scripts passed node --check; a helper summary command with an extra closing parenthesis was corrected before the successful completeness/count output. No application test failure was involved.
+- The update receipt records all 31 assessments, priority counts 14/11/6 and size counts M=5, L=13, XL=13. Authoritative readback compared every assessed body and Priority, Size, Estimate, Work type, V1.0 relevance, Risk, Confidence and Effort value: zero mismatches. Also verified unchanged Status/Area/Reference for all 58 items and unchanged title/body for all 27 Done items.
+- Final Project readback confirmed 58 items, public=true and the exact updated README. An unauthenticated HTTP request to the Project URL returned 200 and contained the PlayWeld Features title. Credential/private-path pattern screening returned no matches for the reviewed cards/README; original issue #3 content was preserved with an appended assessment.
+- npm run changelog:update, npm run changelog:check -- --base HEAD, Prettier checks for both feature work records and CHANGELOG.md, and git diff --check passed. Ran the complete scripts/check-links.sh through the installed Ubuntu environment after the native Git Bash run proved slow; it returned All links OK with exit code zero. No documentation targets changed during the final validation-text update.
+- Application builds/tests, new live integrations, installer drills, paid generation and release publication were skipped because this task changes planning and public Project content only. Existing implementation/live evidence was not rerun, and effort estimates remain evidence-bounded recommendations.
+
+##### Files
+
+- `docs/changes/2026-10-25-features-project-prioritization.md`
+
+#### Verify and publish the user-added Entire configuration
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-26-entire-integration-publication.md).
+
+##### Summary
+
+Verify the user-added Entire repository configuration and newly installed Windows CLI, refresh its Codex hooks, and prepare all pending repository changes for GitHub publication on codex/security-review-remediation. Installed/enabled status is verified; actual captured-session and hosted Entire acceptance remain separate.
+
+##### Details
+
+- The user's existing commit 0105137 (Enable Entire) adds .entire/settings.json, .entire/.gitignore and .codex/hooks.json. Preserve that commit and its settings: enabled true, telemetry true and primary checkpoint storage git-refs. No credentials, account configuration, model/provider selection or telemetry preferences are changed by this task.
+- The Codex configuration registers PostToolUse, SessionEnd, SessionStart, Stop, SubagentStart, SubagentStop and UserPromptSubmit command hooks. Each delegates to an Entire Codex hook when the executable is available; SessionStart provides installation guidance if it is missing. Local Git metadata contains prepare-commit-msg, commit-msg, post-commit, post-rewrite and pre-push hook scripts. Those Git hooks are machine-local metadata, not committed source paths. After installation, Entire doctor identified stale commands; its supported entire agent add codex operation regenerated all seven shared commands from Unix sh wrappers to native Windows cmd/where wrappers while preserving the 30-second timeouts and three-second SessionEnd timeout. The resulting configuration matches Entire 0.12.2. Other operating systems should refresh managed hooks with their installed CLI rather than assume these native Windows commands are portable.
+- Inspected the integration against [Entire CLI documentation](https://docs.entire.com/platforms/cli-and-entire-com), [installation guidance](https://docs.entire.com/installation) and [storage/security boundaries](https://docs.entire.com/security). Shared configuration alone does not establish a working executable, hook discovery in an already-running Codex session, captured checkpoints or hosted Entire account/mirror access.
+- Initial inspection could not discover Entire through Windows process/persisted PATH entries, the documented Windows install locations checked, non-login Git Bash or Ubuntu/WSL. The user then installed the Windows CLI. Verified Entire 0.12.2, Go 1.27.3, windows/amd64 and successful Git Bash discovery; normal host-access status reports Enabled, Agents Codex and checkpoint sync to origin. No installer, shell-profile rewrite, account login, global configuration or PATH change was performed by this task.
+- Initial sandboxed diagnostics could not read protected .codex/Git paths; the normal host-access retry distinguished this sandbox failure from actual hook state. Before refresh, host diagnostics reported installed Git/Codex hooks and existing approval records, plus stale Codex commands. After refresh, Git/Codex hooks validate without drift, but approval-record inspection reports UNKNOWN and asks for /hooks review inside Codex. Do not forge trust entries or equate installed configuration with an active approved capture session; review active hooks in Codex and verify a fresh session/checkpoint separately.
+- .entire/.gitignore excludes tmp, settings.local.json, metadata, logs and local redactors. Diagnostic log contents and personal configuration are excluded from publication. No refs/entire checkpoint refs or local Entire shadow branches were present during inspection, so no transcript/checkpoint payload is included by this publication. Normal branch push semantics are retained; no all-refs/mirror/force push is used.
+- The user explicitly requests pushing all changes. Include the existing pending feature-inventory, prioritization and open-task review records, retaining their dated observations and validation boundaries, and regenerate their complete changelog projection together with this integration record. These earlier planning records are separate tasks, not new implementation or new board mutations by this publication.
+- Publish from the user's current codex/security-review-remediation branch. Its prior security work already exists on current main, but the checkout predates later release and SDK integration. Publishing the branch does not replace main, undo its 0.23.0 changes or merge a new feature. Preserve all other branches/worktrees and private ignored configuration.
+- Compatibility and migration: development-tool configuration and documentation only; no PlayWeld runtime/API/schema/database/dependency changes or migration required. Keep the current checkout's product version. Impact none; no new installer, tag, public release or product readiness claim is introduced.
+
+##### Validation
+
+- Inspected git status, the user-added commit and exact added paths, shared JSON settings, Codex command hooks, local Git hook scripts, ignore rules, unpublished branch history and ref names. Read back official Entire documentation. Initial shell checks reported the executable unavailable; after the user installation, entire version and normal host-access status/doctor verified the native CLI and detected the stale commands. entire agent add codex refreshed them; follow-up doctor/status confirmed installed hooks without drift, with the explicit approval-inspection limit above.
+- Static JSON/settings and seven-event hook checks passed. Before native refresh, syntax checks passed for all seven original shell commands and all five local Git scripts; the refreshed native commands are validated by Entire's own drift check rather than executed with fabricated session payloads. Ignore checks confirmed local settings, logs, metadata, temporary data, local redactors and private Kilo overrides remain excluded. Bounded screening of the three shared configuration files and four pending records found zero matches for the checked credential/private-key/credential-URL patterns; this is not a whole-history secret audit.
+- Repository-wide npm run format:check passed; focused formatting checks also passed for the refreshed configuration, all four pending records and CHANGELOG.md. npm run changelog:update, npm run changelog:check -- --base 8d2cd9e and git diff --check passed. The explicit base covers the user's original Entire commit as well as the pending publication, rather than checking only the follow-up commit.
+- The WSL link-check request was declined. The separately approved native Git Bash scripts/check-links.sh run remained unusually slow and did not produce a completion result; it is not claimed as passing. A disposable read-only Node equivalent of the existing script's file, fence, link and heading rules completed across all 370 Markdown files and 1,563 relative links with zero failures. After that complete check, stopped only the two verified parent/child Bash processes for the owned slow run. Its runner/report remain ignored under .turbo/; no repository checker or tracking tool was changed.
+- Publication is verified by comparing the pushed branch commit with GitHub after the commit/push. Actual captured-session upload, active Codex trust state, hosted Entire account/mirror access and GitHub main integration remain separate from this branch publication.
+- Application builds/full Turbo tests, paid/provider/engine operations, Entire installation/login by the agent, captured-session replay and hosted Entire mirror access are skipped because this task verifies configuration and publishes planning records without application-source changes. Working capture, active Codex hook approval and hosted Entire access are not inferred from version/status or shared hook installation.
+
+##### Files
+
+- `.codex/hooks.json`
+- `.entire/.gitignore`
+- `.entire/settings.json`
+- `docs/changes/2026-10-26-entire-integration-publication.md`
+
+#### Qualify the Entire integration and pending records for main
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-26-entire-pr-qualification.md).
+
+##### Summary
+
+Prepare the published Entire integration and pending planning/review records for a pull request against current main, preserving its 0.23.0 release history and SDK conformance work.
+
+##### Details
+
+- The user explicitly requests opening a PR, checking hosted results and reviewer feedback, fixing issues and merging once all checks pass. The published source branch is codex/security-review-remediation at 735481da1ecc6301503aaf5710bbebcd5fc68a76, including the original Enable Entire commit 0105137 and the native-hook refresh plus pending records.
+- Main advanced to d0885df2e5a758273c14f5c441f855c11fc7a894 while this branch retained an older security-review base. Integrate main through a normal merge without rebasing or force-pushing. Inspect the generated CHANGELOG.md conflict and regenerate from the combined permanent records so the Entire/planning records remain Unreleased, the earlier release assignments remain intact and the SDK records are retained. No application-source or hook-content conflict requires synthesis.
+- The intended PR adds shared Entire settings/ignore rules, seven CLI-generated native Windows Codex hooks, the existing feature inventory/prioritization and open-task review records, the Entire publication record, this qualification record and their complete generated changelog entries. It inherits current main's 0.23.0 application/package/lockfile versions without preparing another release or reverting prior work.
+- Preserve local Entire settings, logs, metadata, temporary data, local redactors and private Kilo overrides as ignored machine state. Inspect checkpoint ref names before publication; do not upload raw shadow branches or introduce a mirror/all-refs push. Existing installed-hook status does not prove active Codex approval, captured sessions or hosted Entire access. Do not forge local trust entries or change account/telemetry/provider settings as a substitute for verification.
+- Open the PR after the combined candidate is locally verified so its initial hosted run and review cover the integrated head. Inspect final-head check-run identities, CI jobs/logs, reviewer summaries, review submissions and unresolved inline threads. Superseded, cancelled or earlier-head results do not establish merge clearance. Merge through GitHub with an expected-head SHA and verify the resulting commit on remote main; final hosted/merge receipts are reported in the PR and task handoff.
+- Compatibility and migration: development-tool configuration, records and branch integration only. No additional PlayWeld runtime/API/schema/storage/dependency changes or migration required. Keep the inherited 0.23.0 version; no new tag, installer, paid call, engine mutation, signing or installed-product acceptance is introduced. Other branches/worktrees remain untouched.
+
+##### Validation
+
+- Inspected current branch/status, published commits, exact proposed paths, incoming main history and the generated conflict's base/ours/theirs context. The only unmerged file was CHANGELOG.md. Regeneration preserved the combined records and removed its conflict markers. npm ls -w @gamecrafter/plugin-sdk --depth=0 confirms the inherited 0.23.0 workspace links resolve against the pinned installed dependencies.
+- Integrated npx turbo run build typecheck lint test --concurrency=1 completed all 33 tasks successfully in 5.895 seconds, with all 33 results replayed from cache. The replayed workspace totals are 1,043 passed/nine skipped, including 788 platform-service passes/eight skips and all 20 SDK cases. This is cached source/build evidence, not a newly executed application suite; final hosted jobs must qualify the actual PR head independently. The existing nonfatal require.resolve bundling warning remains.
+- Fresh normal-host entire doctor and entire status checks confirm installed Git/Codex hooks without drift, Codex hook approval records PRESENT, no legacy shadow branches/stuck sessions, and Enabled/Codex/checkpoint sync to origin. This current approval-record observation supersedes the earlier publication record's UNKNOWN only as a dated diagnostic result; it does not prove captured-session or hosted Entire acceptance. No trust entries were forged or machine settings changed.
+- Static JSON/settings/seven-event native-hook checks passed. Bounded credential/private-key/credential-URL screening of all nine proposed paths found zero matches. Ignore checks confirmed private local files remain excluded; no checkpoint/shadow refs were present. The complete local read-only equivalent link check covered 385 Markdown files and 1,635 relative links with zero failures. Hosted Linux will run the repository's canonical scripts/check-links.sh; the earlier slow native run is not reclassified as a pass.
+- Repository-wide formatting, 0.23.0 version agreement, generated RPC/settings and documentation inventory freshness, documentation evidence integrity, changelog coverage against main d0885df and diff checks passed. Final evidence-text edits only affect this record and the regenerated changelog, with focused formatting/tracking/diff checks refreshed before commit.
+- Hosted checks, reviewer feedback and the guarded merge are subsequent gates, not claimed by this pre-PR record. The final PR description and handoff retain final-head hosted/merge receipts; superseded or cancelled results remain insufficient for merge clearance.
+
+##### Files
+
+- `docs/changes/2026-10-26-entire-pr-qualification.md`
+
+#### Review open PlayWeld tasks for small achievable slices
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-26-open-task-opportunity-review.md).
+
+##### Summary
+
+Reviewed all 65 cards in the [PlayWeld Features Project](https://github.com/users/scarecr0w12/projects/5) against repository evidence and current merged source. Identified small, reviewable slices within larger open cards without changing Project fields, accepting Requested features or claiming implementation completion.
+
+##### Details
+
+- Live Project readback on 2026-10-26 contains 27 Done, 21 To do, three In progress and 14 Requested cards: 38 open in total. This supersedes the earlier 58-card inventory only as a dated observation; permanent historical records remain intact. Existing estimates apply to umbrella cards and should not be mistaken for estimates of the smaller opportunities below.
+- The working checkout is `codex/security-review-remediation` at `8d2cd9e`, with preexisting pending feature-inventory/prioritization records and generated changelog edits. Fetched `origin/main` and verified its tip as `3b35deb50ffd5c08c2a8dbaa6426983d81d3dd30`; did not switch, merge or reset the working checkout. Compared candidate SDK, viewer, guide and recovery surfaces against that ref so an older checkout would not turn completed work into a new task.
+- The recovery umbrella already records merged SQLite diagnostics, bounded Knowledge lexical-index recovery and Project pre-migration snapshots through PRs 17, 18 and 19. Keep that umbrella In progress for its documented remaining work. General salvage, other derived stores, whole-upgrade rollback and extended ledger cleanup need separate scope; repeating the merged slices is not an easy win.
+- Concrete documentation opportunity, associated with Q04 and existing qualification cards: `docs/INTEGRATION_GUIDE.md` still describes Windows AppContainer as unverified/fail-closed and paid live generation as unverified. `docs/EDITOR_BRIDGE_ACCEPTANCE.md` and `docs/ADVERSARIAL_SYSTEM_REVIEW.md` instead record scoped Windows LPAC/Job checks and one five-credit Meshy preview/import. A proposed correction should cite those dated results and retain broader OS/isolation, Tripo, refine and production-art limitations. Inspect adjacent guide claims before editing; do not infer universal acceptance. Rough focused effort: half a day including documentation checks.
+- Concrete Q04 test opportunity: `packages/plugin-sdk/src/plugin-sdk.test.ts` has one broad protocol success-path test. The SDK contains protocol-version, initialization, unknown-tool/method, invalid-context and handler-error branches. Propose focused behavioral conformance cases that verify error envelopes, prevent handler execution before valid initialization and check recovery after rejected requests. This is a source-coverage opportunity, not a demonstrated runtime defect or full third-party conformance acceptance. Rough focused effort: one to two engineer workdays, subject to findings.
+- Concrete Q01 opportunity: reconcile a small evidence inventory from existing acceptance records, including exact versions, operation, date, source/fixture/live/installed level and missing qualification. Extend the existing documentation coverage surface rather than inventing a second feature register. This can prepare the support-matrix decision; advertised v1.0 support remains product-owned and the whole card cannot close from documentation alone. Rough focused effort: one engineer workday for a bounded initial inventory, excluding rerunning integrations.
+- Concrete WP15/U05 feature opportunity: `packages/theia-control-room/src/browser/asset-viewer/image-viewer.tsx` currently provides fit, 1:1, dimensions, zoom and pan through an image element. A proposed raster RGB/R/G/B/alpha display slice can be assessed independently from DCC conversion and material-slot association. Acceptance should use known pixels, preserve source bytes, handle unsupported/decode failures explicitly and retain existing viewing controls. No decoder/converter dependency is selected by this review. Rough focused effort: two to three engineer workdays including focused rendered verification; this is a proposed subset, not completion of the texture/conversion umbrella.
+- Q01 timing work can begin with bounded current-head reproduction and comparison with the latest hosted results. The card itself says historical failures may no longer reproduce; do not raise timeouts, weaken assertions or assume a defect remains. A half-to-one-day investigation is a useful bounded start, but resolution and complete qualification remain uncertain and are not estimated as an easy completion.
+- The estimates above are fresh planning judgments for narrow slices, not commitments or a new dependency order. Signing/procurement, disposable installer lifecycle, external/paid integration matrices, spending policy, team identities and general recovery have broader prerequisites. Requested collaboration, handoffs, delegation-board, shared-memory, validation-profile, LFS-preflight and image-chat ideas remain Requested and require their own scope/decisions.
+- Compatibility and migration: investigation and work-record changes only; no application, API/schema, database, dependency or product-version changes and no migration required. Version impact none. No Project status/priority/estimate, repository issue, release, ordinary runtime profile, engine/DCC state or paid service was changed. Existing pending work records were preserved; the generated changelog includes this additional record.
+
+##### Validation
+
+- `gh project item-list 5 --owner scarecr0w12 --limit 100 --format json` succeeded; inspected all 38 non-Done card titles/statuses and the detailed bodies for the candidate support, SDK, preview, timing and recovery cards. Counted all 65 items by Status from the live JSON. GitHub CLI was used because the available GitHub connector does not expose Projects item operations.
+- `git ls-remote origin refs/heads/main`, `git fetch origin main`, and `git log -1 origin/main` confirmed current main at the commit above. Read relevant files through `git show origin/main:<path>` as well as working-tree source. Initial sandboxed fetch was denied writing FETCH_HEAD; the approved retry succeeded. No checkout or integration occurred.
+- Source inspection covered the SDK/SDK test, plugin installer/isolation/lifecycle test names, image viewer/preview service/inspectors, board search, Knowledge store, recovery runbook, development plan, status, decision register, documentation coverage and acceptance records. Historical pass counts remain historical; this review did not rerun application tests or qualify current runtime behavior.
+- `npm run format:check` passed across the repository; focused Prettier checks for this record and CHANGELOG.md also passed. `npm run changelog:update`, `npm run changelog:check -- --base HEAD` and `git diff --check` passed. The complete `scripts/check-links.sh` ran through Ubuntu/WSL and returned All links OK with exit code zero. Initial sandboxed WSL access was denied; the approved retry completed successfully. Final validation-text edits only update this record and its generated projection, with no link-target changes.
+- Application builds/full Turbo gate, browser/Electron rendering, live providers/engines, paid generation, installer drills and release publication were skipped because this task reviews opportunities and records findings without changing runtime behavior. Candidate effort and feasibility remain bounded judgments until execution.
+
+##### Files
+
+- `docs/changes/2026-10-26-open-task-opportunity-review.md`
+
+#### Cover plugin SDK request rejection and recovery
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-26-plugin-sdk-rejection-conformance.md).
+
+##### Summary
+
+Expand the TypeScript plugin SDK protocol suite from one success-path case to 20 behavioral cases. Protect initialization, dispatch and error-envelope contracts through the public stream interface without changing SDK runtime behavior.
+
+##### Details
+
+- Existing SDK coverage exercised successful initialization, ping, a tool call with brokered log/secret requests, settings notification and shutdown. Added 19 cases for rejection paths and continued service after recoverable request failures; retained the existing success-path test.
+- Missing, unsupported numeric and string protocol versions return incompatibility errors before settings callbacks or tools run. Correct initialization after the rejection allows a subsequent tool request. Tool calls, ping and shutdown before initialization return worker-not-initialized errors, preserve callbacks and permit later initialization.
+- A rejected asynchronous initial-settings callback returns an internal-error envelope, leaves tool dispatch uninitialized and permits corrected initialization. Unknown methods and tool IDs return method-not-found envelopes without dispatching a registered handler; subsequent valid requests succeed.
+- Missing/array tool contexts and missing/unsupported access modes fail before handler execution. All three supported access modes preserve the supplied task ID, role, mode and input at the handler boundary. These checks establish SDK context handling, not host authorization or sandbox enforcement.
+- Synchronous handler exceptions and asynchronous rejections return correlated internal-error envelopes. Explicit PluginSdkError values retain their code/message, and subsequent calls succeed. Exact request IDs distinguish error/result correlation from an unrelated response.
+- The test fixture uses PassThrough streams and the public definePlugin API. Per-case cleanup ends input, waits for the worker and destroys owned streams; no ordinary service/profile, provider, external plugin or engine is involved.
+- Four disposable source/test copies deliberately bypass protocol-version rejection, initialization gating, access-mode validation or typed-error preservation. Each copy produces the expected assertion failures, establishing that the new tests detect those regressions. Tracked runtime source remains unchanged. The ignored runner and reports are under .turbo/sdk-negative-controls/ in the isolated worktree.
+- Work is isolated on codex/sdk-conformance-quick-wins from main 3b35deb50ffd5c08c2a8dbaa6426983d81d3dd30. Existing root-worktree inventory, prioritization, review and changelog edits are preserved. The larger Q04 community conformance/migration task remains incomplete; this bounded suite does not establish independently authored plugin compatibility or live isolation acceptance.
+- Compatibility and migration: tests only, no runtime/API/schema/storage/dependency changes or migration required. Product version remains 0.22.0. Impact none because this adds verification of existing behavior.
+
+##### Validation
+
+- Fresh npm ci in the isolated worktree installed 1,211 packages, applied both existing patches and completed successfully. Initial sandboxed installation was denied directory creation; the approved retry succeeded. No dependency versions or lockfile were changed.
+- npm test -w @gamecrafter/plugin-sdk passed all 20 cases. Four negative-control copies returned nonzero with behavioral assertion failures: version guard three, initialization guard three, access-mode guard two and typed-error preservation one. Test discovery was nonzero; filtered cases in negative-control runs were intentionally skipped.
+- The required npx turbo run build typecheck lint test passed all 33 tasks on the approved host-access run (31 cached; desktop build and platform-service test ran fresh). Aggregate workspace results, including replayed cache results: 1,037 tests passed and nine skipped. Platform-service: 782 passed/eight skipped across 137 files; other workspace results: 255 passed/one skipped, including 20 SDK cases. Both browser and Electron builds passed; their echo-skip application typecheck/lint/test scripts do not establish renderer acceptance. The existing real-Blender fixture passed its two isolated tests; no broader engine/provider qualification is inferred. Logs remain ignored in .sdk-full-gate-host.log in the isolated worktree.
+- The initial sandboxed full run encountered denied Git config writes inside disposable integration Projects and an Electron drivelist rebuild failure with LNK1101/MSPDB140.DLL mismatch. A focused model-scope case reproduced the Git denial and passed with approved host access; the full host-access rerun then passed the service suite and desktop native rebuild without source/toolchain changes. The first run is failed evidence, not a pass. Theia's temporary app-manifest edits and backup were restored/removed by its successful build tooling; no package-manifest/lockfile changes remain. The existing nonfatal require.resolve bundling warning remains.
+- Repository-wide npm run format:check, focused Prettier checks, git diff --check, complete scripts/check-links.sh (Ubuntu/WSL; All links OK, exit zero), node scripts/check-documentation-evidence.cjs and node scripts/generate-system-reference.cjs --check passed. npm run changelog:update and npm run changelog:check -- --base 3b35deb50ffd5c08c2a8dbaa6426983d81d3dd30 passed. Final evidence-text edits only affect this record and its generated changelog projection; formatting/tracking/diff checks are refreshed before handoff.
+- No independently authored community plugin, external model/generation provider, renderer/installed desktop, installer lifecycle or release acceptance is claimed. Hosted checks and publication have not been performed for this slice. Existing platform/capability skips remain explicit; none were added to make this change pass.
+
+##### Files
+
+- `packages/plugin-sdk/src/plugin-sdk.test.ts`
+- `docs/changes/2026-10-26-plugin-sdk-rejection-conformance.md`
+
+#### Integrate and qualify the SDK conformance pull request
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-26-sdk-conformance-pr-integration.md).
+
+##### Summary
+
+Publish the bounded SDK conformance and integration-guide corrections as [PR 23](https://github.com/scarecr0w12/PlayWeld/pull/23), integrating the intervening 0.23.0 main changes before hosted qualification.
+
+##### Details
+
+- Pushed codex/sdk-conformance-quick-wins at d9c6068b0faa48ec03c30c9eec4ce6a71bc571e8 and opened PR 23 at the user's explicit request. GitHub reported a merge conflict because main had advanced from 3b35deb to 36782c97b1001f9ea449abf25864960ef17c7ab8, including the independent MCP discovery/Requests keyboard fixes and 0.23.0 preparation/publication-note changes.
+- Integrated current main into the existing branch without rebasing or force-pushing. The only conflicted file was generated CHANGELOG.md: one side added the two SDK/guide records while main assigned its earlier records to 0.23.0 and added release records. Regenerated the changelog from the combined permanent records, retaining both new Unreleased tasks and the complete existing release history. No runtime or source conflict required resolution, and no released record was rewritten by this task.
+- The integrated candidate inherits main's 0.23.0 package/workspace/lockfile versions and existing fixes. Original SDK/guide records retain their actual earlier 0.22.0 local verification context. This task does not prepare another release, change product support promises or close the broader Q04 conformance/migration card.
+- User authorization covers checking hosted CI and review feedback, fixing remaining issues and merging after all checks pass. Qualification must use the final PR head and inspect review submissions/discussion/inline threads; earlier-head or cancelled runs cannot establish final-head acceptance. Final hosted and merge receipts are reported through the PR and task handoff without implying installer, signing or production acceptance.
+- Compatibility and migration: repository integration/publication only, no additional runtime/API/schema/storage/dependency changes or migration required. Impact none; no new version/tag/installer/public release is produced. The original working checkout and its pending planning/changelog work remain preserved.
+
+##### Validation
+
+- Live PR metadata and fetched main identified the conflict and exact base/head commits. Inspected both generated conflict hunks before regenerating; no conflict markers remained afterward. npm ls -w @gamecrafter/plugin-sdk --depth=0 confirmed 0.23.0 workspace links resolve against the existing pinned dependencies.
+- Initial-head checks on d9c6068 passed CodeQL (Actions, JavaScript/TypeScript and aggregate), GitGuardian and Kilo Code Review. Kilo's PR discussion reported No Issues Found with a merge recommendation; review submissions and inline threads were empty. The conflicted head had no normal CI workflow run, so these five successes do not qualify the integrated candidate or authorize an early merge.
+- The integrated npx turbo run build typecheck lint test --concurrency=1 passed all 33 tasks (16 cached) in 8m10.413s, including browser and Electron builds and all 20 SDK cases. Workspace results total 1,043 passed/nine skipped, including 788 platform-service passes/eight skips and 255 other-workspace passes/one skip. Exact results are retained in the ignored .sdk-integrated-gate.log; this is local source/build evidence, separate from hosted qualification. No assertions were weakened or timeouts increased.
+- Repository-wide formatting, complete scripts/check-links.sh through Ubuntu/WSL (All links OK, exit zero), version agreement at 0.23.0, generated RPC/settings and documentation inventory freshness, documentation evidence integrity, branch-base changelog coverage and diff checks passed. Regenerated records/changelog and focused formatting/tracking/diff checks are refreshed after final evidence-text updates. The existing nonfatal require.resolve bundling warning remains.
+- Hosted checks/reviews and merge of the final integrated head are separate subsequent gates, not claimed by this pre-merge record. Initial-head successes above remain explicitly historical; final-head evidence is inspected before merging and reported in the PR/handoff.
+- The merged-main candidate f06350c37c41acb7390e291e49e8159b267197d4 received passing Linux quality and browser jobs in [CI run 40434067803](https://github.com/scarecr0w12/PlayWeld/actions/runs/40434067803), plus CodeQL and GitGuardian successes. Windows quality was still running when this receipt was written. The initial Kilo approval remained attached only to d9c6068, with no Kilo check on f06350c. This ordinary evidence-only follow-up commit records the partial hosted receipts and uses the documented [new-commit review trigger](https://kilo.ai/docs/automate/code-reviews/github); no application code or reviewer settings change. All checks and feedback must be inspected again on the resulting head. Superseded or cancelled runs do not establish its acceptance.
+
+##### Files
+
+- `docs/changes/2026-10-26-sdk-conformance-pr-integration.md`
+
+## 0.23.0
+
 ### Added
 
 #### Audit retention and deletion controls
@@ -330,6 +607,118 @@ Make the existing platform `logs.retentionDays` setting effective for CLI diagno
 - `docs/reference/settings-schemas.json`
 - `docs/changes/2026-10-24-service-log-retention.md`
 
+#### Non-destructive SQLite diagnostics and migration compatibility guards
+
+**Impact:** minor
+
+[Permanent work record](docs/changes/2026-10-25-sqlite-health-diagnostics.md).
+
+##### Summary
+
+Add an explicit-file database doctor and reject incompatible migration history before migration/profile-snapshot writes. This completes a bounded W05 diagnostic feature following audit/log retention, while leaving broader recovery and extra ledger deletion open.
+
+##### Details
+
+- Review the authoritative dependency plan and the user's [PlayWeld Features Project](https://github.com/users/scarecr0w12/projects/5). Select W05 diagnostics as a prerequisite for safer recovery/cleanup work, rather than silently settling product-owned signing/spending policies. The matching combined card is **Complete remaining domain-ledger retention and corruption recovery** (W05/S09); change its Status from To do to In progress. Its broader recovery and deletion criteria are not complete and it must not be marked Done solely for this slice. Preserve all planning fields/assessments and unrelated cards; final task readback is recorded under Validation.
+- Work in `codex/sqlite-health-diagnostics`, isolated from the shared checkout's concurrent Project inventory/prioritization records and generated changelog. Install the exact existing lockfile in that worktree with no dependency/version changes. Keep the flagged temporary opener executable untouched and Bitdefender enabled; no exclusions or quarantine operations are performed.
+- Add `gamecrafter-service doctor --database <absolute-path> --kind <profile|project>`. Both explicit flags are required in either order; unknown/duplicate/incomplete flags, relative paths and repair requests fail usage validation. It never selects a default profile or starts the daemon. Lazy-load the service backend only for foreground startup so a diagnostic does not load the entire provider/worker stack. Existing start/stop/status behavior retains its lifecycle tests.
+- Emit schemaVersion 1 JSON with selected kind, UTC check time, current/latest migration versions when readable, check outcomes and fixed guidance. Do not print the filesystem path, record values, migration names or raw SQLite errors. Exit 0 means healthy or recognized upgrade-required; exit 1 means an unhealthy/unavailable diagnostic; exit 2 means invalid invocation. Missing files/parents are never created. Unexpected empty files are uninitialized, not healthy or permission to initialize. Lock/access/I/O failures remain unavailable, separate from structural/foreign-key failures and schema incompatibility.
+- Extend the single SQLite seam with read-only open authority that cannot create a missing file and skips journal-mode changes; close partially initialized handles on setup failure. In one read transaction, check `integrity_check(1)`, foreign keys, the known migration prefix and profile/Project core-table markers. A foreign-key failure is reported separately from physical integrity damage. Preserve the database and authored values; no migration, repair, checkpoint, reset, deletion, salvage or archive extraction is performed by the doctor. Read-only SQL authority does not promise immutable coordination files: SQLite can create/update WAL shared-memory files. Document the [SQLite WAL boundary](https://www.sqlite.org/wal.html#read_only_databases), preservation of database/WAL/journal files, stopped-owner recovery copies and potentially expensive whole-file scans.
+- Previously, migration code could accept future IDs, apply an earlier missing migration before finding a later history mismatch, and create PlayWeld metadata in an unrelated existing database. Validate the entire bounded applied prefix before metadata creation/migration SQL, and before profile snapshot creation/pruning. Reject future, gapped, renamed or unrelated history with fixed compatibility guidance. Keep valid older forward upgrades and idempotence. Profile bootstrap now closes the database if preflight/snapshot/migration fails; existing Project failure handling already closes its handle. This does not add automatic Project pre-migration snapshots or multi-migration transaction rollback.
+- Final candidate review found a remaining unknown-schema edge: an empty migration table beside authored objects could still look like a fresh store. A regression reproduced that candidate behavior; reject it before initialization and report incompatible from the doctor, preserving authored records. An actually empty database or history table without other objects remains eligible for normal first initialization. Add both migration-write prevention and doctor byte-preservation regressions, without changing the report format or widening recovery authority.
+- Add behavioral regressions for write rejection/journal preservation, missing-file noncreation, future/gapped/name-mismatched/unrelated schemas, no partial migration writes, snapshot preservation, healthy/old/wrong-kind/malformed/corrupt/empty/locked stores, foreign-key failures, committed WAL reads and redacted reports. A disposable known-good snapshot is copied to an independent destination and its sentinel read while the corrupt original remains unchanged. A real failed profile bootstrap must release its handle so Windows can rename the preserved file. Compiled CLI tests verify JSON/exit codes, byte preservation and absence of implicit profile creation. No production profile or Project is opened.
+- Update repository/CLI guidance, recovery/operations/developer instructions, the selected architecture default, W05 in place, WP2 and current status. Regenerate source inventory artifacts so new regression paths are discoverable. Do not change confirmed product requirements or mark the whole W05/S09 card complete. A healthy diagnostic is not exhaustive application-schema semantics, backup authenticity, credential recovery, automatic index rebuilding, in-place repair or a proven disaster-recovery lifecycle.
+- Compatibility/migration: additive CLI/report API and safety rejection of unsupported migration histories; no RPC, persisted data schema, settings, dependency or database-version migration. Profile/Project migration targets remain 21/14; report schemaVersion is 1. Existing valid database upgrades retain behavior; previously tolerated future/unrecognized histories now fail closed. Impact minor reflects the compatible operator feature. Product version remains 0.22.0 pending; no installer, tag or release is prepared.
+
+##### Validation
+
+- Clean worktree `npm ci --foreground-scripts` passed with zero audit vulnerabilities and both retained local patches applied. No lockfile/dependency change. Evidence: `.turbo/sqlite-health-install.log` in the shared repository's ignored evidence directory.
+- Seam regressions first failed five new cases while four existing cases passed, reproducing writes/missing-file creation and unsafe migration acceptance. The corrected seam/migrator/snapshot/profile suites then passed 15 tests across three files. Evidence: `.turbo/sqlite-health-seam-red.log` and `.turbo/sqlite-health-seam-green.log`.
+- The compiled CLI doctor regression first failed eight cases against the old command/usage. The first build of the lazy backend import required the explicit compiled `.js` extension under Node16 resolution; correct it before rerunning. Four doctor/seam/snapshot files then passed 28 tests. Eight focused database/CLI/profile/backup files passed 40 tests after adding bootstrap/snapshot regressions, before the additional malformed-metadata case. Evidence: `.turbo/sqlite-health-cli-red.log`, `.turbo/sqlite-health-doctor-green.log` and `.turbo/sqlite-health-focused.log`.
+- Installed Node 24.19.0 and pinned Node type definitions confirm read-only open support; actual fixtures prove the exercised behavior. Consult SQLite's primary [integrity/foreign-key documentation](https://www.sqlite.org/pragma.html#pragma_integrity_check) and [WAL documentation](https://www.sqlite.org/wal.html#read_only_databases). Latest Node web documentation resolved to a different major, and the v24 alias fetch was unavailable, so it is not used as proof of this checkout's behavior.
+- Final `npx turbo run build typecheck lint --concurrency=1` passed 25 tasks (17 cached), including Electron/browser builds, after the completed source. The existing installer-handoff require-resolution warning remains. Other workspace tests passed 14 tasks (12 cached), accounting for 236 passes/one skip across 57 files. App-shell placeholder checks remain placeholders. Evidence: `.turbo/sqlite-health-final-quality.log` and `.turbo/sqlite-health-other-tests.log`.
+- The broad service command with explicit `--exclude src/updates/installer-handoff.test.ts --exclude src/dcc/blender-real.test.ts` passed 748 tests/14 skips across 134 files (133 passing files and one skipped file) in 472.03 seconds. Primary aggregate is 984 passes/15 skips across 191 files, including cached results. No test assertion or timeout was weakened. Native opener/installer fixture execution and live Blender operation remain excluded locally under the existing endpoint-protection/evidence boundary; the retired opener is absent. This is not an unexcluded full-gate pass. Evidence: `.turbo/sqlite-health-service-tests.log`.
+- Additional capability skips in the isolated checkout prompted a focused plugin-service lifecycle rerun rather than being silently treated as passes. That rerun passed seven tests with one explicitly Linux-only skip, exercising native workers, settings upgrades, secrets, usage and restart behavior without changing tests. The native Qdrant binary is absent in this checkout, so its native fixture remains unavailable. The broad run's original skip count is retained rather than retroactively rewritten. Evidence: `.turbo/sqlite-health-plugin-followup.log`.
+- A standalone compiled-CLI acceptance on disposable synthetic files passed eight checks: healthy, known older, future/incompatible, corrupt and missing reports with expected exit codes/byte preservation; independent snapshot recovery retaining its authored sentinel and corrupt original; and no implicit profile/daemon files. Evidence: `.turbo/sqlite-health-native-TnvBqD/report.json` and `.turbo/sqlite-health-native.log`. The first harness attempt reached the sentinel check but incorrectly compared a SQLite null-prototype row to a plain object; compare the actual sentinel value with the same expected value and rerun, retaining the first fixture. No application fix or weakened data-preservation requirement was involved. This is a SQLite snapshot-copy drill, not a new encrypted archive/lifecycle qualification.
+- Generated RPC/settings references remained fresh (204 requests, 88 settings); regenerated inventory and documentation-evidence integrity passed (27 RPC families/subsystems). Thirteen change-tracking tests, repository formatting, release-version agreement, whitespace, changelog generation/coverage and Markdown links passed. No package/lockfile diff is present.
+- Commit and push implementation `7ee03dc6bc580bd09d64950023ff8961c7bea824` on `codex/sqlite-health-diagnostics`. Update the matching Project draft with the immutable implementation commit, branch work record/runbook, completed scope, exact local validation and remaining boundaries; align its inventory-status line with the actual In progress field. Authoritative readback confirmed the exact expected body, all 58 items retained, unchanged target planning fields/assessment and unchanged other cards. The combined W05/S09 card remains In progress because its broader recovery/deletion criteria are not complete. The GitHub connector has no Project endpoints, so use the authenticated CLI/GraphQL API for these explicitly authorized Project edits. Local receipts are `.turbo/sqlite-health-project-current.json`, `.turbo/sqlite-health-project-update.json` and `.turbo/sqlite-health-project-after.json`.
+- The additional empty-history/authored-data regression failed on the initial pushed candidate because it did not reject initialization (`.turbo/sqlite-health-empty-history-red.log`). The corrected guard passed 45 tests across the eight focused database/CLI/profile/backup files and all 25 build/typecheck/lint tasks (17 cached). A repeated compiled-CLI acceptance with the added incompatible-empty-history case passed nine checks (`.turbo/sqlite-health-native-TexRX7/report.json`). Doctor test children are hidden on Windows; assertions/exit expectations remain unchanged. Evidence: `.turbo/sqlite-health-final-guard-tests.log` and `.turbo/sqlite-health-final-edge-quality.log`. Temporarily mark PR 17 draft while correcting this known gap, then publish and qualify the final head. Those results supersede the earlier candidate for release qualification; retain earlier broad-run counts as dated evidence rather than labeling them a pass of later source. Final hosted results are retained in PR 17's head-specific check timeline.
+- No fresh installed application, publisher trust, live engine/DCC/provider, power-loss or large-history acceptance is claimed. Automatic repair, full semantic validation, corruption-aware index rebuilding, broader recovery and extra ledger deletion remain open on the combined card. Version stays 0.22.0 pending; no release is prepared.
+
+##### Files
+
+- `AGENTS.md`
+- `packages/platform-service/src/cli.ts`
+- `packages/platform-service/src/db/database.ts`
+- `packages/platform-service/src/db/database.test.ts`
+- `packages/platform-service/src/db/migrator.ts`
+- `packages/platform-service/src/db/migration-snapshot.ts`
+- `packages/platform-service/src/db/migration-snapshot.test.ts`
+- `packages/platform-service/src/db/database-health.ts`
+- `packages/platform-service/src/db/database-health.test.ts`
+- `packages/platform-service/src/db/database-health-cli.test.ts`
+- `packages/platform-service/src/db/migration-compatibility.integration.test.ts`
+- `packages/platform-service/src/service.ts`
+- `docs/DEVELOPMENT_PLAN.md`
+- `docs/OPEN_DECISIONS.md`
+- `docs/STATUS.md`
+- `docs/TECHNICAL_ARCHITECTURE.md`
+- `docs/RECOVERY_RUNBOOK.md`
+- `docs/OPERATIONS_GUIDE.md`
+- `docs/DEVELOPER_GUIDE.md`
+- `docs/reference/DOCUMENTATION_INVENTORY.md`
+- `docs/reference/documentation-inventory.json`
+- `docs/changes/2026-10-25-sqlite-health-diagnostics.md`
+
+#### Verify and retain Project recovery snapshots before schema upgrades
+
+**Impact:** minor
+
+[Permanent work record](docs/changes/2026-10-26-project-migration-snapshots.md).
+
+##### Summary
+
+Existing registered Project databases now retain a fresh, verified old-schema SQLite snapshot before forward migration. Failure to create or verify that recovery file stops the upgrade instead of proceeding without recovery evidence.
+
+##### Details
+
+- Previously only the profile startup path took pre-migration snapshots. `ProjectDatabases.get` now invokes a Project-specific guard before migration or Project metadata writes. The guard validates recognized migration history and matching registered Project identity, skips new/current stores, and snapshots only an existing older Project. Incompatible history or identity stops before recovery-file creation. Existing handle cleanup prevents failed upgrades from entering the database cache or retaining an open failed-bootstrap handle.
+- The database seam's `VACUUM INTO` captures committed WAL state into a unique `.gamecrafter/pre-migration/project-v<old>-to-v<target>-<uuid>.sqlite.partial` file. The helper restricts file mode where supported, flushes the file with a non-truncating writable handle, opens it read-only, and checks integrity, foreign keys, recognized old migration version and Project identity. Only a verified closed file is renamed to its published `.sqlite` name before migration starts. Ordinary Windows ACLs remain authoritative; this is not an encryption or physical-disk durability guarantee.
+- Every attempt uses a fresh name. Earlier snapshots are neither reused nor pruned, including when later migration SQL fails. A retry captures any intervening old-schema changes while retaining prior evidence byte-for-byte. Individual migration transaction behavior is unchanged; successful earlier migrations in a multi-step attempt are not automatically rolled back as a group. A target version in the filename describes intent, not completed migration.
+- On snapshot failure only that attempt's temporary file receives best-effort cleanup; prior recovery evidence is retained. Unhandled shutdown can leave an unpublished partial file, which is never automatically selected or reused. Snapshot-directory symlinks/junctions and conflicting or redirected ignore metadata stop the upgrade rather than being followed or overwritten. The directory's canonical ignore file protects already-registered Projects before their root ignore rules are refreshed; these are local filesystem boundary checks, not a race-proof sandbox against concurrent hostile writers.
+- New/opened Project ignore rules exclude `.gamecrafter/pre-migration/`. Clone omits the source recovery directory so historical databases with source identity are not copied into the new identity. Clone still snapshots the live source database consistently into its disposable target, and leaves source recovery evidence intact. Existing encrypted whole-Project backups retain their file-selection behavior, including recovery files; no archive/exclusion policy or automatic restore selection changed.
+- The architecture, W05 register status, WP2/WP3 plan and status record now distinguish Project snapshots from the unchanged profile snapshot policy, scoped lexical-index recovery and broader open corruption/retention work. The runbook explains file selection, independent doctor inspection, partial-file handling, local plaintext data, disk-use/retention boundaries, identity/revision checks, and the need for game/canon files and verified encrypted backups. Generated documentation inventories include the new Project database test surface.
+- Tests demonstrate old-schema state and event preservation, committed WAL capture, fresh retry evidence after a real migration failure, no snapshots for new/current stores, failed creation/verification, foreign-key-invalid snapshots, wrong identity, future history, redirected directories and conflicting ignore rules. Existing workspace tests also prove Git exclusion and source-to-clone exclusion alongside independent chat/settings/task history. Compiled service modules and the CLI doctor are exercised separately on an isolated synthetic recovery fixture.
+- During development, the expected missing-snapshot tests failed on unchanged code. The first implementation then exposed Windows `fsync` rejecting a read-only descriptor with EPERM. A temporary fixture-only diagnostic trace identified that call and was removed; the helper now flushes its own file through `r+`, without truncating data or dropping the flush. Assertions and timeouts were not weakened.
+- Compatibility and migration: no dependency, RPC method/schema, setting, archive-format or database migration change. Profile/Project schema targets remain 21/14 and product version remains 0.22.0 pending. Minor impact records compatible new automatic recovery functionality. New/current stores and existing profile snapshot naming/retention remain unchanged. Snapshot retention/deletion, general database salvage/quarantine, board/vector recovery, whole-upgrade rollback, in-place restore, signing, installed-product and broad disaster-recovery qualification remain open. The matching W05/S09 Features card remains In progress for that broader scope.
+
+##### Validation
+
+- Red: `npm test -w @gamecrafter/platform-service -- src/projects/project-databases.test.ts` failed both original assertions: no snapshot was created, and a blocked recovery directory did not stop migration. Evidence: primary-checkout `.turbo/project-migration-red.log`.
+- Green/focused: `npm test -w @gamecrafter/platform-service -- src/projects src/db src/backup/backup-service.integration.test.ts` passed 53 tests across eight files. Includes native Windows filesystem/SQLite/Git fixtures and real local backup/restore integration, not an installed application or remote backup-provider claim. Evidence: `.turbo/project-migration-focused.log`.
+- `npx turbo run build typecheck lint --concurrency=1` passed all 25 tasks, 17 cached, including desktop/browser builds. `npx turbo run build typecheck lint test --filter=!@gamecrafter/platform-service --concurrency=1` passed all 30 tasks, 28 cached. Evidence: `.turbo/project-migration-quality.log` and `.turbo/project-migration-other-quality.log`.
+- `node .turbo/project-migration-acceptance.cjs` in the primary checkout passed four compiled-module/CLI checks: upgrade reaches v14, doctor reads the published v13 snapshot as upgrade-required, identity/authored sentinel survive, and an independent recovery copy passes doctor while the published snapshot hash remains unchanged. Report: `.turbo/project-migration-acceptance-v9jkwB/report.json`; log: `.turbo/project-migration-acceptance.log`. The synthetic fixture is separate from ordinary profiles and Projects.
+- `npm test -w @gamecrafter/platform-service -- --exclude src/updates/installer-handoff.test.ts --exclude src/dcc/blender-real.test.ts`: 777 passed/8 skipped across 135 files (134 passed/one skipped), 385.35 seconds. Evidence: `.turbo/project-migration-service-tests.log` in the primary checkout. Production code was unchanged after this run started; the final focused run separately passed all 53 tests after handle-release and clone-source-preservation assertions were extended (`.turbo/project-migration-focused-final.log`).
+- Final service typecheck/lint passed after those assertions were extended. `npm run format:check`, `bash scripts/check-links.sh` (All links OK), generated RPC/settings and documentation inventory checks, documentation evidence integrity, release-version agreement (0.22.0), whitespace and `npm run changelog:check -- --base origin/main` passed. Evidence: `.turbo/project-migration-format.log` and `.turbo/project-migration-links.log`. Existing lockfile/dependencies were reused in the isolated owned worktree; no dependency installation or update was needed. Hosted checks are separate and have not yet run on this candidate.
+- The broad local service run explicitly excludes `src/updates/installer-handoff.test.ts` and `src/dcc/blender-real.test.ts` to preserve the established endpoint-protection/native-fixture and external-application boundaries. Hosted CI uses the normal unexcluded commands. No antivirus exclusions, quarantine changes, flagged-executable operations, installed-product recovery, new installer/release, live provider/engine/DCC actions or remote backup calls were performed.
+
+##### Files
+
+- `packages/platform-service/src/db/migration-snapshot.ts`
+- `packages/platform-service/src/projects/project-databases.ts`
+- `packages/platform-service/src/projects/project-databases.test.ts`
+- `packages/platform-service/src/projects/workspace.ts`
+- `packages/platform-service/src/projects/workspace.test.ts`
+- `docs/TECHNICAL_ARCHITECTURE.md`
+- `docs/RECOVERY_RUNBOOK.md`
+- `docs/DEVELOPMENT_PLAN.md`
+- `docs/OPEN_DECISIONS.md`
+- `docs/STATUS.md`
+- `docs/reference/DOCUMENTATION_INVENTORY.md`
+- `docs/reference/documentation-inventory.json`
+- `docs/changes/2026-10-26-project-migration-snapshots.md`
+- `CHANGELOG.md`
+
 ### Fixed
 
 #### Keep Models tables and discovery controls readable in narrow views
@@ -367,6 +756,127 @@ Preserve readable Models table columns in narrow desktop views, contain scrollin
 - `scripts/models-layout-check.cjs`
 - `scripts/live-ui-smoke.cjs`
 - `docs/changes/2026-10-18-models-narrow-layout-fix.md`
+
+#### Recover inconsistent knowledge lexical indexes during full reconciliation
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-25-knowledge-lexical-index-recovery.md).
+
+##### Summary
+
+Full knowledge rebuild/reconciliation now recovers inconsistent FTS entries from retained chunk content, rather than reporting success while unchanged documents remain absent from lexical search.
+
+##### Details
+
+- Before this correction, source fingerprints caused unchanged files to be skipped even when their external-content FTS entries were lost. The knowledge store now checks FTS consistency against its chunk table, rebuilds only on SQLite's FTS-specific `SQLITE_CORRUPT_VTAB` result, and verifies the rebuilt index in the same immediate transaction. A failed rebuild/final verification rolls back. Lock/I/O/general-corruption errors propagate without attempting a rebuild; missing tables and triggers are not recreated.
+- Full rebuild and reconciliation run that check before source mutations, preventing stale FTS deletion triggers from blocking ordinary source reconciliation. Healthy indexes do not rebuild, and incremental watcher runs do not perform this scan. The operation repairs only lexical index state; authored files, canon records, existing chunk rows, task/event history, embedding profiles and vector mappings are not reset or deleted by the repair.
+- A requested full rebuild could previously reuse an active incremental-only task. Task deduplication now requires an active full request to satisfy a new full request. If a full indexer call encounters another active run, it waits and then performs a full check, preserving the requested recovery operation.
+- Indexing tool results include `lexicalIndexRebuilt`; actual repair reports `noOp: false` and advances the full-reconcile timestamp. The task's persisted summary explicitly states that the lexical search index was rebuilt. Healthy unchanged reconciliations retain no-op behavior.
+- Tests reproduce missing search hits through a real local service/client and supervised task, require the full task input, verify search recovery, unchanged source/chunk content and retained prior events/tasks, and exercise subsequent incremental/full requests. Store fixtures verify consistency repair, stable metadata/content, later update triggers, repeat no-op behavior, rollback of a post-rebuild failure, and refusal to rebuild on SQLite lock/locked/I/O/general-corrupt/not-a-database errors. Injected failure cases are transaction/control-flow evidence, not physical disk-fault qualification.
+- The architecture and recovery runbook describe the write authority, task-result evidence, operator backup/preservation steps and supported FTS-only boundary, with links to SQLite's primary FTS5 documentation. Plan, status and W05/R04 register entries reflect this bounded completion without closing broader W05/S09 recovery or retention. The matching Features Project card retains the broader In progress scope; implementation and verification notes link the committed candidate and PR. Original assessment/priority/effort fields and unrelated cards are preserved.
+- Compatibility: no dependency, RPC method/record schema, setting or migration change; profile/Project migration targets remain 21/14 and no migration is required. The additive generic indexing-tool result field uses the existing tool-result envelope. Product version remains 0.22.0 pending. Patch impact corrects existing full-rebuild behavior rather than introducing a new operator API.
+- Limits: general database repair/quarantine, missing schemas/triggers, board FTS, corrupt chunk/canon content, vector-backend recovery, additional ledger deletion, large-history performance, installed desktop and release qualification remain open. Read-only doctor semantics are unchanged. Existing shared-checkout inventory/prioritization work and the flagged native opener executable are untouched; endpoint protection remains enabled.
+
+##### Validation
+
+- Red reproduction: `npm test -w @gamecrafter/platform-service -- src/knowledge/knowledge.integration.test.ts -t "recovers lost lexical"` failed because a completed full rebuild returned no `docs/recovery.md` search hit. An added task-input assertion then independently exposed the full request being replaced by `full: false`; both paths pass after correction. A preservation assertion initially used `stateHash`, which includes the deliberately updated full-reconcile timestamp; it was corrected to compare actual retained chunk rows, with whole-store hash preservation checked separately at the store seam.
+- `npm test -w @gamecrafter/platform-service -- src/knowledge/knowledge-store.test.ts src/knowledge/knowledge.integration.test.ts`: 17 tests passed across two files, including the real local RPC/task recovery fixture, persisted repair/no-op audit evidence, orphan-entry repair, missing-table preservation and injected rollback/failure cases.
+- `npx turbo run build typecheck lint --concurrency=1`: 25 tasks passed, 17 cached, including desktop/browser builds; existing bundler require.resolve warning retained.
+- `npx turbo run build typecheck lint test --filter=!@gamecrafter/platform-service --concurrency=1`: 30 tasks passed, 28 cached. Service build/typecheck/lint were checked separately; service tests are recorded separately below.
+- Final service typecheck/lint passed after test assertions were extended. `npm run test:changes` passed 13 tests; generated RPC/settings and documentation inventories, documentation evidence, version agreement (0.22.0), formatting, whitespace and changelog coverage checks passed. `bash scripts/check-links.sh` reported All links OK.
+- `npm test -w @gamecrafter/platform-service -- --exclude src/updates/installer-handoff.test.ts --exclude src/dcc/blender-real.test.ts`: 765 passed/8 skipped across 134 files (133 passed/one skipped), 392.53 seconds. Logs: `.turbo/knowledge-recovery-service-tests.log`, `.turbo/knowledge-recovery-focused-final.log`, `.turbo/knowledge-recovery-quality.log`, `.turbo/knowledge-recovery-other-quality.log`, `.turbo/knowledge-recovery-format.log` and `.turbo/knowledge-recovery-links.log` in the primary checkout. A subsequent focused run includes all final audit/no-op and missing-table assertions; no production code changed after the broad run started.
+- Native installer executable fixtures and live Blender tests are excluded from the local broad service run to retain the existing endpoint-protection/external-application boundary. Hosted checks will use normal unexcluded CI commands. No antivirus exclusions, quarantine changes, live providers/engines, installer or installed-product recovery checks were performed.
+
+##### Files
+
+- `packages/platform-service/src/knowledge/knowledge-store.ts`
+- `packages/platform-service/src/knowledge/knowledge-store.test.ts`
+- `packages/platform-service/src/knowledge/knowledge-indexer.ts`
+- `packages/platform-service/src/knowledge/knowledge-service.ts`
+- `packages/platform-service/src/knowledge/knowledge.integration.test.ts`
+- `docs/TECHNICAL_ARCHITECTURE.md`
+- `docs/RECOVERY_RUNBOOK.md`
+- `docs/DEVELOPMENT_PLAN.md`
+- `docs/OPEN_DECISIONS.md`
+- `docs/STATUS.md`
+- `docs/changes/2026-10-25-knowledge-lexical-index-recovery.md`
+- `CHANGELOG.md`
+
+#### Preserve MCP tool-cache invalidation during concurrent discovery
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-26-mcp-tool-discovery-race.md).
+
+##### Summary
+
+Prevent an in-flight MCP tool listing from restoring obsolete tools after a tool-change notification or event-stream closure invalidates discovery. This is a bounded correctness slice of the Features Project's Q01 concurrent-suite timing card; its broader qualification remains open.
+
+##### Details
+
+- Current main `3b35deb` could return an obsolete listing after invalidation while another discovery request returned newer tools. The obsolete response could also overwrite the session cache and reach the connection manager's broker registration. Deterministic tests control transport responses and reproduce both notification and stream-close orderings without sleeps or changed timeouts.
+- Concurrent discovery callers now share in-flight responses with their originating generation. Each caller checks that generation after awaiting the response and before parsing, caching or publication, including invalidation during promise settlement. Discovery retries a changed generation, with at most three response attempts per caller; repeated changes fail with an actionable retry error instead of unbounded requests. Disconnect also invalidates the generation, and a post-response connection check prevents publication after disconnection.
+- Preserve deterministic tool sorting, TTL behavior, force-refresh entry points, separate returned snapshots, notification callbacks and existing protocol negotiation. Failed requests, malformed responses and repeated invalidation release the shared request so later discovery can succeed. Added focused tests cover these recovery cases and bound actual request counts.
+- Inspected the canonical board, current main and recent PRs before selecting this task. PRs 15–19 are merged; the shared checkout retains unrelated planning records and an SDK worktree exists. This change uses a separate worktree and leaves those files, security/qualification work and Requested feature proposals untouched. The board-search recovery lead requires a separately scoped operator workflow and is not implemented here. This discovered MCP ordering defect is not asserted to explain every historical timing observation.
+- Published [draft PR 20](https://github.com/scarecr0w12/PlayWeld/pull/20) on `codex/mcp-tool-discovery-race` and marked only its Q01 timing card In progress with a bounded implementation/evidence note. Preserve every other board card and the selected card's priority, size, estimate, risk and planning fields. Its broader acceptance criteria remain open. Exact-head hosted checks and their final disposition are tracked on that draft PR; no hosted pass is inferred from local results.
+- Compatibility and migration: compatible internal service fix; no dependency, RPC, persisted schema, setting or migration changes. No migration required. Product version remains 0.22.0 pending; patch impact reflects corrected discovery behavior. No release, deployment or merge is part of this task.
+
+##### Validation
+
+- Initial regression on unchanged runtime code: `npm test -w @gamecrafter/platform-service -- src/mcp/session.test.ts` discovered 27 tests, with both new ordering cases failing and 25 existing tests passing. Both failures returned `obsolete` where the current tool list was required.
+- Separate standards and spec reviews both identified a further promise-settlement window in the first correction. A queued-notification regression reproduced it (one failure, 30 passes). Moving generation validation to each awaiting caller resolved the finding; both reviewers confirmed no remaining concrete in-scope findings. The final focused suite passed all 31 tests. Transport fixtures establish source-level behavior, not community-server or live-engine acceptance.
+- Final concurrent MCP/worker verification: `node ../../node_modules/vitest/vitest.mjs run src/mcp src/workers/supervisor.test.ts src/workers/supervisor-await.test.ts --maxWorkers=4 --testTimeout=30000 --hookTimeout=60000` from the service package passed 83 tests across 16 files. No test timeout or existing assertion was increased or weakened. An initial npm-script invocation supplied duplicate worker flags and did not discover tests; the direct invocation above supplies the worker count once.
+- Final aggregate `npx turbo run build typecheck lint --concurrency=1` passed all 25 tasks, 17 cached, including browser and Electron builds. Other workspace tests passed all 14 Turbo tasks, ten cached: 236 tests passed and one skipped across 57 files. Electron's test script remains an explicit skip; app builds do not establish rendered acceptance. Existing installer-handoff require-resolution and JSX-transform warnings remain.
+- Final broad service command `npm test -w @gamecrafter/platform-service -- --exclude=src/updates/installer-handoff.test.ts --exclude=src/dcc/blender-real.test.ts` passed 783 tests with eight skips across 135 files (134 passed, one skipped). Earlier sandboxed/superseded broad attempts did not complete and are not counted as passes. The final run followed the reviewed source correction and completed with exit code zero. Combined with the other workspace results, local source/fixture coverage is 1,019 passes and nine skips across 192 files; focused/concurrent runs overlap and are not added to that total.
+- Dependencies were installed from the unchanged lockfile in the isolated worktree using `npm ci --ignore-scripts --no-audit --no-fund`; repository patches were applied through `npm run postinstall`. Initial app builds lacked native artifacts because scripts were skipped. Rebuilding the pinned `@vscode/windows-ca-certs` and `@theia/ffmpeg` packages locally resolved those failures; the final aggregate above passed. No dependency or lockfile change was retained. Sandboxed networking and temporary Git initialization also prevented initial integration/tracking runs; authorized host runs are separate evidence, not passes for those failed attempts.
+- All 13 change-tracking tests passed in the authorized run. Generated RPC/settings references, documentation inventories, documentation evidence integrity, release-version agreement, complete WSL Markdown link scan, repository formatting, diff whitespace, generated changelog freshness and branch-wide work-record coverage passed. Final evidence text changes preserve existing local link targets; no full unexcluded local Turbo test pass is claimed. Hosted CI uses the normal unexcluded repository commands.
+- Native installer executable fixtures and live Blender operations remain excluded from local execution to preserve the established endpoint-protection/external-application boundary. No antivirus, credentials, ordinary runtime profile, paid provider or engine state is changed.
+
+##### Files
+
+- `packages/platform-service/src/mcp/session.ts`
+- `packages/platform-service/src/mcp/session.test.ts`
+- `docs/changes/2026-10-26-mcp-tool-discovery-race.md`
+
+#### Keep Requests keyboard focus through review and recovery
+
+**Impact:** patch
+
+[Permanent work record](docs/changes/2026-10-26-requests-keyboard-recovery.md).
+
+##### Summary
+
+Keep keyboard users inside Requests when opening the view or when a response control disappears or becomes disabled. Preserve the existing empty inspector after resolution and explicit per-request authority. This is a bounded slice of the P0 UI/accessibility card, not completion of broader accessibility qualification.
+
+##### Details
+
+- A real keyboard journey on main `3b35deb` left focus on the document body when opening Requests and after approval, rejection, choice and free-text responses. The inspector correctly cleared, but continuing required tabbing through the wider workbench. A rendered regression reproduced this before the correction; no product change was made until the journey demonstrated the gap.
+- Activating Requests now renders and focuses its Project filter when focus is outside the view. An update that removes or disables the view's focused control returns focus to the labeled Pending requests navigation region. Existing focus on surviving controls, including typed drafts, is preserved. Background updates do not take focus from another view.
+- The navigation region is programmatically focusable without adding a normal tab stop. It grants no authority and does not select another request. Resolved identities, keyed inspector content, empty-inspector behavior, draft storage, model refresh/response logic, exact-ID RPCs and per-call approval rules remain unchanged. Repeated Enter after resolution cannot approve a replacement request.
+- Add a repeatable Puppeteer keyboard/recovery scenario and `test:ui:requests-keyboard` command. Use real disposable Projects, workers and contained file approvals; tab through existing Project Home and Requests controls and use Enter/Space/native selection keys. Verify exact Project context, independent approval/rejection, another client's resolution, exact stored answers, background draft retention, unavailable-Project recovery, actual service stop/restart, safe empty-inbox focus and narrow layout. Do not invoke a model, paid provider or engine.
+- Run this scenario after the existing hosted browser smoke. Its unique profile/Project/configuration and evidence directories stay outside the repository. Upload only report/failure JSON and PNGs, never profile databases, service tokens or credential material. A held fixture lock prevents a second service bootstrap during the deliberate disconnect. Cleanup handles partial startup, independently attempts every owned resource, waits for its backend exit, force-stops that same backend if necessary and records cleanup failures.
+- Retain the observed optional development-shell `/favicon.ico` HTTP 404 in evidence, qualified by its exact URL/status. Reject other HTTP/console errors and all renderer exceptions. This task does not repair or silently discard that unrelated shell diagnostic. The Browser plugin is unavailable; the scenario uses the repository's existing Puppeteer dependency and records its actual browser/version.
+- Work uses a new isolated branch from main, independent of draft PR 20. Preserve the original checkout's pending planning/changelog work and the SDK/security worktrees. Only the existing UI/accessibility card is marked In progress; its priority/estimate and other cards remain unchanged. No new navigation/approval architecture or Requested first-run feature is accepted.
+- Compatibility and migration: compatible UI focus correction; no dependency, lockfile, API, setting, persistent schema or migration changes. No migration required. Product version remains 0.22.0 pending. Patch impact reflects corrected keyboard navigation; no installer, release, deployment or merge is prepared.
+
+##### Validation
+
+- Unchanged-source browser probe completed the response journey with no renderer exceptions but recorded BODY focus at opening and every completion; the explicit focus assertion failed. After the correction, the same journey retains focus on the Project filter or Pending requests navigation region, while background typing stays in the answer field and the inspector remains empty after resolution.
+- Focused Requests model/widget tests passed all ten cases across two files, including failed read/action, disconnect/late results, stale actions and draft editing. Aggregate build/typecheck/lint passed all 25 tasks (18 cached), including browser and Electron builds. Other workspace tests passed all 14 tasks (11 cached): 236 passed, one skipped across 57 files. These counts overlap the focused tests and are not added together.
+- The reusable rendered scenario passed twelve focus/state observations on native Windows Chrome 155.0.8059.79 at 1600x1000 and 480x900. Exact answers, approved/rejected file outcomes, stale/repeated action safety, draft recovery, disabled disconnected controls, Project context and no horizontal overflow were asserted. Renderer errors were empty. The optional favicon 404 remains explicitly reported; no other HTTP/console error was observed. Final cleanup recorded no errors and released the fixture lock.
+- Independent standards/spec reviews found no product-focus defect. Standards review identified startup and cleanup failure edges in the new harness; acquisition moved inside protected cleanup and each cleanup stage runs independently, including forced termination of a resistant owned backend. A temporary public-connection fault probe exited with the expected error, no cleanup errors and no remaining service lock instead of hanging. The transient injection is not a product test hook or committed dependency.
+- Initial browser startup lacked native artifacts because dependency install scripts were skipped; built the unchanged pinned Windows CA, Theia ffmpeg, drivelist and native-keymap modules locally. No manifest/lockfile dependency change was retained. An initial command-palette probe did not open its expected selector; final acceptance uses keyboard navigation from Project Home, without claiming palette qualification. An exploratory malformed-manifest injection did not induce a read failure for an already-open cached Project; restored its bytes and removed that invalid fault case. No runtime defect is inferred from those harness/setup observations.
+- Failed read/action handling is covered by existing model tests; rendered recovery covers unavailable Projects and actual service-disconnect errors. NVDA/Orca, full screen-reader/contrast/localization certification, installed Electron, installer lifecycle and paid/live engine workflows were not exercised. The unchanged broad service suite is not rerun locally for this frontend-only fix, preserving the established native installer-executable/live-Blender boundary. Hosted CI uses normal unexcluded quality commands.
+- Repository formatting, explicit script/work-record formatting, YAML syntax with retained read-only workflow permissions, Node script syntax, generated references/inventories, documentation evidence integrity, release-version agreement, complete WSL Markdown links, diff whitespace, generated changelog freshness and branch-wide record coverage passed. Exact-head hosted outcomes are retained on the draft PR linked from the [owning card](https://github.com/users/scarecr0w12/projects/5?pane=issue&itemId=282909887). No passing hosted or broad accessibility claim is inferred from local browser evidence.
+
+##### Files
+
+- `packages/theia-control-room/src/browser/requests-widget.tsx`
+- `scripts/requests-keyboard-ui-smoke.cjs`
+- `package.json`
+- `.github/workflows/ci.yml`
+- `docs/changes/2026-10-26-requests-keyboard-recovery.md`
 
 ### Security
 
@@ -654,6 +1164,30 @@ Correct stale current-status claims using existing accepted receipts, document t
 - `docs/reference/documentation-inventory.json`
 - `docs/changes/2026-10-24-documentation-reconciliation.md`
 
+#### Preserve pending record links in release notes
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-27-release-record-links.md).
+
+##### Summary
+
+Correct five relative links in three pending work records so the generated 0.23.0 release notes can resolve their evidence references.
+
+##### Details
+
+The release-note generator copies record prose into `docs/releases/`; bare sibling filenames therefore pointed into the wrong directory. Use `../changes/` for the five existing references, which resolves correctly from both record and release-note directories. Preserve their text, findings and historical qualification. These records were pending before this preparation; no previously released record or published note is rewritten. No application, schema, dependency or migration change is required.
+
+##### Validation
+
+The first full link check identified the five broken release-note links. Regenerated notes contain the corrected destinations; the final complete link-check result is recorded with release preparation. This correction makes no runtime or installation claim.
+
+##### Files
+
+- `docs/changes/2026-10-24-native-opener-fixture-cleanup.md`
+- `docs/changes/2026-10-24-security-remediation.md`
+- `docs/changes/2026-10-24-service-log-retention.md`
+
 ### Maintenance
 
 #### Build and verify the local PlayWeld 0.22.0 upgrade
@@ -833,77 +1367,6 @@ Remove the automated Windows opener fixture that compiled and executed a tempora
 - `docs/changes/2026-10-24-native-opener-fixture-cleanup.md`
 - `docs/changes/2026-10-24-retire-native-opener-executable-fixture.md`
 
-#### Populate the PlayWeld Features GitHub Project inventory
-
-**Impact:** none
-
-[Permanent work record](docs/changes/2026-10-25-features-project-inventory.md).
-
-##### Summary
-
-Populated the user-created [PlayWeld Features Project](https://github.com/users/scarecr0w12/projects/5) with 58 evidence-bounded feature/function cards: 27 Done, two In progress, 22 To do and seven Requested. Created 57 Project drafts and reused the existing Windows uninstall/rollback issue. The Project remains private and no v1.0 scope is accepted by this inventory.
-
-##### Details
-
-- The user selected PlayWeld Features to track implemented, partially completed, remaining and requested functionality. After an initial missing-scope failure and expired device authorization, the user refreshed GitHub CLI permissions. Confirmed the exact owner, Project title, URL and ID before mutation; no credentials or device codes are retained in this record.
-- Read the authoritative development plan, implementation status, confirmed requirements and open decision register. Created 57 descriptive Project drafts rather than opening 57 repository issues. Reused the sole preexisting Project item, [issue #3](https://github.com/scarecr0w12/PlayWeld/issues/3), retaining its issue body and setting its Project status to To do. Verified the final inventory has one matching card for each prepared title and no duplicate of that issue.
-- Extended the existing Status field with To do and Requested while preserving the IDs, names, descriptions and colors of Backlog, Ready, In progress, In review and Done. Added Area as a single-select field and Reference as a text field; all 58 cards have the intended status, area and work-package/decision references. Existing priority, size, iteration, date and other fields were preserved; no priorities, estimates, iterations or release commitments were invented.
-- Done cards cover independent Projects, desktop shell, settings, durable tasks, grouped requests, broker permissions, audit/export/cleanup, provider accounts, model routing/capacities, chat, optional decision assistance, skills/roles, MCP, discussion/decisions, plugins, engine operations and managed bridges, Knowledge/search/storage, generation/import, asset viewers, DCC, local backups/restore, Swarm/worktrees, external IDE integration, A2A and documentation. Their bodies distinguish repository implementation, fixture testing and selected live acceptance rather than implying exhaustive release readiness.
-- In-progress cards distinguish WP19 packaging/release lifecycle from Q04 plugin SDK conformance/migration guidance. To do cards cover release trust/lifecycle, support and UI/accessibility/performance qualification, current full-gate evidence, plugin signatures/isolation, model-provider and judgment qualification, spending behavior, community MCP/A2A, wider engine/DCC/provider checks, asset inspection/conversion, remote backup/recovery, external action recovery, canon diffs, remote vector/plugin acceptance and remaining ledger/corruption handling.
-- Requested cards represent existing unresolved product choices: existing-game onboarding, navigation/create/clone experience, creative feedback/progress, canon/module/genre semantics, cross-Project privacy, editor-extension privileges and optional in-place restore. They explicitly remain proposals or unresolved choices, not newly accepted requirements or automatic v1.0 scope. Existing implemented portions are described separately.
-- Linked the Project to scarecr0w12/PlayWeld. Initialized its previously empty description and README with inventory purpose, status meanings, Area/Reference usage, source links, evidence boundaries and draft-to-issue guidance. The Project remains private. The development plan remains the owner of dependency ordering; no work-package status or user-confirmed design decision was changed.
-- Temporary import data, resume-aware synchronization script and before/after receipts remain ignored under .turbo/feature-project-sync/. They are local execution artifacts, not a second committed feature register. The GitHub Project is the requested feature tracker; repository status/plan/register remain the sources for the initial inventory's implementation claims.
-- Compatibility and migration: repository/provider maintenance only; no application, API, database, package-version or runtime migration. Version impact none because the change organizes existing work and requests without shipping application behavior. No commit, release, engine mutation, paid generation or ordinary-profile change was performed.
-
-##### Validation
-
-- gh project list/view/field-list/item-list confirmed Project #5, exact title PlayWeld Features, private visibility, the existing five Status options and the sole preexisting issue #3. Inspected GitHub's live single-select input contract before updating options so original option IDs were retained.
-- Parsed the staged JSON and verified 58 input entries. Synchronization completed with 57 created drafts and one reused issue; read back all 58 cards and checked exact title uniqueness, status, area and reference against every input row. The receipt reports zero mismatches and status counts of 27 Done, two In progress, 22 To do and seven Requested.
-- gh project link 5 --owner scarecr0w12 --repo scarecr0w12/PlayWeld succeeded. Project README/description initialization succeeded. No new repository issues were opened.
-- git check-ignore confirmed the temporary inventory is ignored. Work-record Prettier formatting, npm run changelog:update, npm run changelog:check -- --base HEAD and git diff --check passed after the publication record was updated. Final Project metadata readback confirmed 58 items, 21 fields and unchanged private visibility; field readback confirmed all five original Status option IDs were preserved.
-- Documentation link checking was launched through the default bash runner during preparation, but its process result was unavailable after resumption. Restarted the required scripts/check-links.sh through explicit Git Bash with captured output/exit files; result remains pending at this record update and is not claimed as passing.
-- Source builds, application tests, live provider/engine calls, paid generation, installer operations and release publication were skipped because this changes feature tracking and its permanent record, not application behavior. Implementation claims come from the cited existing records rather than new runtime qualification.
-
-##### Files
-
-- `docs/changes/2026-10-25-features-project-inventory.md`
-
-#### Prioritize, estimate and publish PlayWeld Features
-
-**Impact:** none
-
-[Permanent work record](docs/changes/2026-10-25-features-project-prioritization.md).
-
-##### Summary
-
-Individually assessed all 31 open cards in the [PlayWeld Features Project](https://github.com/users/scarecr0w12/projects/5), assigned development priority/size/effort and detailed implementation or qualification criteria, and made the Project public at the user's explicit request. All 58 cards remain present; the 27 Done cards retain their existing content and evidence limits.
-
-##### Details
-
-- The previous inventory provided status, area, reference and short functional descriptions but left development priority, size and detailed execution criteria unset. The user explicitly requested card-by-card prioritization, sizing, additional detail and public visibility. Read back the exact Project and all existing items/fields before mutation; preserved existing Status, Area, Reference, title, assignment, iteration and date choices.
-- Assessed all 31 open cards independently against the repository's current plan, implementation/evidence boundaries and unresolved product choices. Assigned 14 P0, eleven P1 and six P2 priorities. P0 means a recommended release-safety, trust, data/recovery or evidence gate for capabilities actually promised in 1.0; P1 means important core workflow/support/product decisions; P2 means optional integration/feature breadth. These are engineering recommendations, not a newly accepted v1.0 feature list or claims that every P0 represents an exploitable defect.
-- Assigned five Medium, thirteen Large and thirteen Extra Large development sizes using the existing Size field. Populated the existing numeric Estimate field with relative points: XS=1, S=2, M=3, L=5, XL=8. Added a separate Effort text field: XS up to one engineer workday, S one to two, M three to five, L six to ten, XL eleven to twenty-plus with required decomposition before implementation. All estimates are coarse planning ranges, include focused implementation/tests/evidence, exclude external waits/procurement/authorization and are not calendar commitments.
-- Added Work type, V1.0 relevance, Risk and Confidence single-select fields. The 31 assessments comprise six Hardening, four Feature, twelve Verification, eight Decision and one Maintenance cards; relevance is twelve recommended Release gate, seven Core candidate, six Optional candidate and six Decision needed. Risk describes delivery/data/trust consequence rather than a validated vulnerability severity. Confidence describes estimate uncertainty, not implementation or release readiness. No assignees, deadlines, iterations or automatic execution were selected.
-- Added a distinct Development assessment section to every open card, retaining its original description/source/evidence text. Each section includes priority rationale, size/relative points/rough effort, work type, release relevance, risk, confidence, proposed scope, four card-specific acceptance criteria, prerequisites/related work, assumptions, exclusions and overlap warnings. Updated thirty Project drafts and appended the assessment to the existing [Windows uninstall/rollback issue #3](https://github.com/scarecr0w12/PlayWeld/issues/3), retaining its original scope and acceptance text rather than replacing or duplicating the issue.
-- Recommended release gates emphasize trustworthy packaging/signing, scoped Windows/Linux lifecycle, support/evidence definition, core UI/accessibility, current-candidate quality evidence, truthful plugin trust/isolation, spending ceilings, external-effect recovery, non-destructive corruption handling, cross-Project privacy and editor-extension privilege clarity. Linux qualification is conditional on advertised targets. Isolation layering/host allowlists and extended ledger cleanup are explicitly separable from the necessary safe baseline.
-- Core candidates cover SDK conformance, measured performance, provider/decision qualification, community MCP, selected engine coverage, remote backup, canon reconciliation, existing-game onboarding, navigation/creation, creative feedback and canon/module semantics. Optional candidates cover live A2A, commercial DCC breadth, additional paid generation, richer asset inspection/conversion, remote/plugin vector stores and in-place restore. Provider/engine/DCC/storage matrices, umbrella cards and shared recovery work contain overlap/decomposition notes; they must not be summed blindly into a release date. In-place restore explicitly distinguishes an XS decide/defer action from XL conditional implementation.
-- Retained all seven Requested statuses and their product-owned decisions. Prioritization does not approve those requests or reopen already confirmed module-preservation requirements. Prerequisites identify planning constraints/related work rather than introducing a second authoritative execution order; technical dependency ordering remains in the existing development plan.
-- Extended the Project README with priority definitions, the size/point/effort table, field meanings, estimate limitations, optional/conditional release scope and the absence of new execution commitments. Preserved its existing purpose/status/source guidance. Screened all 58 existing card bodies/titles and the final README for recognizable credential/private-key, embedded credential URL and personal filesystem-path patterns, and reviewed the authored assessment text for public suitability. This bounded content review is not a whole-repository secret scan.
-- Changed Project visibility from private to public only after every card's detailed content and eight planning field values passed authoritative readback. Read back public=true and the exact final README. The user's explicit instruction authorized this publication; no repository visibility, code, releases, credentials, runtime profiles, engine/DCC state or paid services were changed.
-- Compatibility and migration: repository/provider planning maintenance only; no application, RPC/schema, database, package-version or runtime migration. Existing Project statuses and the 27 Done descriptions remain intact. No new issues/cards were created. Version impact none because this publishes engineering planning and requests without shipping application behavior. Temporary preparation/update scripts and before/after receipts remain ignored local execution artifacts under .turbo/feature-project-sync/, not a competing feature register.
-
-##### Validation
-
-- Read all 58 Project items and existing fields through the GitHub CLI/GraphQL API. Checked that the plan covered exactly the 31 non-Done titles once, every size was defined, every card had scope/prerequisites and each had four acceptance criteria. Source/temporary scripts passed node --check; a helper summary command with an extra closing parenthesis was corrected before the successful completeness/count output. No application test failure was involved.
-- The update receipt records all 31 assessments, priority counts 14/11/6 and size counts M=5, L=13, XL=13. Authoritative readback compared every assessed body and Priority, Size, Estimate, Work type, V1.0 relevance, Risk, Confidence and Effort value: zero mismatches. Also verified unchanged Status/Area/Reference for all 58 items and unchanged title/body for all 27 Done items.
-- Final Project readback confirmed 58 items, public=true and the exact updated README. An unauthenticated HTTP request to the Project URL returned 200 and contained the PlayWeld Features title. Credential/private-path pattern screening returned no matches for the reviewed cards/README; original issue #3 content was preserved with an appended assessment.
-- npm run changelog:update, npm run changelog:check -- --base HEAD, Prettier checks for both feature work records and CHANGELOG.md, and git diff --check passed. Ran the complete scripts/check-links.sh through the installed Ubuntu environment after the native Git Bash run proved slow; it returned All links OK with exit code zero. No documentation targets changed during the final validation-text update.
-- Application builds/tests, new live integrations, installer drills, paid generation and release publication were skipped because this task changes planning and public Project content only. Existing implementation/live evidence was not rerun, and effort estimates remain evidence-bounded recommendations.
-
-##### Files
-
-- `docs/changes/2026-10-25-features-project-prioritization.md`
-
 #### Hosted qualification and integration of security remediation
 
 **Impact:** none
@@ -912,25 +1375,70 @@ Individually assessed all 31 open cards in the [PlayWeld Features Project](https
 
 ##### Summary
 
-Qualify [PR 15](https://github.com/scarecr0w12/PlayWeld/pull/15) against hosted quality/security checks and integrate only a passing head, then verify default-branch security alerts against fresh main analysis. This record is in progress; pending checks and integration are not completed evidence.
+Qualify and merge [PR 15](https://github.com/scarecr0w12/PlayWeld/pull/15) after all eight checks passed, then verify zero open Dependabot, CodeQL and secret-scanning alerts on the actual main revision. Preserve the distinction between fixed findings and reviewed false-positive dismissals.
 
 ##### Details
 
 - The user explicitly authorized checking hosted results, correcting remaining issues, merging PR 15 only after checks pass and verifying Dependabot/CodeQL resolution afterward. The starting local and remote head is `968ca5de74cc51004b495ca899759978b6f9e5c5`; the working tree was clean. Retain existing product version 0.22.0 and all separate security/feature records.
 - Read PR/job/analysis state through the GitHub connector and use authenticated alert APIs where the connector has no alert endpoint. Initial hosted CodeQL Actions and JavaScript/TypeScript jobs and GitGuardian passed. Both PR analysis records contain zero results without errors/warnings; this is evidence for that PR analysis, not a default-branch closure claim. Linux quality, Windows quality and browser build/smoke were still running.
 - Mark the draft ready for review under the merge authorization. The existing workflow's `ready_for_review` trigger schedules a replacement CI run; retain cancelled/superseded runs as historical attempts rather than failures or successful gates. Do not remove workflow checks, bypass a failed job, weaken assertions or change endpoint-protection settings to obtain a pass.
+- Commit the initial acceptance record as `8d2cd9e6f361e90e77402f9a9f283a7a81da8413`, then qualify that final PR head. All eight checks passed: Linux quality, Windows quality, browser build/smoke, both CodeQL language jobs, the aggregate CodeQL check, GitGuardian and Kilo review. The automated review is supplementary sampled/incremental evidence, not exhaustive manual acceptance. No additional production-code correction was required by these hosted results.
 - Integration policy: inspect the latest PR head, all applicable check results and mergeability immediately before merging, and supply the expected head SHA to GitHub's merge operation. Preserve the branch's permanent records and source fixes. Only a passing head may be merged. Afterward, distinguish patch-driven fixed alerts from the previously documented false-positive dismissal of CodeQL alert 12; do not dismiss Dependabot or unresolved source findings to reduce counts.
 - Post-merge verification must read main's actual merge SHA, completed CodeQL analysis for that main revision, and current Dependabot/CodeQL/secret-scanning states. A green PR job or a pushed branch alone does not meet this acceptance criterion. No release, installer publication, ordinary profile/Project changes, antivirus exclusions or access to the flagged temporary executable are part of this work.
-- Compatibility/migration: evidence and integration maintenance only so far, with no production/API/schema/dependency changes or data migration. Impact is none. Any diagnosed hosted defect and its concrete correction will be recorded here with its affected paths and actual validation before integration.
+- Merge through the GitHub connector with the expected head SHA after an immediate all-checks-success/mergeability readback. GitHub confirms merge commit `e37cf1e21cc9a9d557cb6223bcc5d88660a4073d` at 2026-10-25 23:26:40 UTC (16:26:40 America/Phoenix). All fourteen previously open Dependabot alerts now have state `fixed` and fix timestamps immediately after merge, with no dismissal reasons. Fresh main CodeQL analysis automatically fixes alerts 1-10.
+- Main JavaScript/TypeScript analysis still reports the vector cache-identity finding (12, already dismissed) and missing-rate-limit warning (11). Inspect the exact reported route at merged commit `e37cf1e`, including the source-address limiter before `parseBearer`/`authenticate`, the independent client/invalid-token quotas and the hosted eleven-test A2A suite. The exhaustion regression proves a valid request returns 429 without any database preparation after the ceiling and succeeds after its window resets. The residual warning does not recognize this custom guard. Dismiss alert 11 as a scoped false positive with that source/test rationale; do not suppress the query or replace the working limiter solely to satisfy scanner recognition. Final CodeQL state is ten fixed findings and two documented false-positive dismissals, not twelve automatic fixes and not zero raw analyzer results. No additional production change is made for disposition.
+- Update the living status snapshot and security bullets with merged/hosted results and current alert states, replacing the obsolete pending-full-gate wording. Native default-opener qualification stays pending despite the passing remaining repository suite; the Bitdefender event is not classified as a false positive by this CodeQL triage.
+- Concurrent documentation edits appeared in the shared checkout after integration. Preserve that checkout's modified changelog and new Project-feature inventory record. Use a separate detached worktree at the merged main revision for this verification receipt, without staging, resetting, switching or committing the other work. The final evidence update changes only this record, the living status and generated changelog.
+- A documentation-only follow-up commit was rejected by GitHub's main rules with GH013: changes require a pull request and three required status checks. The rejected push did not change main. Publish the final receipt on a separate `codex/hosted-security-receipt` branch as [PR 16](https://github.com/scarecr0w12/PlayWeld/pull/16), retaining the protected workflow. The user subsequently authorized checking that PR, correcting remaining issues and merging only after all its checks pass. Mark PR 16 ready and inspect the latest checked head before its expected-SHA merge; never bypass required checks. This follow-up changes documentation only and preserves the concurrent inventory edits in the shared checkout.
+- Compatibility/migration: evidence and integration maintenance only, with no production/API/schema/dependency changes or data migration. Impact is none. No hosted defect required another production correction; no installer, tag, version bump or release is prepared.
 
 ##### Validation
 
 - Starting PR-head CodeQL analyses for `968ca5de74cc51004b495ca899759978b6f9e5c5` report zero results: JavaScript/TypeScript analysis 2023704870 with 87 rules and Actions analysis 2023702873 with 17 rules, both without errors/warnings. GitGuardian is successful. These are hosted scanner observations, not proof of universal application security.
-- Initial CI run 40243392046 was in progress when review began; run 40243599308 was scheduled by marking the PR ready. Final quality/browser results, any repair, final-head checks, merge and default-branch alert readback remain pending. No passing full gate or merged result is claimed in this draft record.
+- Initial CI run 40243392046 was superseded after marking the PR ready, followed by run 40243599308; both are cancelled attempts, not passing gates. Final [CI run 40243704915](https://github.com/scarecr0w12/PlayWeld/actions/runs/40243704915) passed all three jobs on head `8d2cd9e6f361e90e77402f9a9f283a7a81da8413`.
+- Linux and Windows each passed the complete unexcluded `npx turbo run build typecheck lint test --concurrency=1` gate with 33 successful tasks, plus 13 change-tracking tests, nine cache-maintenance tests, release-version agreement, generated-reference/inventory freshness, documentation-evidence integrity and formatting. Linux's Markdown-link check passed; the workflow intentionally runs that step only on Linux. Service results are 723 passes/16 skips across 133 files on Linux and 729 passes/10 skips across 133 files on Windows. OS/capability skips remain explicit; these are not universal native integration or installer qualification. App-shell placeholder checks remain placeholders. Hosted suites include the existing installer-handoff tests without reintroducing the retired opener fixture or executing it on this PC.
+- The hosted browser build and smoke passed 33 checks with no renderer errors. The [browser evidence artifact](https://github.com/scarecr0w12/PlayWeld/actions/runs/40243704915/artifacts/12617981726) uploaded successfully. Fixture/browser evidence is separate from packaged/installed desktop acceptance or arbitrary real engines/providers.
+- Current hosted actions emit nonblocking Node.js 20 deprecation/forced-Node-24 warnings, and npm reports existing transitive deprecations. These warnings did not fail a job; the hosted install reports zero vulnerabilities. Do not replace pinned actions or force incompatible dependency upgrades solely to hide deprecation warnings during this acceptance task.
+- Before merge, an immediate API readback confirmed the exact head, a clean mergeable state and all eight checks `COMPLETED/SUCCESS`; local evidence is `.turbo/hosted-security-premerge-checks.json`. The merged PR and API readback confirm the expected-head merge succeeded. Local Markdown-link validation also passed (`.turbo/hosted-security-integration-links.log`).
+- Post-merge Dependabot readback confirms fixed alerts 39-49 and 52-54: all fourteen original open alerts, fixed at 23:26:46-48 UTC. Main Actions analysis 2023752417 reports zero results; JavaScript/TypeScript analysis 2023756371 reports two raw findings, the reviewed false positives, with no errors/warnings. Both hosted jobs completed successfully on merge commit `e37cf1e`. Alerts 1-10 are confirmed fixed; alerts 11-12 are confirmed dismissed as false positive. Final API readback shows zero open Dependabot, CodeQL and secret-scanning alerts. Alert snapshots are local under `.turbo/hosted-security-*-after-merge.json`; the remote alert histories retain the actual fix/dismissal reasons.
+- Final receipt formatting, whitespace, changelog generation/coverage and Markdown links passed in the isolated worktree. Publish only this record, the living status and generated changelog as documentation-only PR 16. Its initial browser build/smoke, both CodeQL analyses and GitGuardian passed while Linux/Windows quality jobs were running. The ready-for-review event and this correction to the authorization/pending wording schedule fresh checks; use their actual final results before integration. The PR's check timeline and merge receipt retain the final head-specific outcome. This receipt does not replace the passing PR 15 gates or claim an installed product upgrade. Main's automatic quality reruns are separate from the completed pre-merge gate.
 
 ##### Files
 
 - `docs/changes/2026-10-25-hosted-security-integration.md`
+- `docs/STATUS.md`
+
+#### Retain hosted knowledge-recovery checks and retry incomplete review
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-25-knowledge-recovery-hosted-review.md).
+
+##### Summary
+
+Record the hosted evidence for the knowledge lexical-index recovery candidate and retry the automated review that failed before producing a review. Integration remains conditional on the final PR checks.
+
+##### Details
+
+- Rechecked [PR 18](https://github.com/scarecr0w12/PlayWeld/pull/18) at source commit `6ae5e8fd7837176d8499e61690a699ef824e67ff`. The Linux quality and browser jobs completed successfully; CodeQL and GitGuardian passed. The Windows job was still active when a documented ready-for-review trigger superseded the initial CI run. Cancellation is not a completed Windows result.
+- The Kilo review check reported an output-limit failure and explicitly stated that no complete review was produced. There were no inline review threads or code findings to adjudicate. This is an incomplete review, not approval and not evidence of a source defect.
+- GitHub's check-run and check-suite rerequest endpoints both returned HTTP 404 for the authenticated session. A draft-to-ready transition restarted CI, but no new Kilo review appeared on the same SHA. Kilo documents [ready-for-review triggers and PR/commit deduplication](https://kilo.ai/docs/automate/code-reviews/github). This evidence commit supplies a new commit for the supported push trigger without changing the model, review policy, branch rules, tests or source behavior.
+- Re-read the store transaction, FTS-specific error gate, full-request scheduling, result metadata and corresponding regression tests against the PR diff. The repair is confined to the external-content lexical index; the original record retains the source/test evidence and remaining recovery limits. Final review feedback still requires evaluation before integration.
+- The matching Features Project card will record the final PR/merge evidence after checks complete. Its combined recovery/retention scope remains In progress; no other card or planning field is part of this change.
+- Compatibility and versioning: documentation/evidence only, impact none, product version 0.22.0 pending. No migration, dependency, RPC/schema, setting or runtime change. The original implementation record is preserved, including its local-test exclusions and evidence boundaries.
+
+##### Validation
+
+- [Initial hosted CI run 40270177416](https://github.com/scarecr0w12/PlayWeld/actions/runs/40270177416): Linux completed all 33 build/typecheck/lint/test tasks; platform-service tests were 762 passed/16 skipped across 136 files. Tracking tests passed 13 cases; subsequent cache, version, references, documentation evidence, formatting and link checks passed. These are unexcluded hosted commands, distinct from the earlier local service exclusions.
+- The same run's browser build and live UI smoke passed with an empty renderer-error list. CodeQL Actions, JavaScript/TypeScript and aggregate checks and GitGuardian passed on the source commit.
+- Check metadata, bot discussion and inline review threads were read from GitHub. The failed Kilo review returned zero annotations and no complete review. Both rerequest POST calls returned 404. The same-SHA ready event started [replacement CI run 40271520041](https://github.com/scarecr0w12/PlayWeld/actions/runs/40271520041); it is interim evidence, not a final integration pass.
+- Documentation formatting, changelog generation/coverage and relative-link checks are performed for this evidence change before commit. Final-head hosted results, any subsequent fixes and the merge receipt belong to the PR timeline and matching Project note; none are claimed as completed in this historical pre-integration record.
+- No source tests were rerun locally for this documentation-only change. This does not qualify installed-product recovery, native opener behavior, a release, or broader corruption/retention work. Endpoint protection and the flagged executable were left unchanged.
+
+##### Files
+
+- `docs/changes/2026-10-25-knowledge-recovery-hosted-review.md`
+- `CHANGELOG.md`
 
 #### Verified developer-tool recovery and focused retention verification
 
@@ -966,78 +1474,67 @@ Recover the six missing developer/build files with explicit user authorization a
 - `docs/STATUS.md`
 - `docs/changes/2026-10-25-verified-tooling-recovery.md`
 
-#### Verify and publish the user-added Entire configuration
+#### Prepare version 0.23.0
 
 **Impact:** none
 
-[Permanent work record](docs/changes/2026-10-26-entire-integration-publication.md).
+[Permanent work record](docs/changes/2026-10-26-release-0.23.0.md).
 
 ##### Summary
 
-Verify the user-added Entire repository configuration and newly installed Windows CLI, refresh its Codex hooks, and prepare all pending repository changes for GitHub publication on codex/security-review-remediation. Installed/enabled status is verified; actual captured-session and hosted Entire acceptance remain separate.
+Prepare version 0.23.0 from 0.22.0, retaining all pending work records in the changelog and detailed release notes.
 
 ##### Details
 
-- The user's existing commit 0105137 (Enable Entire) adds .entire/settings.json, .entire/.gitignore and .codex/hooks.json. Preserve that commit and its settings: enabled true, telemetry true and primary checkpoint storage git-refs. No credentials, account configuration, model/provider selection or telemetry preferences are changed by this task.
-- The Codex configuration registers PostToolUse, SessionEnd, SessionStart, Stop, SubagentStart, SubagentStop and UserPromptSubmit command hooks. Each delegates to an Entire Codex hook when the executable is available; SessionStart provides installation guidance if it is missing. Local Git metadata contains prepare-commit-msg, commit-msg, post-commit, post-rewrite and pre-push hook scripts. Those Git hooks are machine-local metadata, not committed source paths. After installation, Entire doctor identified stale commands; its supported entire agent add codex operation regenerated all seven shared commands from Unix sh wrappers to native Windows cmd/where wrappers while preserving the 30-second timeouts and three-second SessionEnd timeout. The resulting configuration matches Entire 0.12.2. Other operating systems should refresh managed hooks with their installed CLI rather than assume these native Windows commands are portable.
-- Inspected the integration against [Entire CLI documentation](https://docs.entire.com/platforms/cli-and-entire-com), [installation guidance](https://docs.entire.com/installation) and [storage/security boundaries](https://docs.entire.com/security). Shared configuration alone does not establish a working executable, hook discovery in an already-running Codex session, captured checkpoints or hosted Entire account/mirror access.
-- Initial inspection could not discover Entire through Windows process/persisted PATH entries, the documented Windows install locations checked, non-login Git Bash or Ubuntu/WSL. The user then installed the Windows CLI. Verified Entire 0.12.2, Go 1.27.3, windows/amd64 and successful Git Bash discovery; normal host-access status reports Enabled, Agents Codex and checkpoint sync to origin. No installer, shell-profile rewrite, account login, global configuration or PATH change was performed by this task.
-- Initial sandboxed diagnostics could not read protected .codex/Git paths; the normal host-access retry distinguished this sandbox failure from actual hook state. Before refresh, host diagnostics reported installed Git/Codex hooks and existing approval records, plus stale Codex commands. After refresh, Git/Codex hooks validate without drift, but approval-record inspection reports UNKNOWN and asks for /hooks review inside Codex. Do not forge trust entries or equate installed configuration with an active approved capture session; review active hooks in Codex and verify a fresh session/checkpoint separately.
-- .entire/.gitignore excludes tmp, settings.local.json, metadata, logs and local redactors. Diagnostic log contents and personal configuration are excluded from publication. No refs/entire checkpoint refs or local Entire shadow branches were present during inspection, so no transcript/checkpoint payload is included by this publication. Normal branch push semantics are retained; no all-refs/mirror/force push is used.
-- The user explicitly requests pushing all changes. Include the existing pending feature-inventory, prioritization and open-task review records, retaining their dated observations and validation boundaries, and regenerate their complete changelog projection together with this integration record. These earlier planning records are separate tasks, not new implementation or new board mutations by this publication.
-- Publish from the user's current codex/security-review-remediation branch. Its prior security work already exists on current main, but the checkout predates later release and SDK integration. Publishing the branch does not replace main, undo its 0.23.0 changes or merge a new feature. Preserve all other branches/worktrees and private ignored configuration.
-- Compatibility and migration: development-tool configuration and documentation only; no PlayWeld runtime/API/schema/database/dependency changes or migration required. Keep the current checkout's product version. Impact none; no new installer, tag, public release or product readiness claim is introduced.
+Synchronize all nine first-party workspace and exact internal dependency versions from 0.22.0 to 0.23.0 and refresh the lockfile without changing third-party selections. Assign all already-merged pending records and the approved MCP discovery and Requests keyboard fixes to this testing release. The minor bump satisfies the recorded compatible feature impacts. Integrate both original PR heads as parents of the release branch; resolve only the generated changelog conflict by regenerating it from their permanent records. Publish only after protected-branch checks and native Windows/Linux packaging succeed. No application/schema migration, security setting or credential change is introduced by preparation. The original checkout's unrelated changelog/planning changes and other agents' branches remain preserved.
 
 ##### Validation
 
-- Inspected git status, the user-added commit and exact added paths, shared JSON settings, Codex command hooks, local Git hook scripts, ignore rules, unpublished branch history and ref names. Read back official Entire documentation. Initial shell checks reported the executable unavailable; after the user installation, entire version and normal host-access status/doctor verified the native CLI and detected the stale commands. entire agent add codex refreshed them; follow-up doctor/status confirmed installed hooks without drift, with the explicit approval-inspection limit above.
-- Static JSON/settings and seven-event hook checks passed. Before native refresh, syntax checks passed for all seven original shell commands and all five local Git scripts; the refreshed native commands are validated by Entire's own drift check rather than executed with fabricated session payloads. Ignore checks confirmed local settings, logs, metadata, temporary data, local redactors and private Kilo overrides remain excluded. Bounded screening of the three shared configuration files and four pending records found zero matches for the checked credential/private-key/credential-URL patterns; this is not a whole-history secret audit.
-- Repository-wide npm run format:check passed; focused formatting checks also passed for the refreshed configuration, all four pending records and CHANGELOG.md. npm run changelog:update, npm run changelog:check -- --base 8d2cd9e and git diff --check passed. The explicit base covers the user's original Entire commit as well as the pending publication, rather than checking only the follow-up commit.
-- The WSL link-check request was declined. The separately approved native Git Bash scripts/check-links.sh run remained unusually slow and did not produce a completion result; it is not claimed as passing. A disposable read-only Node equivalent of the existing script's file, fence, link and heading rules completed across all 370 Markdown files and 1,563 relative links with zero failures. After that complete check, stopped only the two verified parent/child Bash processes for the owned slow run. Its runner/report remain ignored under .turbo/; no repository checker or tracking tool was changed.
-- Publication is verified by comparing the pushed branch commit with GitHub after the commit/push. Actual captured-session upload, active Codex trust state, hosted Entire account/mirror access and GitHub main integration remain separate from this branch publication.
-- Application builds/full Turbo tests, paid/provider/engine operations, Entire installation/login by the agent, captured-session replay and hosted Entire mirror access are skipped because this task verifies configuration and publishes planning records without application-source changes. Working capture, active Codex hook approval and hosted Entire access are not inferred from version/status or shared hook installation.
+- Version preparation and `npm install --package-lock-only --ignore-scripts --no-audit --no-fund` passed. Existing native dependencies were reused; no new `npm ci` was run locally. The lockfile diff contains only first-party version changes.
+- Combined service suite: 783 passed, eight skipped across 135 files in 522.50 seconds. Local native installer executable fixtures and live Blender remain excluded; hosted quality uses its normal unexcluded commands.
+- The first concurrent build hit a locked AppContainerHost.exe while service tests were using the helper. After the suite exited, sequential build/typecheck/lint passed all 25 tasks in 28.296 seconds, including Electron/browser builds. Other workspace tests passed all 14 tasks. This is source/build evidence, not installed desktop acceptance.
+- The real-service built-browser keyboard/recovery scenario passed on the combined 0.23.0 candidate in Chrome 155.0.8059.79, with twelve focus/state observations and no renderer or cleanup errors. The optional development-shell favicon 404 remains explicitly qualified. Isolated local report: `release-ui-evidence/requests-keyboard-73DpHw/report.json` outside the checkout.
+- Thirteen tracking tests and nine cache-maintenance tests passed. Version/changelog coverage, formatting, generated references/inventory, documentation evidence integrity and the full Markdown link check passed; the separate release-link correction preserves the five evidence references.
+- Protected-branch CI, native package production, downloaded checksum/provenance checks and publication are subsequent gates and are not claimed by this preparation record. No publisher signing, installed upgrade/uninstall/rollback, broad accessibility, live provider/engine or ordinary-profile acceptance is established here. Later publication evidence receives a separate permanent receipt.
 
 ##### Files
 
-- `.codex/hooks.json`
-- `.entire/.gitignore`
-- `.entire/settings.json`
-- `docs/changes/2026-10-26-entire-integration-publication.md`
+- `packages/archive-extractor/package.json`
+- `packages/contracts/package.json`
+- `packages/platform-service/package.json`
+- `packages/plugin-sdk/package.json`
+- `packages/service-client/package.json`
+- `packages/theia-control-room/package.json`
+- `packages/plugins/sample-hello/package.json`
+- `apps/control-room/package.json`
+- `apps/control-room-browser/package.json`
+- `package-lock.json`
 
-#### Review open PlayWeld tasks for small achievable slices
+#### Keep GitHub publication notes within the service limit
 
 **Impact:** none
 
-[Permanent work record](docs/changes/2026-10-26-open-task-opportunity-review.md).
+[Permanent work record](docs/changes/2026-10-27-bounded-release-publication-notes.md).
 
 ##### Summary
 
-Reviewed all 65 cards in the [PlayWeld Features Project](https://github.com/users/scarecr0w12/projects/5) against repository evidence and current merged source. Identified small, reviewable slices within larger open cards without changing Project fields, accepting Requested features or claiming implementation completion.
+Publish concise version notes and attach the complete permanent 0.23.0 notes instead of submitting an oversized release body.
 
 ##### Details
 
-- Live Project readback on 2026-10-26 contains 27 Done, 21 To do, three In progress and 14 Requested cards: 38 open in total. This supersedes the earlier 58-card inventory only as a dated observation; permanent historical records remain intact. Existing estimates apply to umbrella cards and should not be mistaken for estimates of the smaller opportunities below.
-- The working checkout is `codex/security-review-remediation` at `8d2cd9e`, with preexisting pending feature-inventory/prioritization records and generated changelog edits. Fetched `origin/main` and verified its tip as `3b35deb50ffd5c08c2a8dbaa6426983d81d3dd30`; did not switch, merge or reset the working checkout. Compared candidate SDK, viewer, guide and recovery surfaces against that ref so an older checkout would not turn completed work into a new task.
-- The recovery umbrella already records merged SQLite diagnostics, bounded Knowledge lexical-index recovery and Project pre-migration snapshots through PRs 17, 18 and 19. Keep that umbrella In progress for its documented remaining work. General salvage, other derived stores, whole-upgrade rollback and extended ledger cleanup need separate scope; repeating the merged slices is not an easy win.
-- Concrete documentation opportunity, associated with Q04 and existing qualification cards: `docs/INTEGRATION_GUIDE.md` still describes Windows AppContainer as unverified/fail-closed and paid live generation as unverified. `docs/EDITOR_BRIDGE_ACCEPTANCE.md` and `docs/ADVERSARIAL_SYSTEM_REVIEW.md` instead record scoped Windows LPAC/Job checks and one five-credit Meshy preview/import. A proposed correction should cite those dated results and retain broader OS/isolation, Tripo, refine and production-art limitations. Inspect adjacent guide claims before editing; do not infer universal acceptance. Rough focused effort: half a day including documentation checks.
-- Concrete Q04 test opportunity: `packages/plugin-sdk/src/plugin-sdk.test.ts` has one broad protocol success-path test. The SDK contains protocol-version, initialization, unknown-tool/method, invalid-context and handler-error branches. Propose focused behavioral conformance cases that verify error envelopes, prevent handler execution before valid initialization and check recovery after rejected requests. This is a source-coverage opportunity, not a demonstrated runtime defect or full third-party conformance acceptance. Rough focused effort: one to two engineer workdays, subject to findings.
-- Concrete Q01 opportunity: reconcile a small evidence inventory from existing acceptance records, including exact versions, operation, date, source/fixture/live/installed level and missing qualification. Extend the existing documentation coverage surface rather than inventing a second feature register. This can prepare the support-matrix decision; advertised v1.0 support remains product-owned and the whole card cannot close from documentation alone. Rough focused effort: one engineer workday for a bounded initial inventory, excluding rerunning integrations.
-- Concrete WP15/U05 feature opportunity: `packages/theia-control-room/src/browser/asset-viewer/image-viewer.tsx` currently provides fit, 1:1, dimensions, zoom and pan through an image element. A proposed raster RGB/R/G/B/alpha display slice can be assessed independently from DCC conversion and material-slot association. Acceptance should use known pixels, preserve source bytes, handle unsupported/decode failures explicitly and retain existing viewing controls. No decoder/converter dependency is selected by this review. Rough focused effort: two to three engineer workdays including focused rendered verification; this is a proposed subset, not completion of the texture/conversion umbrella.
-- Q01 timing work can begin with bounded current-head reproduction and comparison with the latest hosted results. The card itself says historical failures may no longer reproduce; do not raise timeouts, weaken assertions or assume a defect remains. A half-to-one-day investigation is a useful bounded start, but resolution and complete qualification remain uncertain and are not estimated as an easy completion.
-- The estimates above are fresh planning judgments for narrow slices, not commitments or a new dependency order. Signing/procurement, disposable installer lifecycle, external/paid integration matrices, spending policy, team identities and general recovery have broader prerequisites. Requested collaboration, handoffs, delegation-board, shared-memory, validation-profile, LFS-preflight and image-chat ideas remain Requested and require their own scope/decisions.
-- Compatibility and migration: investigation and work-record changes only; no application, API/schema, database, dependency or product-version changes and no migration required. Version impact none. No Project status/priority/estimate, repository issue, release, ordinary runtime profile, engine/DCC state or paid service was changed. Existing pending work records were preserved; the generated changelog includes this additional record.
+The generated 0.23.0 notes exceeded 181 KB. GitHub's release API reports a maximum body length of 125,000 characters, so passing that file directly to publication would fail after packaging. Validate an independently authored, nonempty version summary before native packaging; use that summary as the draft release body and upload the complete generated notes as a separate Markdown asset. Keep all permanent records, detailed version notes and the full changelog intact. Future preparations must author their version summary before release packaging. No package/runtime/schema, security permission, signing key or credential change is introduced.
 
 ##### Validation
 
-- `gh project item-list 5 --owner scarecr0w12 --limit 100 --format json` succeeded; inspected all 38 non-Done card titles/statuses and the detailed bodies for the candidate support, SDK, preview, timing and recovery cards. Counted all 65 items by Status from the live JSON. GitHub CLI was used because the available GitHub connector does not expose Projects item operations.
-- `git ls-remote origin refs/heads/main`, `git fetch origin main`, and `git log -1 origin/main` confirmed current main at the commit above. Read relevant files through `git show origin/main:<path>` as well as working-tree source. Initial sandboxed fetch was denied writing FETCH_HEAD; the approved retry succeeded. No checkout or integration occurred.
-- Source inspection covered the SDK/SDK test, plugin installer/isolation/lifecycle test names, image viewer/preview service/inspectors, board search, Knowledge store, recovery runbook, development plan, status, decision register, documentation coverage and acceptance records. Historical pass counts remain historical; this review did not rerun application tests or qualify current runtime behavior.
-- `npm run format:check` passed across the repository; focused Prettier checks for this record and CHANGELOG.md also passed. `npm run changelog:update`, `npm run changelog:check -- --base HEAD` and `git diff --check` passed. The complete `scripts/check-links.sh` ran through Ubuntu/WSL and returned All links OK with exit code zero. Initial sandboxed WSL access was denied; the approved retry completed successfully. Final validation-text edits only update this record and its generated projection, with no link-target changes.
-- Application builds/full Turbo gate, browser/Electron rendering, live providers/engines, paid generation, installer drills and release publication were skipped because this task reviews opportunities and records findings without changing runtime behavior. Candidate effort and feasibility remain bounded judgments until execution.
+- Verified the service's actual 125,000-character error in [a public GitHub Actions API error annotation](https://github.com/music-assistant/server/actions/runs/18089326861). The generated notes exceed that limit; the concise 0.23.0 summary is below it.
+- Validated workflow YAML and the publication-note guard with current notes, an empty body and an oversized Unicode body. Full notes remain byte-for-byte the generated version artifact. Protected PR and native packaging checks are subsequent gates, not claimed by this record.
+- No tag, release publication, installed upgrade or signing acceptance is established by this tooling correction.
 
 ##### Files
 
-- `docs/changes/2026-10-26-open-task-opportunity-review.md`
+- `.github/workflows/release.yml`
+- `docs/releases/v0.23.0-summary.md`
+- `docs/RELEASE_GUIDE.md`
 
 ## 0.22.0
 

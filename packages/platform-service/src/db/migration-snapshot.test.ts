@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -43,6 +43,30 @@ describe('profile pre-migration snapshots', () => {
       }
       const snapshots = readdirSync(path.join(root, 'pre-migration')).sort();
       expect(snapshots).toEqual(['profile-v2.sqlite', 'profile-v3.sqlite', 'profile-v4.sqlite']);
+    } finally {
+      database.close();
+    }
+  });
+
+  it('does not create or prune snapshots for incompatible migration history', () => {
+    root = mkdtempSync(path.join(tmpdir(), 'gc-incompatible-migration-'));
+    const database = Database.open(path.join(root, 'profile.sqlite'));
+    try {
+      migrate(database, profileMigrations.slice(0, 1));
+      database
+        .prepare('INSERT INTO schema_migrations VALUES (?, ?, ?)')
+        .run(3, 'unrecognized', 'later');
+      const folder = path.join(root, 'pre-migration');
+      mkdirSync(folder);
+      for (let index = 0; index < 4; index++)
+        writeFileSync(path.join(folder, `profile-v${index}.sqlite`), 'retained evidence');
+      const before = readdirSync(folder).sort();
+      expect(() => snapshotBeforeMigrations(database, root!, profileMigrations)).toThrow(
+        /migration history/i,
+      );
+      expect(readdirSync(folder).sort()).toEqual(before);
+      for (const file of before)
+        expect(readFileSync(path.join(folder, file), 'utf8')).toBe('retained evidence');
     } finally {
       database.close();
     }

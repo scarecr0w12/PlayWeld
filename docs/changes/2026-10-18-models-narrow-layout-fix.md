@@ -1,6 +1,6 @@
 # Keep Models tables and discovery controls readable in narrow views
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** patch
 

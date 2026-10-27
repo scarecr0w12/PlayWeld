@@ -48,7 +48,7 @@ describe('Project instructions template', () => {
         parentDirectory,
       });
       expect(created.trusted).toBe(true);
-      for (const directory of ['vectors.lancedb', 'qdrant']) {
+      for (const directory of ['vectors.lancedb', 'qdrant', 'pre-migration']) {
         const file = `.gamecrafter/${directory}/data.bin`;
         mkdirSync(path.dirname(path.join(created.path, file)), { recursive: true });
         writeFileSync(path.join(created.path, file), 'private derived vectors');
@@ -136,7 +136,7 @@ describe('Project instructions template', () => {
         path.join(source.path, '.gamecrafter', 'worktrees', 'live-task', '.git'),
         'gitdir: source',
       );
-      for (const directory of ['vectors.lancedb', 'qdrant']) {
+      for (const directory of ['vectors.lancedb', 'qdrant', 'pre-migration']) {
         mkdirSync(path.join(source.path, '.gamecrafter', directory), { recursive: true });
         writeFileSync(
           path.join(source.path, '.gamecrafter', directory, 'data.bin'),
@@ -161,8 +161,11 @@ describe('Project instructions template', () => {
       });
       expect(clone.projectId).not.toBe(source.projectId);
       expect(existsSync(path.join(clone.path, '.gamecrafter', 'worktrees'))).toBe(false);
-      for (const name of ['vectors.lancedb', 'qdrant', 'vectors.sqlite'])
+      for (const name of ['vectors.lancedb', 'qdrant', 'vectors.sqlite', 'pre-migration'])
         expect(existsSync(path.join(clone.path, '.gamecrafter', name))).toBe(false);
+      expect(
+        readFileSync(path.join(source.path, '.gamecrafter', 'pre-migration', 'data.bin'), 'utf8'),
+      ).toBe('source-only vectors');
       const clonedTask = new TaskStore(databases.get(clone.projectId)).get(task.taskId);
       expect(clonedTask).toMatchObject({
         projectId: clone.projectId,
