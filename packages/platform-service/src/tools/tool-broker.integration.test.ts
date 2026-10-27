@@ -357,6 +357,10 @@ describe('Tool broker integration', () => {
 
   it('writes and reads Project files and records completed calls', async () => {
     await setSetting('access.mode', 'project', 'full');
+    const tasks = await client!.call('task/list', { projectId });
+    const indexing = tasks.tasks.find((task) => task.kind === 'knowledge.reindex');
+    expect(indexing).toBeDefined();
+    await waitForTask(indexing!.taskId, (task) => task.state === 'succeeded');
     const written = await callTool('fs/write-file', {
       path: 'docs/notes.txt',
       content: 'hello',
@@ -367,9 +371,22 @@ describe('Tool broker integration', () => {
     expect(written.output).toEqual({ bytes: 5 });
     expect(read.output).toEqual({ content: 'hello', encoding: 'utf8', bytes: 5 });
     const calls = await client!.call('tool/calls', { projectId });
-    expect(calls.calls).toHaveLength(2);
+    expect(calls.calls).toContainEqual(
+      expect.objectContaining({
+        taskId: indexing!.taskId,
+        toolId: 'knowledge/index-execute',
+        status: 'completed',
+      }),
+    );
+    const filesystemCalls = calls.calls.filter(
+      (call) => call.toolId === 'fs/write-file' || call.toolId === 'fs/read-file',
+    );
+    expect(filesystemCalls).toHaveLength(2);
+    expect(new Set(filesystemCalls.map((call) => call.callId))).toEqual(
+      new Set([written.callId, read.callId]),
+    );
     expect(
-      calls.calls.every((call) => call.status === 'completed' && call.decision === 'allowed'),
+      filesystemCalls.every((call) => call.status === 'completed' && call.decision === 'allowed'),
     ).toBe(true);
   }, 60_000);
 
