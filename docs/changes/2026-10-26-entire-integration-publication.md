@@ -1,6 +1,6 @@
 # Verify and publish the user-added Entire configuration
 
-**Release:** Unreleased
+**Release:** 0.24.0
 
 **Impact:** none
 

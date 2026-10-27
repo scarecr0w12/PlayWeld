@@ -1,6 +1,6 @@
 # Correct stale plugin isolation and generation evidence guidance
 
-**Release:** Unreleased
+**Release:** 0.24.0
 
 **Impact:** none
 

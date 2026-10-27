@@ -1,6 +1,6 @@
 # Publish Entire Brain agent guidance and Claude edit hook
 
-**Release:** Unreleased
+**Release:** 0.24.0
 
 **Impact:** none
 
