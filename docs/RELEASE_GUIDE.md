@@ -39,7 +39,9 @@ A tagged workflow creates a **draft testing prerelease**. It does not automatica
 
 Normal CI checks complete PR/push file coverage against changed work records, generated output freshness, and tracking regression tests. Release validation and all desktop packaging/staging commands require the current version's generated detailed notes and no pending records. The draft GitHub release body is sourced from `docs/releases/v<version>.md`, preserving the task details and validation instead of summarizing only commit titles. The historical 0.1.4 baseline must advance before building another package.
 
-The draft contains Windows NSIS `.exe`, Linux AppImage/DEB, `gamecrafter-release.json` and `SHA256SUMS.txt`. The manifest records the version, tag, commit, timestamps, platform assets/hashes and profile/Project schema compatibility.
+Before tagging, author concise `docs/releases/v<version>-summary.md` publication notes. Release validation requires a nonempty body within GitHub's 125,000-character limit. The draft body uses that summary; the complete generated `docs/releases/v<version>.md` remains in source and is attached as `PlayWeld-<version>-release-notes.md`. Do not send the historical changelog as the release body or shorten the permanent records to fit this API limit.
+
+The draft contains Windows NSIS `.exe`, Linux AppImage/DEB, `gamecrafter-release.json`, `SHA256SUMS.txt` and the complete version notes. The manifest records the version, tag, commit, timestamps, platform assets/hashes and profile/Project schema compatibility.
 
 If `UPDATE_SIGNING_PRIVATE_KEY` is configured, metadata/checksums are signed with Ed25519. Without that secret, the workflow explicitly authorizes an unsigned testing prerelease and labels its manifest accordingly. Ordinary metadata generation still requires a signing key. A checksum proves file integrity against the listed hash; it is not publisher authentication.
 
