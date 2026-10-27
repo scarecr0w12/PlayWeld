@@ -4,7 +4,40 @@ Complete tracked work, grouped by version and category, with full details, valid
 
 ## Unreleased
 
-No pending work records.
+### Maintenance
+
+#### Finish local Entire Brain setup and qualify Windows access
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-27-entire-brain-local-qualification.md).
+
+##### Summary
+
+Repair the stale local Brain setup, complete Entire file-backed sign-in after a Windows credential-store failure, and verify live CLI/MCP retrieval. Add deterministic automatic refresh through a Windows user Scheduled Task. Record the remaining network, parser and capture boundaries explicitly.
+
+##### Details
+
+- Brain 0.3.0 and Graph 0.6.0 were already installed through Entire CLI 0.12.2's managed plugin directory. Plugin doctor passed; no replacement binary or dependency installation was necessary. Brain's initial brief worked, but setup diagnostics still retained an earlier seed failure caused by an uncommitted tool-broker test. Refresh the now-clean committed tree and rerun setup with agent none, no backfill, no native daemon and no agent-hook regeneration. Restore the reviewed guide/Claude pointer bytes where setup regenerated them; preserve the custom Codex and Claude launchers. Final source configuration is unchanged except this README and work record.
+- Rebuild seed/docs/Graph data locally: all eight onboarding components report built, seed/docs/Graph freshness is ok at commit 508535c, and the stale setup-seed error is gone. The index contains 1,120 files, 15,978 symbols and 50,685 relations; document retrieval contains 1,154 records from 282 files. Graph reports five partial Unreal C++ parses around macros/Windows declarations; retain and disclose these gaps rather than modifying valid engine code to satisfy a generic parser. Brain doctor also warns that its executable is under LocalAppData, which is Entire's documented managed-plugin location; do not relocate the supported install merely to suppress that diagnostic.
+- The supplied login failure occurred while saving the refresh token to Windows Credential Manager. Select Entire's supported file backend through the nonsecret per-user ENTIRE_TOKEN_STORE variable, restrict its external configuration directory and tokens.json to the current Windows user and SYSTEM, and initialize the existing zero-length file as empty JSON before login. Complete the user-approved device flow. The CLI's atomic write replaces the token file; verify its inherited ACL still contains only the two intended identities. No other Windows credentials were removed, no token value was printed, and no credential was placed in the repository or persistent environment.
+- Separate successful storage from network reliability: account status returned logged_in true and an authenticated Trail 2 read succeeded. Other status attempts failed connecting to the same account endpoint at both the default four-second deadline and the supported fifteen-second override. Save ENTIRE_CONNECT_TIMEOUT_SECONDS=15 as a nonsecret user setting, but do not claim it fixes connectivity. An unauthenticated explicit IPv4 request returned HTTP 401 in under one second while other curl/CLI requests timed out. IPv6/DNS or wider network behavior remains unconfirmed; no hosts, firewall, proxy or system network configuration was changed.
+- Brain's native watcher installer reports Windows unsupported. Register the limited, interactive-user Scheduled Task PlayWeld-EntireBrain at user sign-in, with restart-on-failure and duplicate-instance suppression. Start it and verify the Entire/Brain watcher processes. Its fixed action uses entire brain watch for this repository with a five-minute interval, agent none and seed-agent none, without distill. A one-pass watch also refreshed successfully and reported deterministic operation without agent tokens. This adds local automatic freshness while preserving the native-manager limitation in diagnostics; it does not provide updates while signed out.
+- Verify repository guidance and live retrieval through the installed CLI and a stdio MCP client. No host agent's private/global configuration is read or overwritten. The live MCP handshake and read tools establish server operation; a fresh Claude/Codex session, trusted conversation capture, fact distillation and hosted Brain sync remain separate. No sessions/facts were available, no model calls or memory writes were made, and hosted Brain sync remains disconnected.
+- Compatibility and migration: local developer setup and documentation only. No application source, package dependency, RPC, schema, database migration or product version change; impact none. Initial qualification used the 0.23.0 source at 508535c. Before final delivery, main advanced through the separately prepared 0.24.0 release; base this documentation-only follow-up on that release and preserve all of its assigned immutable records. The generated changelog is regenerated from both sets of records rather than carrying the earlier Unreleased projection over the release. The per-user environment variables and Scheduled Task are machine state, kept outside tracked configuration. The README documents normal verification, the Windows watcher action, credential boundaries and its limitations.
+
+##### Validation
+
+- entire plugin list/info/doctor confirmed the installed versions and healthy plugin dependencies. entire brain refresh --agent none and bounded setup completed; the post-setup doctor JSON had no error-state checks, with the disclosed install-location and Unreal parse warnings retained. Status confirmed all eight components built and current seed/docs/Graph indexes.
+- CLI documentation query returned three real records; code inspection located PlatformService in its actual source. The initial optional SDK-based fixture could not resolve the existing SDK locally, so verification used the MCP stdio protocol directly without installing anything. Initialize and tools/list succeeded against Brain 0.3.0 with 32 tools; brain_status, brain_query and brain_brief succeeded, and the MCP documentation query returned three records. Fixture reports remain ignored under .turbo/.
+- A real pre-edit hook invocation exited successfully with no memory emission because there were no durable memories. This is not evidence of remembered-context injection in a fresh Claude session. The deterministic one-pass watcher exited zero and updated its last-tick evidence. The scheduled watcher was separately observed running; future sign-in restart has not yet been observed.
+- Browser/device login completed. Live authenticated account status and Trail read succeeded; later status retries also reproduced the network timeout. Token-directory/file ACL inspection confirmed current-user/SYSTEM access only. Comparing the two saved credential values in memory against 1,413 tracked repository and bounded verification files found zero matches; values were not printed or copied into reports. The local equivalent link check passed 391 Markdown files and 1,643 relative links, and changelog freshness/HEAD coverage and diff checks passed. Focused Markdown formatting is checked before handoff; the canonical link script remains a separate hosted/native-shell check, not a claimed result from the local equivalent.
+- No application suites were rerun for machine-local setup and documentation-only changes. No paid inference, engine/DCC, packaged desktop, trusted session capture, hosted Brain publishing or full parser-coverage acceptance is claimed.
+
+##### Files
+
+- `.entire/README.md`
+- `docs/changes/2026-10-27-entire-brain-local-qualification.md`
 
 ## 0.24.0
 
