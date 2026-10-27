@@ -1,6 +1,6 @@
 # Separate Swarm await progress and native cleanup test budgets
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** none
 

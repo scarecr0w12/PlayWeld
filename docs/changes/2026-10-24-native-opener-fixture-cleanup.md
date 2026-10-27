@@ -1,6 +1,6 @@
 # Native opener verification and runner installation recovery
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** none
 
@@ -20,7 +20,7 @@ Investigate a native Windows opener verification failure encountered during serv
 
 ## Validation
 
-- Later user-supplied screenshot identifies the temporary opener executable as the Malware-labelled entry and reports 20 blocked applications. The cropped visible list also shows Codex PowerShell, `conhost.exe` and `tar.exe`, without the complete affected-file/action list. The native fixture is subsequently retired under a [separate correction record](2026-10-24-retire-native-opener-executable-fixture.md); earlier statements that no test change was retained describe this investigation before that correction.
+- Later user-supplied screenshot identifies the temporary opener executable as the Malware-labelled entry and reports 20 blocked applications. The cropped visible list also shows Codex PowerShell, `conhost.exe` and `tar.exe`, without the complete affected-file/action list. The native fixture is subsequently retired under a [separate correction record](../changes/2026-10-24-retire-native-opener-executable-fixture.md); earlier statements that no test change was retained describe this investigation before that correction.
 
 - Post-restart follow-up: the user reported restarting Windows; the operating system reports boot at 2026-10-24 19:02:34 America/Phoenix. The two Vitest worker files, Turbo launcher/native binary, compiled service worker entry and tracked release-metadata script remain absent after the restart. Restart completion is not evidence that the blocked workflow is cleared. No files were restored and no native fixture or test runner was executed during this follow-up. Windows Event Log/provider inspection did not expose the Bitdefender event's affected application list; request that list and recorded actions from the product notification before further recovery or execution. Source inspection still identifies the native fixture's compile-and-launch chain, without establishing a false positive.
 - The user could no longer find the notification. Read-only window inspection found Bitdefender Central in Chrome; locate the installed local Security Center, verify its executable's valid Bitdefender SRL signature, and open that vendor UI for inspection. Windows UI Automation exposes the Notifications/Advanced Threat Defense labels, but those controls provide no invoke pattern, keyboard focus or accelerator. No event details were recovered and no restore/exclusion/security controls were invoked. Direct event selection in the local product remains the human handoff; the affected processes and remediation actions are still unknown.

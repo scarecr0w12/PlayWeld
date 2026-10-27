@@ -1,6 +1,6 @@
 # Correct asset-opening and input-interpretation security boundaries
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** patch
 
@@ -22,7 +22,7 @@ Replace the vulnerable Windows default asset opener with literal-path launch, re
 - Use one independent pre-patch boundary/compatibility investigation and one independent candidate review. The latter found no concrete bypass/regression and identified intentional PowerShell-option restrictions for documentation. Add support for safe `-Sta`/`-Mta` switches while retaining explicit file-mode validation.
 - Triage all twelve reviewed CodeQL alerts: the Drive/S3/provider/generator/fixture patterns above and the three workflow permission declarations are corrected in source. The vector-store SHA-256 alert refers to a cache identity rather than password authentication; the A2A limiter alert has existing source-backed rate/concurrency controls and a passing unauthenticated-quota regression. Do not weaken those controls or add inappropriate slow password hashing to a cache key. No remote alert is dismissed or claimed cleared; fresh hosted analysis and formal disposition remain separate from these local fixes.
 - Compatibility: RPC/result/error schemas, Project data, filenames and product version remain unchanged. Existing shell-command authoring settings now fail closed with an actionable error and need the documented application/script-file rewrite; no data migration or automatic settings edit occurs. Impact `patch` reflects a security fix with this explicit configuration restriction. The original sealed security scan remains an immutable pre-fix snapshot.
-- Related work: [dependency remediation](2026-10-24-security-dependencies.md), [workflow hardening](2026-10-24-workflow-security.md), and [documentation reconciliation](2026-10-24-documentation-reconciliation.md) are tracked separately. Signed publication, plugin signature/egress policy, installer lifecycle and broad live acceptance remain open.
+- Related work: [dependency remediation](../changes/2026-10-24-security-dependencies.md), [workflow hardening](../changes/2026-10-24-workflow-security.md), and [documentation reconciliation](../changes/2026-10-24-documentation-reconciliation.md) are tracked separately. Signed publication, plugin signature/egress policy, installer lifecycle and broad live acceptance remain open.
 
 ## Validation
 

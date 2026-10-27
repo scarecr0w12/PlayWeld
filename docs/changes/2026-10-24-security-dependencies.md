@@ -1,6 +1,6 @@
 # Refresh vulnerable dependency lines without changing Theia
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** patch
 

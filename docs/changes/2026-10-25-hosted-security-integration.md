@@ -1,6 +1,6 @@
 # Hosted qualification and integration of security remediation
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** none
 

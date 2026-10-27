@@ -1,6 +1,6 @@
 # Verified developer-tool recovery and focused retention verification
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** none
 

@@ -69,6 +69,8 @@ export class McpSession {
   private revision?: McpRevision;
   private cachedTools?: McpToolsSnapshot;
   private cacheExpiresAt?: number;
+  private toolsGeneration = 0;
+  private pendingTools?: Promise<{ result: unknown; generation: number }>;
   private activeToolCall?: ActiveToolCall;
   private toolCallQueue: Promise<void> = Promise.resolve();
 
@@ -152,6 +154,7 @@ export class McpSession {
   }
 
   async disconnect(): Promise<McpConnectionState> {
+    this.toolsGeneration += 1;
     this.cachedTools = undefined;
     this.cacheExpiresAt = undefined;
     await this.channel.close();
@@ -176,30 +179,59 @@ export class McpSession {
     ) {
       return cloneToolsSnapshot(this.cachedTools);
     }
-    const result = await this.channel.request('tools/list', this.paramsForRevision({}));
-    if (!isRecord(result) || !Array.isArray(result.tools)) {
-      throw new RpcError(
-        'MCP tools/list returned an invalid result',
-        RpcErrorCode.McpRequestFailed,
-      );
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      this.requireConnected();
+      const { result, generation } = await this.requestTools();
+      this.requireConnected();
+      // An older response must not restore an invalidated cache or reach the broker.
+      if (generation !== this.toolsGeneration) continue;
+      if (!isRecord(result) || !Array.isArray(result.tools)) {
+        throw new RpcError(
+          'MCP tools/list returned an invalid result',
+          RpcErrorCode.McpRequestFailed,
+        );
+      }
+      const tools = result.tools
+        .map(parseToolDescriptor)
+        .sort((left, right) => left.name.localeCompare(right.name));
+      const ttlMs =
+        typeof result.ttlMs === 'number' && Number.isFinite(result.ttlMs)
+          ? Math.max(0, Math.floor(result.ttlMs))
+          : null;
+      const snapshot: McpToolsSnapshot = {
+        tools,
+        revision: this.revision!,
+        cachedAt: this.now().toISOString(),
+        ttlMs,
+      };
+      this.cachedTools = snapshot;
+      this.cacheExpiresAt = ttlMs === null ? undefined : this.now().getTime() + ttlMs;
+      this.updateState({ toolCount: tools.length });
+      return cloneToolsSnapshot(snapshot);
     }
-    const tools = result.tools
-      .map(parseToolDescriptor)
-      .sort((left, right) => left.name.localeCompare(right.name));
-    const ttlMs =
-      typeof result.ttlMs === 'number' && Number.isFinite(result.ttlMs)
-        ? Math.max(0, Math.floor(result.ttlMs))
-        : null;
-    const snapshot: McpToolsSnapshot = {
-      tools,
-      revision: this.revision!,
-      cachedAt: this.now().toISOString(),
-      ttlMs,
-    };
-    this.cachedTools = snapshot;
-    this.cacheExpiresAt = ttlMs === null ? undefined : this.now().getTime() + ttlMs;
-    this.updateState({ toolCount: tools.length });
-    return cloneToolsSnapshot(snapshot);
+    throw new RpcError(
+      'MCP tools changed repeatedly during discovery; retry tool discovery',
+      RpcErrorCode.McpRequestFailed,
+    );
+  }
+
+  private async requestTools(): Promise<{ result: unknown; generation: number }> {
+    if (this.pendingTools) return this.pendingTools;
+    // Install the shared promise before sending, even when a transport can
+    // synchronously deliver notifications. Each caller checks the generation
+    // after awaiting, so settlement cannot resurrect an invalidated response.
+    const pending = Promise.resolve().then(async () => {
+      this.requireConnected();
+      const generation = this.toolsGeneration;
+      const result = await this.channel.request('tools/list', this.paramsForRevision({}));
+      return { result, generation };
+    });
+    this.pendingTools = pending;
+    try {
+      return await pending;
+    } finally {
+      this.pendingTools = undefined;
+    }
   }
 
   async refreshTools(): Promise<McpToolsSnapshot> {
@@ -403,6 +435,7 @@ export class McpSession {
   }
 
   private invalidateTools(): void {
+    this.toolsGeneration += 1;
     this.cachedTools = undefined;
     this.cacheExpiresAt = undefined;
     this.interactions.toolsInvalidated?.();

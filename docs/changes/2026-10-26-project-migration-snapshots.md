@@ -1,6 +1,6 @@
 # Verify and retain Project recovery snapshots before schema upgrades
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** minor
 
