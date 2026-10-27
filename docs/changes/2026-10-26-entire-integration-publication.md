@@ -1,0 +1,39 @@
+# Verify and publish the user-added Entire configuration
+
+**Release:** Unreleased
+
+**Impact:** none
+
+**Category:** Maintenance
+
+## Summary
+
+Verify the user-added Entire repository configuration and newly installed Windows CLI, refresh its Codex hooks, and prepare all pending repository changes for GitHub publication on codex/security-review-remediation. Installed/enabled status is verified; actual captured-session and hosted Entire acceptance remain separate.
+
+## Details
+
+- The user's existing commit 0105137 (Enable Entire) adds .entire/settings.json, .entire/.gitignore and .codex/hooks.json. Preserve that commit and its settings: enabled true, telemetry true and primary checkpoint storage git-refs. No credentials, account configuration, model/provider selection or telemetry preferences are changed by this task.
+- The Codex configuration registers PostToolUse, SessionEnd, SessionStart, Stop, SubagentStart, SubagentStop and UserPromptSubmit command hooks. Each delegates to an Entire Codex hook when the executable is available; SessionStart provides installation guidance if it is missing. Local Git metadata contains prepare-commit-msg, commit-msg, post-commit, post-rewrite and pre-push hook scripts. Those Git hooks are machine-local metadata, not committed source paths. After installation, Entire doctor identified stale commands; its supported entire agent add codex operation regenerated all seven shared commands from Unix sh wrappers to native Windows cmd/where wrappers while preserving the 30-second timeouts and three-second SessionEnd timeout. The resulting configuration matches Entire 0.12.2. Other operating systems should refresh managed hooks with their installed CLI rather than assume these native Windows commands are portable.
+- Inspected the integration against [Entire CLI documentation](https://docs.entire.com/platforms/cli-and-entire-com), [installation guidance](https://docs.entire.com/installation) and [storage/security boundaries](https://docs.entire.com/security). Shared configuration alone does not establish a working executable, hook discovery in an already-running Codex session, captured checkpoints or hosted Entire account/mirror access.
+- Initial inspection could not discover Entire through Windows process/persisted PATH entries, the documented Windows install locations checked, non-login Git Bash or Ubuntu/WSL. The user then installed the Windows CLI. Verified Entire 0.12.2, Go 1.27.3, windows/amd64 and successful Git Bash discovery; normal host-access status reports Enabled, Agents Codex and checkpoint sync to origin. No installer, shell-profile rewrite, account login, global configuration or PATH change was performed by this task.
+- Initial sandboxed diagnostics could not read protected .codex/Git paths; the normal host-access retry distinguished this sandbox failure from actual hook state. Before refresh, host diagnostics reported installed Git/Codex hooks and existing approval records, plus stale Codex commands. After refresh, Git/Codex hooks validate without drift, but approval-record inspection reports UNKNOWN and asks for /hooks review inside Codex. Do not forge trust entries or equate installed configuration with an active approved capture session; review active hooks in Codex and verify a fresh session/checkpoint separately.
+- .entire/.gitignore excludes tmp, settings.local.json, metadata, logs and local redactors. Diagnostic log contents and personal configuration are excluded from publication. No refs/entire checkpoint refs or local Entire shadow branches were present during inspection, so no transcript/checkpoint payload is included by this publication. Normal branch push semantics are retained; no all-refs/mirror/force push is used.
+- The user explicitly requests pushing all changes. Include the existing pending feature-inventory, prioritization and open-task review records, retaining their dated observations and validation boundaries, and regenerate their complete changelog projection together with this integration record. These earlier planning records are separate tasks, not new implementation or new board mutations by this publication.
+- Publish from the user's current codex/security-review-remediation branch. Its prior security work already exists on current main, but the checkout predates later release and SDK integration. Publishing the branch does not replace main, undo its 0.23.0 changes or merge a new feature. Preserve all other branches/worktrees and private ignored configuration.
+- Compatibility and migration: development-tool configuration and documentation only; no PlayWeld runtime/API/schema/database/dependency changes or migration required. Keep the current checkout's product version. Impact none; no new installer, tag, public release or product readiness claim is introduced.
+
+## Validation
+
+- Inspected git status, the user-added commit and exact added paths, shared JSON settings, Codex command hooks, local Git hook scripts, ignore rules, unpublished branch history and ref names. Read back official Entire documentation. Initial shell checks reported the executable unavailable; after the user installation, entire version and normal host-access status/doctor verified the native CLI and detected the stale commands. entire agent add codex refreshed them; follow-up doctor/status confirmed installed hooks without drift, with the explicit approval-inspection limit above.
+- Static JSON/settings and seven-event hook checks passed. Before native refresh, syntax checks passed for all seven original shell commands and all five local Git scripts; the refreshed native commands are validated by Entire's own drift check rather than executed with fabricated session payloads. Ignore checks confirmed local settings, logs, metadata, temporary data, local redactors and private Kilo overrides remain excluded. Bounded screening of the three shared configuration files and four pending records found zero matches for the checked credential/private-key/credential-URL patterns; this is not a whole-history secret audit.
+- Repository-wide npm run format:check passed; focused formatting checks also passed for the refreshed configuration, all four pending records and CHANGELOG.md. npm run changelog:update, npm run changelog:check -- --base 8d2cd9e and git diff --check passed. The explicit base covers the user's original Entire commit as well as the pending publication, rather than checking only the follow-up commit.
+- The WSL link-check request was declined. The separately approved native Git Bash scripts/check-links.sh run remained unusually slow and did not produce a completion result; it is not claimed as passing. A disposable read-only Node equivalent of the existing script's file, fence, link and heading rules completed across all 370 Markdown files and 1,563 relative links with zero failures. After that complete check, stopped only the two verified parent/child Bash processes for the owned slow run. Its runner/report remain ignored under .turbo/; no repository checker or tracking tool was changed.
+- Publication is verified by comparing the pushed branch commit with GitHub after the commit/push. Actual captured-session upload, active Codex trust state, hosted Entire account/mirror access and GitHub main integration remain separate from this branch publication.
+- Application builds/full Turbo tests, paid/provider/engine operations, Entire installation/login by the agent, captured-session replay and hosted Entire mirror access are skipped because this task verifies configuration and publishes planning records without application-source changes. Working capture, active Codex hook approval and hosted Entire access are not inferred from version/status or shared hook installation.
+
+## Files
+
+- `.codex/hooks.json`
+- `.entire/.gitignore`
+- `.entire/settings.json`
+- `docs/changes/2026-10-26-entire-integration-publication.md`

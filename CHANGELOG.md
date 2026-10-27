@@ -833,6 +833,77 @@ Remove the automated Windows opener fixture that compiled and executed a tempora
 - `docs/changes/2026-10-24-native-opener-fixture-cleanup.md`
 - `docs/changes/2026-10-24-retire-native-opener-executable-fixture.md`
 
+#### Populate the PlayWeld Features GitHub Project inventory
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-25-features-project-inventory.md).
+
+##### Summary
+
+Populated the user-created [PlayWeld Features Project](https://github.com/users/scarecr0w12/projects/5) with 58 evidence-bounded feature/function cards: 27 Done, two In progress, 22 To do and seven Requested. Created 57 Project drafts and reused the existing Windows uninstall/rollback issue. The Project remains private and no v1.0 scope is accepted by this inventory.
+
+##### Details
+
+- The user selected PlayWeld Features to track implemented, partially completed, remaining and requested functionality. After an initial missing-scope failure and expired device authorization, the user refreshed GitHub CLI permissions. Confirmed the exact owner, Project title, URL and ID before mutation; no credentials or device codes are retained in this record.
+- Read the authoritative development plan, implementation status, confirmed requirements and open decision register. Created 57 descriptive Project drafts rather than opening 57 repository issues. Reused the sole preexisting Project item, [issue #3](https://github.com/scarecr0w12/PlayWeld/issues/3), retaining its issue body and setting its Project status to To do. Verified the final inventory has one matching card for each prepared title and no duplicate of that issue.
+- Extended the existing Status field with To do and Requested while preserving the IDs, names, descriptions and colors of Backlog, Ready, In progress, In review and Done. Added Area as a single-select field and Reference as a text field; all 58 cards have the intended status, area and work-package/decision references. Existing priority, size, iteration, date and other fields were preserved; no priorities, estimates, iterations or release commitments were invented.
+- Done cards cover independent Projects, desktop shell, settings, durable tasks, grouped requests, broker permissions, audit/export/cleanup, provider accounts, model routing/capacities, chat, optional decision assistance, skills/roles, MCP, discussion/decisions, plugins, engine operations and managed bridges, Knowledge/search/storage, generation/import, asset viewers, DCC, local backups/restore, Swarm/worktrees, external IDE integration, A2A and documentation. Their bodies distinguish repository implementation, fixture testing and selected live acceptance rather than implying exhaustive release readiness.
+- In-progress cards distinguish WP19 packaging/release lifecycle from Q04 plugin SDK conformance/migration guidance. To do cards cover release trust/lifecycle, support and UI/accessibility/performance qualification, current full-gate evidence, plugin signatures/isolation, model-provider and judgment qualification, spending behavior, community MCP/A2A, wider engine/DCC/provider checks, asset inspection/conversion, remote backup/recovery, external action recovery, canon diffs, remote vector/plugin acceptance and remaining ledger/corruption handling.
+- Requested cards represent existing unresolved product choices: existing-game onboarding, navigation/create/clone experience, creative feedback/progress, canon/module/genre semantics, cross-Project privacy, editor-extension privileges and optional in-place restore. They explicitly remain proposals or unresolved choices, not newly accepted requirements or automatic v1.0 scope. Existing implemented portions are described separately.
+- Linked the Project to scarecr0w12/PlayWeld. Initialized its previously empty description and README with inventory purpose, status meanings, Area/Reference usage, source links, evidence boundaries and draft-to-issue guidance. The Project remains private. The development plan remains the owner of dependency ordering; no work-package status or user-confirmed design decision was changed.
+- Temporary import data, resume-aware synchronization script and before/after receipts remain ignored under .turbo/feature-project-sync/. They are local execution artifacts, not a second committed feature register. The GitHub Project is the requested feature tracker; repository status/plan/register remain the sources for the initial inventory's implementation claims.
+- Compatibility and migration: repository/provider maintenance only; no application, API, database, package-version or runtime migration. Version impact none because the change organizes existing work and requests without shipping application behavior. No commit, release, engine mutation, paid generation or ordinary-profile change was performed.
+
+##### Validation
+
+- gh project list/view/field-list/item-list confirmed Project #5, exact title PlayWeld Features, private visibility, the existing five Status options and the sole preexisting issue #3. Inspected GitHub's live single-select input contract before updating options so original option IDs were retained.
+- Parsed the staged JSON and verified 58 input entries. Synchronization completed with 57 created drafts and one reused issue; read back all 58 cards and checked exact title uniqueness, status, area and reference against every input row. The receipt reports zero mismatches and status counts of 27 Done, two In progress, 22 To do and seven Requested.
+- gh project link 5 --owner scarecr0w12 --repo scarecr0w12/PlayWeld succeeded. Project README/description initialization succeeded. No new repository issues were opened.
+- git check-ignore confirmed the temporary inventory is ignored. Work-record Prettier formatting, npm run changelog:update, npm run changelog:check -- --base HEAD and git diff --check passed after the publication record was updated. Final Project metadata readback confirmed 58 items, 21 fields and unchanged private visibility; field readback confirmed all five original Status option IDs were preserved.
+- Documentation link checking was launched through the default bash runner during preparation, but its process result was unavailable after resumption. Restarted the required scripts/check-links.sh through explicit Git Bash with captured output/exit files; result remains pending at this record update and is not claimed as passing.
+- Source builds, application tests, live provider/engine calls, paid generation, installer operations and release publication were skipped because this changes feature tracking and its permanent record, not application behavior. Implementation claims come from the cited existing records rather than new runtime qualification.
+
+##### Files
+
+- `docs/changes/2026-10-25-features-project-inventory.md`
+
+#### Prioritize, estimate and publish PlayWeld Features
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-25-features-project-prioritization.md).
+
+##### Summary
+
+Individually assessed all 31 open cards in the [PlayWeld Features Project](https://github.com/users/scarecr0w12/projects/5), assigned development priority/size/effort and detailed implementation or qualification criteria, and made the Project public at the user's explicit request. All 58 cards remain present; the 27 Done cards retain their existing content and evidence limits.
+
+##### Details
+
+- The previous inventory provided status, area, reference and short functional descriptions but left development priority, size and detailed execution criteria unset. The user explicitly requested card-by-card prioritization, sizing, additional detail and public visibility. Read back the exact Project and all existing items/fields before mutation; preserved existing Status, Area, Reference, title, assignment, iteration and date choices.
+- Assessed all 31 open cards independently against the repository's current plan, implementation/evidence boundaries and unresolved product choices. Assigned 14 P0, eleven P1 and six P2 priorities. P0 means a recommended release-safety, trust, data/recovery or evidence gate for capabilities actually promised in 1.0; P1 means important core workflow/support/product decisions; P2 means optional integration/feature breadth. These are engineering recommendations, not a newly accepted v1.0 feature list or claims that every P0 represents an exploitable defect.
+- Assigned five Medium, thirteen Large and thirteen Extra Large development sizes using the existing Size field. Populated the existing numeric Estimate field with relative points: XS=1, S=2, M=3, L=5, XL=8. Added a separate Effort text field: XS up to one engineer workday, S one to two, M three to five, L six to ten, XL eleven to twenty-plus with required decomposition before implementation. All estimates are coarse planning ranges, include focused implementation/tests/evidence, exclude external waits/procurement/authorization and are not calendar commitments.
+- Added Work type, V1.0 relevance, Risk and Confidence single-select fields. The 31 assessments comprise six Hardening, four Feature, twelve Verification, eight Decision and one Maintenance cards; relevance is twelve recommended Release gate, seven Core candidate, six Optional candidate and six Decision needed. Risk describes delivery/data/trust consequence rather than a validated vulnerability severity. Confidence describes estimate uncertainty, not implementation or release readiness. No assignees, deadlines, iterations or automatic execution were selected.
+- Added a distinct Development assessment section to every open card, retaining its original description/source/evidence text. Each section includes priority rationale, size/relative points/rough effort, work type, release relevance, risk, confidence, proposed scope, four card-specific acceptance criteria, prerequisites/related work, assumptions, exclusions and overlap warnings. Updated thirty Project drafts and appended the assessment to the existing [Windows uninstall/rollback issue #3](https://github.com/scarecr0w12/PlayWeld/issues/3), retaining its original scope and acceptance text rather than replacing or duplicating the issue.
+- Recommended release gates emphasize trustworthy packaging/signing, scoped Windows/Linux lifecycle, support/evidence definition, core UI/accessibility, current-candidate quality evidence, truthful plugin trust/isolation, spending ceilings, external-effect recovery, non-destructive corruption handling, cross-Project privacy and editor-extension privilege clarity. Linux qualification is conditional on advertised targets. Isolation layering/host allowlists and extended ledger cleanup are explicitly separable from the necessary safe baseline.
+- Core candidates cover SDK conformance, measured performance, provider/decision qualification, community MCP, selected engine coverage, remote backup, canon reconciliation, existing-game onboarding, navigation/creation, creative feedback and canon/module semantics. Optional candidates cover live A2A, commercial DCC breadth, additional paid generation, richer asset inspection/conversion, remote/plugin vector stores and in-place restore. Provider/engine/DCC/storage matrices, umbrella cards and shared recovery work contain overlap/decomposition notes; they must not be summed blindly into a release date. In-place restore explicitly distinguishes an XS decide/defer action from XL conditional implementation.
+- Retained all seven Requested statuses and their product-owned decisions. Prioritization does not approve those requests or reopen already confirmed module-preservation requirements. Prerequisites identify planning constraints/related work rather than introducing a second authoritative execution order; technical dependency ordering remains in the existing development plan.
+- Extended the Project README with priority definitions, the size/point/effort table, field meanings, estimate limitations, optional/conditional release scope and the absence of new execution commitments. Preserved its existing purpose/status/source guidance. Screened all 58 existing card bodies/titles and the final README for recognizable credential/private-key, embedded credential URL and personal filesystem-path patterns, and reviewed the authored assessment text for public suitability. This bounded content review is not a whole-repository secret scan.
+- Changed Project visibility from private to public only after every card's detailed content and eight planning field values passed authoritative readback. Read back public=true and the exact final README. The user's explicit instruction authorized this publication; no repository visibility, code, releases, credentials, runtime profiles, engine/DCC state or paid services were changed.
+- Compatibility and migration: repository/provider planning maintenance only; no application, RPC/schema, database, package-version or runtime migration. Existing Project statuses and the 27 Done descriptions remain intact. No new issues/cards were created. Version impact none because this publishes engineering planning and requests without shipping application behavior. Temporary preparation/update scripts and before/after receipts remain ignored local execution artifacts under .turbo/feature-project-sync/, not a competing feature register.
+
+##### Validation
+
+- Read all 58 Project items and existing fields through the GitHub CLI/GraphQL API. Checked that the plan covered exactly the 31 non-Done titles once, every size was defined, every card had scope/prerequisites and each had four acceptance criteria. Source/temporary scripts passed node --check; a helper summary command with an extra closing parenthesis was corrected before the successful completeness/count output. No application test failure was involved.
+- The update receipt records all 31 assessments, priority counts 14/11/6 and size counts M=5, L=13, XL=13. Authoritative readback compared every assessed body and Priority, Size, Estimate, Work type, V1.0 relevance, Risk, Confidence and Effort value: zero mismatches. Also verified unchanged Status/Area/Reference for all 58 items and unchanged title/body for all 27 Done items.
+- Final Project readback confirmed 58 items, public=true and the exact updated README. An unauthenticated HTTP request to the Project URL returned 200 and contained the PlayWeld Features title. Credential/private-path pattern screening returned no matches for the reviewed cards/README; original issue #3 content was preserved with an appended assessment.
+- npm run changelog:update, npm run changelog:check -- --base HEAD, Prettier checks for both feature work records and CHANGELOG.md, and git diff --check passed. Ran the complete scripts/check-links.sh through the installed Ubuntu environment after the native Git Bash run proved slow; it returned All links OK with exit code zero. No documentation targets changed during the final validation-text update.
+- Application builds/tests, new live integrations, installer drills, paid generation and release publication were skipped because this task changes planning and public Project content only. Existing implementation/live evidence was not rerun, and effort estimates remain evidence-bounded recommendations.
+
+##### Files
+
+- `docs/changes/2026-10-25-features-project-prioritization.md`
+
 #### Hosted qualification and integration of security remediation
 
 **Impact:** none
@@ -894,6 +965,79 @@ Recover the six missing developer/build files with explicit user authorization a
 - `docs/DEVELOPMENT_PLAN.md`
 - `docs/STATUS.md`
 - `docs/changes/2026-10-25-verified-tooling-recovery.md`
+
+#### Verify and publish the user-added Entire configuration
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-26-entire-integration-publication.md).
+
+##### Summary
+
+Verify the user-added Entire repository configuration and newly installed Windows CLI, refresh its Codex hooks, and prepare all pending repository changes for GitHub publication on codex/security-review-remediation. Installed/enabled status is verified; actual captured-session and hosted Entire acceptance remain separate.
+
+##### Details
+
+- The user's existing commit 0105137 (Enable Entire) adds .entire/settings.json, .entire/.gitignore and .codex/hooks.json. Preserve that commit and its settings: enabled true, telemetry true and primary checkpoint storage git-refs. No credentials, account configuration, model/provider selection or telemetry preferences are changed by this task.
+- The Codex configuration registers PostToolUse, SessionEnd, SessionStart, Stop, SubagentStart, SubagentStop and UserPromptSubmit command hooks. Each delegates to an Entire Codex hook when the executable is available; SessionStart provides installation guidance if it is missing. Local Git metadata contains prepare-commit-msg, commit-msg, post-commit, post-rewrite and pre-push hook scripts. Those Git hooks are machine-local metadata, not committed source paths. After installation, Entire doctor identified stale commands; its supported entire agent add codex operation regenerated all seven shared commands from Unix sh wrappers to native Windows cmd/where wrappers while preserving the 30-second timeouts and three-second SessionEnd timeout. The resulting configuration matches Entire 0.12.2. Other operating systems should refresh managed hooks with their installed CLI rather than assume these native Windows commands are portable.
+- Inspected the integration against [Entire CLI documentation](https://docs.entire.com/platforms/cli-and-entire-com), [installation guidance](https://docs.entire.com/installation) and [storage/security boundaries](https://docs.entire.com/security). Shared configuration alone does not establish a working executable, hook discovery in an already-running Codex session, captured checkpoints or hosted Entire account/mirror access.
+- Initial inspection could not discover Entire through Windows process/persisted PATH entries, the documented Windows install locations checked, non-login Git Bash or Ubuntu/WSL. The user then installed the Windows CLI. Verified Entire 0.12.2, Go 1.27.3, windows/amd64 and successful Git Bash discovery; normal host-access status reports Enabled, Agents Codex and checkpoint sync to origin. No installer, shell-profile rewrite, account login, global configuration or PATH change was performed by this task.
+- Initial sandboxed diagnostics could not read protected .codex/Git paths; the normal host-access retry distinguished this sandbox failure from actual hook state. Before refresh, host diagnostics reported installed Git/Codex hooks and existing approval records, plus stale Codex commands. After refresh, Git/Codex hooks validate without drift, but approval-record inspection reports UNKNOWN and asks for /hooks review inside Codex. Do not forge trust entries or equate installed configuration with an active approved capture session; review active hooks in Codex and verify a fresh session/checkpoint separately.
+- .entire/.gitignore excludes tmp, settings.local.json, metadata, logs and local redactors. Diagnostic log contents and personal configuration are excluded from publication. No refs/entire checkpoint refs or local Entire shadow branches were present during inspection, so no transcript/checkpoint payload is included by this publication. Normal branch push semantics are retained; no all-refs/mirror/force push is used.
+- The user explicitly requests pushing all changes. Include the existing pending feature-inventory, prioritization and open-task review records, retaining their dated observations and validation boundaries, and regenerate their complete changelog projection together with this integration record. These earlier planning records are separate tasks, not new implementation or new board mutations by this publication.
+- Publish from the user's current codex/security-review-remediation branch. Its prior security work already exists on current main, but the checkout predates later release and SDK integration. Publishing the branch does not replace main, undo its 0.23.0 changes or merge a new feature. Preserve all other branches/worktrees and private ignored configuration.
+- Compatibility and migration: development-tool configuration and documentation only; no PlayWeld runtime/API/schema/database/dependency changes or migration required. Keep the current checkout's product version. Impact none; no new installer, tag, public release or product readiness claim is introduced.
+
+##### Validation
+
+- Inspected git status, the user-added commit and exact added paths, shared JSON settings, Codex command hooks, local Git hook scripts, ignore rules, unpublished branch history and ref names. Read back official Entire documentation. Initial shell checks reported the executable unavailable; after the user installation, entire version and normal host-access status/doctor verified the native CLI and detected the stale commands. entire agent add codex refreshed them; follow-up doctor/status confirmed installed hooks without drift, with the explicit approval-inspection limit above.
+- Static JSON/settings and seven-event hook checks passed. Before native refresh, syntax checks passed for all seven original shell commands and all five local Git scripts; the refreshed native commands are validated by Entire's own drift check rather than executed with fabricated session payloads. Ignore checks confirmed local settings, logs, metadata, temporary data, local redactors and private Kilo overrides remain excluded. Bounded screening of the three shared configuration files and four pending records found zero matches for the checked credential/private-key/credential-URL patterns; this is not a whole-history secret audit.
+- Repository-wide npm run format:check passed; focused formatting checks also passed for the refreshed configuration, all four pending records and CHANGELOG.md. npm run changelog:update, npm run changelog:check -- --base 8d2cd9e and git diff --check passed. The explicit base covers the user's original Entire commit as well as the pending publication, rather than checking only the follow-up commit.
+- The WSL link-check request was declined. The separately approved native Git Bash scripts/check-links.sh run remained unusually slow and did not produce a completion result; it is not claimed as passing. A disposable read-only Node equivalent of the existing script's file, fence, link and heading rules completed across all 370 Markdown files and 1,563 relative links with zero failures. After that complete check, stopped only the two verified parent/child Bash processes for the owned slow run. Its runner/report remain ignored under .turbo/; no repository checker or tracking tool was changed.
+- Publication is verified by comparing the pushed branch commit with GitHub after the commit/push. Actual captured-session upload, active Codex trust state, hosted Entire account/mirror access and GitHub main integration remain separate from this branch publication.
+- Application builds/full Turbo tests, paid/provider/engine operations, Entire installation/login by the agent, captured-session replay and hosted Entire mirror access are skipped because this task verifies configuration and publishes planning records without application-source changes. Working capture, active Codex hook approval and hosted Entire access are not inferred from version/status or shared hook installation.
+
+##### Files
+
+- `.codex/hooks.json`
+- `.entire/.gitignore`
+- `.entire/settings.json`
+- `docs/changes/2026-10-26-entire-integration-publication.md`
+
+#### Review open PlayWeld tasks for small achievable slices
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-26-open-task-opportunity-review.md).
+
+##### Summary
+
+Reviewed all 65 cards in the [PlayWeld Features Project](https://github.com/users/scarecr0w12/projects/5) against repository evidence and current merged source. Identified small, reviewable slices within larger open cards without changing Project fields, accepting Requested features or claiming implementation completion.
+
+##### Details
+
+- Live Project readback on 2026-10-26 contains 27 Done, 21 To do, three In progress and 14 Requested cards: 38 open in total. This supersedes the earlier 58-card inventory only as a dated observation; permanent historical records remain intact. Existing estimates apply to umbrella cards and should not be mistaken for estimates of the smaller opportunities below.
+- The working checkout is `codex/security-review-remediation` at `8d2cd9e`, with preexisting pending feature-inventory/prioritization records and generated changelog edits. Fetched `origin/main` and verified its tip as `3b35deb50ffd5c08c2a8dbaa6426983d81d3dd30`; did not switch, merge or reset the working checkout. Compared candidate SDK, viewer, guide and recovery surfaces against that ref so an older checkout would not turn completed work into a new task.
+- The recovery umbrella already records merged SQLite diagnostics, bounded Knowledge lexical-index recovery and Project pre-migration snapshots through PRs 17, 18 and 19. Keep that umbrella In progress for its documented remaining work. General salvage, other derived stores, whole-upgrade rollback and extended ledger cleanup need separate scope; repeating the merged slices is not an easy win.
+- Concrete documentation opportunity, associated with Q04 and existing qualification cards: `docs/INTEGRATION_GUIDE.md` still describes Windows AppContainer as unverified/fail-closed and paid live generation as unverified. `docs/EDITOR_BRIDGE_ACCEPTANCE.md` and `docs/ADVERSARIAL_SYSTEM_REVIEW.md` instead record scoped Windows LPAC/Job checks and one five-credit Meshy preview/import. A proposed correction should cite those dated results and retain broader OS/isolation, Tripo, refine and production-art limitations. Inspect adjacent guide claims before editing; do not infer universal acceptance. Rough focused effort: half a day including documentation checks.
+- Concrete Q04 test opportunity: `packages/plugin-sdk/src/plugin-sdk.test.ts` has one broad protocol success-path test. The SDK contains protocol-version, initialization, unknown-tool/method, invalid-context and handler-error branches. Propose focused behavioral conformance cases that verify error envelopes, prevent handler execution before valid initialization and check recovery after rejected requests. This is a source-coverage opportunity, not a demonstrated runtime defect or full third-party conformance acceptance. Rough focused effort: one to two engineer workdays, subject to findings.
+- Concrete Q01 opportunity: reconcile a small evidence inventory from existing acceptance records, including exact versions, operation, date, source/fixture/live/installed level and missing qualification. Extend the existing documentation coverage surface rather than inventing a second feature register. This can prepare the support-matrix decision; advertised v1.0 support remains product-owned and the whole card cannot close from documentation alone. Rough focused effort: one engineer workday for a bounded initial inventory, excluding rerunning integrations.
+- Concrete WP15/U05 feature opportunity: `packages/theia-control-room/src/browser/asset-viewer/image-viewer.tsx` currently provides fit, 1:1, dimensions, zoom and pan through an image element. A proposed raster RGB/R/G/B/alpha display slice can be assessed independently from DCC conversion and material-slot association. Acceptance should use known pixels, preserve source bytes, handle unsupported/decode failures explicitly and retain existing viewing controls. No decoder/converter dependency is selected by this review. Rough focused effort: two to three engineer workdays including focused rendered verification; this is a proposed subset, not completion of the texture/conversion umbrella.
+- Q01 timing work can begin with bounded current-head reproduction and comparison with the latest hosted results. The card itself says historical failures may no longer reproduce; do not raise timeouts, weaken assertions or assume a defect remains. A half-to-one-day investigation is a useful bounded start, but resolution and complete qualification remain uncertain and are not estimated as an easy completion.
+- The estimates above are fresh planning judgments for narrow slices, not commitments or a new dependency order. Signing/procurement, disposable installer lifecycle, external/paid integration matrices, spending policy, team identities and general recovery have broader prerequisites. Requested collaboration, handoffs, delegation-board, shared-memory, validation-profile, LFS-preflight and image-chat ideas remain Requested and require their own scope/decisions.
+- Compatibility and migration: investigation and work-record changes only; no application, API/schema, database, dependency or product-version changes and no migration required. Version impact none. No Project status/priority/estimate, repository issue, release, ordinary runtime profile, engine/DCC state or paid service was changed. Existing pending work records were preserved; the generated changelog includes this additional record.
+
+##### Validation
+
+- `gh project item-list 5 --owner scarecr0w12 --limit 100 --format json` succeeded; inspected all 38 non-Done card titles/statuses and the detailed bodies for the candidate support, SDK, preview, timing and recovery cards. Counted all 65 items by Status from the live JSON. GitHub CLI was used because the available GitHub connector does not expose Projects item operations.
+- `git ls-remote origin refs/heads/main`, `git fetch origin main`, and `git log -1 origin/main` confirmed current main at the commit above. Read relevant files through `git show origin/main:<path>` as well as working-tree source. Initial sandboxed fetch was denied writing FETCH_HEAD; the approved retry succeeded. No checkout or integration occurred.
+- Source inspection covered the SDK/SDK test, plugin installer/isolation/lifecycle test names, image viewer/preview service/inspectors, board search, Knowledge store, recovery runbook, development plan, status, decision register, documentation coverage and acceptance records. Historical pass counts remain historical; this review did not rerun application tests or qualify current runtime behavior.
+- `npm run format:check` passed across the repository; focused Prettier checks for this record and CHANGELOG.md also passed. `npm run changelog:update`, `npm run changelog:check -- --base HEAD` and `git diff --check` passed. The complete `scripts/check-links.sh` ran through Ubuntu/WSL and returned All links OK with exit code zero. Initial sandboxed WSL access was denied; the approved retry completed successfully. Final validation-text edits only update this record and its generated projection, with no link-target changes.
+- Application builds/full Turbo gate, browser/Electron rendering, live providers/engines, paid generation, installer drills and release publication were skipped because this task reviews opportunities and records findings without changing runtime behavior. Candidate effort and feasibility remain bounded judgments until execution.
+
+##### Files
+
+- `docs/changes/2026-10-26-open-task-opportunity-review.md`
 
 ## 0.22.0
 
