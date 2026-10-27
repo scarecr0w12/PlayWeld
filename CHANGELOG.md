@@ -4,6 +4,10 @@ Complete tracked work, grouped by version and category, with full details, valid
 
 ## Unreleased
 
+No pending work records.
+
+## 0.23.0
+
 ### Added
 
 #### Audit retention and deletion controls
@@ -887,6 +891,30 @@ Correct stale current-status claims using existing accepted receipts, document t
 - `docs/reference/documentation-inventory.json`
 - `docs/changes/2026-10-24-documentation-reconciliation.md`
 
+#### Preserve pending record links in release notes
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-27-release-record-links.md).
+
+##### Summary
+
+Correct five relative links in three pending work records so the generated 0.23.0 release notes can resolve their evidence references.
+
+##### Details
+
+The release-note generator copies record prose into `docs/releases/`; bare sibling filenames therefore pointed into the wrong directory. Use `../changes/` for the five existing references, which resolves correctly from both record and release-note directories. Preserve their text, findings and historical qualification. These records were pending before this preparation; no previously released record or published note is rewritten. No application, schema, dependency or migration change is required.
+
+##### Validation
+
+The first full link check identified the five broken release-note links. Regenerated notes contain the corrected destinations; the final complete link-check result is recorded with release preparation. This correction makes no runtime or installation claim.
+
+##### Files
+
+- `docs/changes/2026-10-24-native-opener-fixture-cleanup.md`
+- `docs/changes/2026-10-24-security-remediation.md`
+- `docs/changes/2026-10-24-service-log-retention.md`
+
 ### Maintenance
 
 #### Build and verify the local PlayWeld 0.22.0 upgrade
@@ -1172,6 +1200,42 @@ Recover the six missing developer/build files with explicit user authorization a
 - `docs/DEVELOPMENT_PLAN.md`
 - `docs/STATUS.md`
 - `docs/changes/2026-10-25-verified-tooling-recovery.md`
+
+#### Prepare version 0.23.0
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-26-release-0.23.0.md).
+
+##### Summary
+
+Prepare version 0.23.0 from 0.22.0, retaining all pending work records in the changelog and detailed release notes.
+
+##### Details
+
+Synchronize all nine first-party workspace and exact internal dependency versions from 0.22.0 to 0.23.0 and refresh the lockfile without changing third-party selections. Assign all already-merged pending records and the approved MCP discovery and Requests keyboard fixes to this testing release. The minor bump satisfies the recorded compatible feature impacts. Integrate both original PR heads as parents of the release branch; resolve only the generated changelog conflict by regenerating it from their permanent records. Publish only after protected-branch checks and native Windows/Linux packaging succeed. No application/schema migration, security setting or credential change is introduced by preparation. The original checkout's unrelated changelog/planning changes and other agents' branches remain preserved.
+
+##### Validation
+
+- Version preparation and `npm install --package-lock-only --ignore-scripts --no-audit --no-fund` passed. Existing native dependencies were reused; no new `npm ci` was run locally. The lockfile diff contains only first-party version changes.
+- Combined service suite: 783 passed, eight skipped across 135 files in 522.50 seconds. Local native installer executable fixtures and live Blender remain excluded; hosted quality uses its normal unexcluded commands.
+- The first concurrent build hit a locked AppContainerHost.exe while service tests were using the helper. After the suite exited, sequential build/typecheck/lint passed all 25 tasks in 28.296 seconds, including Electron/browser builds. Other workspace tests passed all 14 tasks. This is source/build evidence, not installed desktop acceptance.
+- The real-service built-browser keyboard/recovery scenario passed on the combined 0.23.0 candidate in Chrome 155.0.8059.79, with twelve focus/state observations and no renderer or cleanup errors. The optional development-shell favicon 404 remains explicitly qualified. Isolated local report: `release-ui-evidence/requests-keyboard-73DpHw/report.json` outside the checkout.
+- Thirteen tracking tests and nine cache-maintenance tests passed. Version/changelog coverage, formatting, generated references/inventory, documentation evidence integrity and the full Markdown link check passed; the separate release-link correction preserves the five evidence references.
+- Protected-branch CI, native package production, downloaded checksum/provenance checks and publication are subsequent gates and are not claimed by this preparation record. No publisher signing, installed upgrade/uninstall/rollback, broad accessibility, live provider/engine or ordinary-profile acceptance is established here. Later publication evidence receives a separate permanent receipt.
+
+##### Files
+
+- `packages/archive-extractor/package.json`
+- `packages/contracts/package.json`
+- `packages/platform-service/package.json`
+- `packages/plugin-sdk/package.json`
+- `packages/service-client/package.json`
+- `packages/theia-control-room/package.json`
+- `packages/plugins/sample-hello/package.json`
+- `apps/control-room/package.json`
+- `apps/control-room-browser/package.json`
+- `package-lock.json`
 
 ## 0.22.0
 

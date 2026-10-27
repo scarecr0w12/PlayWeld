@@ -1,6 +1,6 @@
 # Export complete retained Project audit history
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** minor
 

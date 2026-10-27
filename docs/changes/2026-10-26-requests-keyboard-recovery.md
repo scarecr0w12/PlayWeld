@@ -1,6 +1,6 @@
 # Keep Requests keyboard focus through review and recovery
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** patch
 

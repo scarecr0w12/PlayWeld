@@ -1,6 +1,6 @@
 # Review project, repository controls, security and completion gaps
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** none
 

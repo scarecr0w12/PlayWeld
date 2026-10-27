@@ -1,6 +1,6 @@
 # Preserve MCP tool-cache invalidation during concurrent discovery
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** patch
 

@@ -1,6 +1,6 @@
 # Reconcile GitHub security alerts and bound A2A authentication work
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** patch
 

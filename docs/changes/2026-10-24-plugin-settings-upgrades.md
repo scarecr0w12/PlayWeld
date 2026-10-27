@@ -1,6 +1,6 @@
 # Complete declarative plugin settings upgrades
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** minor
 

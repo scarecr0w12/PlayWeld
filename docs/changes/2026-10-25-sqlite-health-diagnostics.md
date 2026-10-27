@@ -1,6 +1,6 @@
 # Non-destructive SQLite diagnostics and migration compatibility guards
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** minor
 

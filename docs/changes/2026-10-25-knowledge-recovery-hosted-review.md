@@ -1,6 +1,6 @@
 # Retain hosted knowledge-recovery checks and retry incomplete review
 
-**Release:** Unreleased
+**Release:** 0.23.0
 
 **Impact:** none
 
