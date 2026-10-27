@@ -1,6 +1,6 @@
 # Cover plugin SDK request rejection and recovery
 
-**Release:** Unreleased
+**Release:** 0.24.0
 
 **Impact:** none
 

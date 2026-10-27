@@ -1,6 +1,6 @@
 # Integrate and qualify the SDK conformance pull request
 
-**Release:** Unreleased
+**Release:** 0.24.0
 
 **Impact:** none
 

@@ -1,6 +1,6 @@
 # Address Entire PR hook execution and stale opportunity findings
 
-**Release:** Unreleased
+**Release:** 0.24.0
 
 **Impact:** none
 

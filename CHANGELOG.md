@@ -4,6 +4,10 @@ Complete tracked work, grouped by version and category, with full details, valid
 
 ## Unreleased
 
+No pending work records.
+
+## 0.24.0
+
 ### Fixed
 
 #### Use Node for the advisory Claude Brain hook launcher
@@ -123,6 +127,30 @@ Replace two stale blanket unverified claims in the integration guide with dated,
 
 - `docs/INTEGRATION_GUIDE.md`
 - `docs/changes/2026-10-26-integration-evidence-corrections.md`
+
+#### Correct the SDK coverage claim in publication notes
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-27-release-0.24.0-summary-correction.md).
+
+##### Summary
+
+Remove the unsupported cancellation-coverage claim from the 0.24.0 publication summary before release.
+
+##### Details
+
+Kilo's review of PR25 correctly found that the initial summary claimed cancellation coverage although the twenty SDK cases do not include cancellation. Read the actual source and its parameterized cases, then describe initialization/settings retry, protocol/context validation, access modes, unknown methods/tools, typed handler errors and the original stdout-safe logging case. Keep the bounded verification claim; do not add a protocol feature or unrelated tests to justify erroneous prose. No application/API/schema/dependency or migration change is introduced. Preserve the already-committed preparation record; record this later correction separately.
+
+##### Validation
+
+- Compared every listed coverage category with packages/plugin-sdk/src/plugin-sdk.test.ts. The unsupported category is removed; twenty remains the executed case count. Kilo's successful check conclusion did not mean its warning could be ignored; its written finding was addressed before merge.
+- The local combined service suite completed after the initial preparation commit: 783 passed/eight skipped across 135 files in 510.41 seconds. The existing local native-installer-executable/live-Blender exclusions remain explicit; hosted normal commands are unchanged. Earlier local build/workspace/tracking/reference/format/link passes remain recorded separately.
+- This correction changes documentation only. Fresh exact-head CI and review must qualify the corrected candidate; superseded results are not treated as current merge clearance. No installed application or Entire end-to-end acceptance is inferred.
+
+##### Files
+
+- `docs/releases/v0.24.0-summary.md`
 
 ### Maintenance
 
@@ -398,6 +426,45 @@ Publish the bounded SDK conformance and integration-guide corrections as [PR 23]
 ##### Files
 
 - `docs/changes/2026-10-26-sdk-conformance-pr-integration.md`
+
+#### Prepare version 0.24.0
+
+**Impact:** none
+
+[Permanent work record](docs/changes/2026-10-27-release-0.24.0.md).
+
+##### Summary
+
+Prepare version 0.24.0 from 0.23.0, retaining all pending work records in the changelog and detailed release notes.
+
+##### Details
+
+Prepare the next unused minor testing version from main 3ce7f126e43fb7836aea18da8a6ff5bcf44c916d. The discussed SDK conformance and Entire developer-hook changes are already merged in PRs 23/24; do not merge them twice or absorb unrelated Dependabot work. Synchronize all nine first-party workspace and exact internal dependency versions and refresh the lockfile without changing third-party selections. Assign the twelve pending SDK, hook, audit-test and planning/evidence records to 0.24.0, preserving every previously released record. The minor bump follows the repository's pre-1.0 preparation policy, even though these pending changes have no new PlayWeld application runtime/API/schema behavior or migration.
+
+Author concise publication notes and reuse the existing release-body guard and full-note attachment workflow. Clearly separate twenty SDK conformance cases and executed Windows hook fixtures from independent community-plugin acceptance, Unix Claude sessions, trusted Entire capture, hosted access and Brain indexing/context injection. Planning proposals remain proposals. Use an isolated release branch; preserve unrelated checkouts, feature branches and the separate 0.23.0 evidence branch. No security, credentials, signing, telemetry, account or tool configuration is changed by this preparation.
+
+##### Validation
+
+- Verified remote main and the merged PR 23/24 commits before preparation. The only open PRs at inspection were unrelated Dependabot proposals, which remain untouched.
+- Version preparation, lockfile-only refresh and version agreement passed. The lockfile diff changes only first-party versions. Existing native dependencies were reused; no new local npm ci or dependency selections were introduced.
+- Local combined build/typecheck/lint passed all 25 tasks without cache hits in 55.163 seconds, including Electron/browser builds. Other-workspace tests passed all 14 tasks in 14.565 seconds (seven cached), including the SDK suite. Thirteen tracking tests and nine cache-maintenance tests passed; generated references/inventory and documentation-evidence integrity passed. These are source/build checks, not installed application or end-to-end Entire acceptance.
+- The repository-requested Brain brief returned indexed history with unsafe/incomplete freshness, unavailable semantic/graph context and hosted state disconnected. Current source and executed checks supply this release's evidence. No index refresh, configuration repair, account connection or paid inference was attempted; existing Brain/Entire runtime qualification remains open.
+- The broad local service suite, final formatting/link/record checks, protected-head CI, native Windows/Linux packaging, downloaded provenance checks and actual publication are separate gates. Local service execution preserves the established exclusions for native installer executable fixtures and live Blender; hosted quality retains its normal commands. Pending or running checks are not claimed as passed here. Publication receives a separate receipt after execution.
+- No installed upgrade/uninstall/rollback, ordinary-profile preservation on this version, publisher signing, live provider/engine or broad accessibility acceptance is established by version preparation.
+
+##### Files
+
+- `packages/archive-extractor/package.json`
+- `packages/contracts/package.json`
+- `packages/platform-service/package.json`
+- `packages/plugin-sdk/package.json`
+- `packages/service-client/package.json`
+- `packages/theia-control-room/package.json`
+- `packages/plugins/sample-hello/package.json`
+- `apps/control-room/package.json`
+- `apps/control-room-browser/package.json`
+- `package-lock.json`
+- `docs/releases/v0.24.0-summary.md`
 
 ## 0.23.0
 

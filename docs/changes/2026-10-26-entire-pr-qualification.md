@@ -1,6 +1,6 @@
 # Qualify the Entire integration and pending records for main
 
-**Release:** Unreleased
+**Release:** 0.24.0
 
 **Impact:** none
 

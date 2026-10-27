@@ -1,6 +1,6 @@
 # Prioritize, estimate and publish PlayWeld Features
 
-**Release:** Unreleased
+**Release:** 0.24.0
 
 **Impact:** none
 

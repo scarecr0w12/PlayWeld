@@ -1,6 +1,6 @@
 # Populate the PlayWeld Features GitHub Project inventory
 
-**Release:** Unreleased
+**Release:** 0.24.0
 
 **Impact:** none
 

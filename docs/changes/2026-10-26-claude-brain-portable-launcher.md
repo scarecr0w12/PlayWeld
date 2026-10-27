@@ -1,6 +1,6 @@
 # Use Node for the advisory Claude Brain hook launcher
 
-**Release:** Unreleased
+**Release:** 0.24.0
 
 **Impact:** none
 

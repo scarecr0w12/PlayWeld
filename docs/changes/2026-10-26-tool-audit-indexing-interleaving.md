@@ -1,6 +1,6 @@
 # Make filesystem audit verification deterministic with background indexing
 
-**Release:** Unreleased
+**Release:** 0.24.0
 
 **Impact:** none
 

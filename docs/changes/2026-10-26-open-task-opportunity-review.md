@@ -1,6 +1,6 @@
 # Review open PlayWeld tasks for small achievable slices
 
-**Release:** Unreleased
+**Release:** 0.24.0
 
 **Impact:** none
 
