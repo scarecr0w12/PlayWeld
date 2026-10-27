@@ -1,6 +1,6 @@
 # PlayWeld integration and extension guide
 
-**Last updated:** 2026-10-18
+**Last updated:** 2026-10-26
 
 **Audience:** Engine, DCC, MCP, skill, role, plugin and provider integrators. [Documentation index](README.md).
 
@@ -155,13 +155,13 @@ A TypeScript worker uses `definePlugin` from `@gamecrafter/plugin-sdk` to provid
 
 Capabilities include Project filesystem read/write, process spawn, network outbound, tools, models, board and secrets. A manifest request does not automatically imply host permission. Calls must pass availability/capability checks and broker access policy. Plugin data that needs durable platform ownership must use service contracts rather than writing an independent authoritative task/board database.
 
-Linux Bubblewrap isolation has adversarial coverage on supported hosts. Windows AppContainer remains unverified/fail-closed. Plugin signatures, finer egress enforcement and additional hardening remain open. Do not bypass isolation merely to make an unsupported plugin appear available.
+Linux Bubblewrap isolation has adversarial coverage on supported hosts. The [2026-10-06 editor-bridge acceptance](EDITOR_BRIDGE_ACCEPTANCE.md#windows-plugin-worker-isolation) records Windows LPAC/Job filesystem and network denial checks under Node and Electron Node mode, plus shared Node/Python plugin lifecycle checks. Broader process-limit tests, allowed outbound networking, host allowlists and alternate Windows versions remain open; unavailable isolation still fails closed. Plugin signatures and additional hardening remain open. Do not bypass isolation merely to make an unsupported plugin appear available.
 
 ## Model and generation providers
 
 Model providers implement account lifecycle, model metadata, supported completion/streaming interfaces, errors, usage and routing compatibility. Test malformed responses, streaming termination, timeouts, cancellation and secret redaction. Live acceptance must name the endpoint/model and actual request evidence.
 
-Asset providers implement account/capability reporting, submission, polling, output retrieval/import, provenance and failure states. Meshy and Tripo3D have fake-server coverage plus [provider-contract research](research/asset-provider-api-verification.md). Paid live generation remains unverified.
+Asset providers implement account/capability reporting, submission, polling, output retrieval/import, provenance and failure states. Meshy and Tripo3D have fake-server coverage plus [provider-contract research](research/asset-provider-api-verification.md). The [2026-10-06 adversarial review](ADVERSARIAL_SYSTEM_REVIEW.md) records one paid Meshy `meshy-6-lite` preview, download/hash/GLB checks, review-gated import and exact-byte import into an isolated Project. That five-credit geometry check does not establish production art quality, image-to-3D, refine, Tripo paid generation or broader provider acceptance. Paid calls require explicit session authorization.
 
 Respect provider-specific upload and conversion contracts. Do not infer support for negative prompts, every input format, automatic rigging or credit behavior from a generic asset job schema. Record actual retrieved artifacts and validation results before calling a pipeline complete.
 
