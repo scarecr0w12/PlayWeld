@@ -29,6 +29,12 @@ diagnostic or evidence of end-to-end capture. Do not blindly run
 failed the PowerShell fixture. Review a future CLI's generated command and repeat
 the execution checks before replacing this workaround.
 
+Re-enabling Entire can also append a generated SessionStart entry alongside the
+custom launcher. Check the resulting hook list: keep one Entire SessionStart
+dispatch, rather than both launchers. The final synchronization retains the
+user's enabling commit in history and removes its duplicate raw cmd entry; the
+tested Node launcher and the other hook events remain unchanged.
+
 Review the current definitions in Codex's `/hooks` after configuration changes.
 Local hook trust, captured-session acceptance, hosted Entire sign-in and the
 reviewer approval on a GitHub-linked Entire Trail are separate checks. Do not
