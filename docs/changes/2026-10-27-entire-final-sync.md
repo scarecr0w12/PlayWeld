@@ -19,6 +19,8 @@ Publish the remaining user-authored Entire enabling commit and guide edits toget
 - Limit the root formatter's Entire exclusions to the five machine-local paths already declared in .entire/.gitignore: tmp, metadata, logs, settings.local.json and redactors/local. The root formatting check was traversing ignored temporary prompt JSON and reporting it as source-formatting failure. Explicitly reinclude .entire/README.md after the existing broad README pattern so shared .entire settings, README and agent guide, .codex hooks and CLAUDE.md stay checked. Existing temporary prompt/log state is left unchanged and unstaged; file-info checks do not inspect its payloads.
 - Compatibility and migration: developer configuration/history and documentation only, impact none. No application, dependency, RPC, storage schema, authentication state or product-version change; keep 0.24.0 with no migration required. The runtime hook configuration ultimately remains the existing main configuration. No credential files, Brain indexes, private configuration or machine Scheduled Task definitions are included.
 
+The affected-file list includes `.codex/hooks.json` because e4271b4 changes it within the published commit history and the forward correction restores main's bytes; the repository's tracking contract includes reverted work. `CLAUDE.md` spacing normalization produces no committed file change, so it is described above without being listed as a modified PR file. Neither outcome is a net runtime or pointer change.
+
 ## Validation
 
 - The initial structural check reproduced two Entire startup dispatches where exactly one is required. After correction, the same check passed. The existing isolated shell harness passed 12 actual configured-launcher cases: CLI present, CLI missing with valid guidance JSON, and child failure, each through PowerShell 5.1, PowerShell 7, cmd fallback and direct Node. Fixtures invoke a local shim, not a model/provider or an ordinary captured conversation.
@@ -32,5 +34,4 @@ Publish the remaining user-authored Entire enabling commit and guide edits toget
 - `.entire/agent-guide.md`
 - `.entire/README.md`
 - `.prettierignore`
-- `CLAUDE.md`
 - `docs/changes/2026-10-27-entire-final-sync.md`
