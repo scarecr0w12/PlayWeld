@@ -6,6 +6,12 @@ dist/
 coverage/
 .turbo/
 .artifacts/
+# Entire machine-local state (also ignored by .entire/.gitignore).
+.entire/tmp/
+.entire/metadata/
+.entire/logs/
+.entire/settings.local.json
+.entire/redactors/local/
 .browser_modules/
 package-lock.json
 *.tsbuildinfo
@@ -25,3 +31,4 @@ skills-lock.json
 Windows-Release/
 Windows-Release-Hosted/
 apps/control-room/dist-chat/
+!.entire/README.md
