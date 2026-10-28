@@ -1,0 +1,9 @@
+ok i fixed entire cli, its now authed
+
+---
+
+Use Entire to review the remaining PlayWeld tasks and start the next easy win, then merge it into main once all checks pass.
+
+---
+
+Push the remaining Entire commit and guide edits, open a PR, and merge them into main once all checks pass. I want everything together.
