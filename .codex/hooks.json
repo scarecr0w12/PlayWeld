@@ -32,6 +32,11 @@
             "type": "command",
             "command": "node -e \"const c=require('node:child_process');const p=c.spawnSync('where.exe',['entire'],{stdio:'ignore',windowsHide:true});if(p.status!==0){console.log(JSON.stringify({systemMessage:'Entire CLI is enabled but not installed or not on PATH. Installation guide: https://docs.entire.com/installation'}));}else{const r=c.spawnSync('entire hooks codex session-start',{shell:true,stdio:'inherit',windowsHide:true});if(r.error){console.error(r.error.message);process.exitCode=1;}else{process.exitCode=r.status===null?1:r.status;}}\"",
             "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "where.exe entire >nul 2>nul & if errorlevel 1 (echo {^\"systemMessage^\":^\"Entire CLI is enabled but not installed or not on PATH. Installation guide: https://docs.entire.io/cli/installation#installation-methods^\"}) else (entire hooks codex session-start)",
+            "timeout": 30
           }
         ]
       }
