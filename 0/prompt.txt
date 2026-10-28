@@ -1,0 +1,5 @@
+ok i fixed entire cli, its now authed
+
+---
+
+Use Entire to review the remaining PlayWeld tasks and start the next easy win, then merge it into main once all checks pass.
